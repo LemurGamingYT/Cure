@@ -1,0 +1,7 @@
+// Raise 10 to the power of 6
+int x = math.pow(10, 6)
+println(x)
+
+// Get the minimum number of x and 2 to the power of 11
+int y = math.min(x, math.pow(2, 11))
+println(y)

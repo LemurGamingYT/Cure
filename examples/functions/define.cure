@@ -1,0 +1,19 @@
+// The return type of the function must be defined, a 'void' type is used to indicate no returns
+void test() {
+    println("Hello world!")
+}
+
+// Call the test function
+test()
+
+// This function returns the two arguments of ints added together
+// The types of the parameters must be defined
+int addition(int arg1, int arg2) {
+    return arg1 + arg2
+}
+
+// Create test cases for the addition function
+println(addition(2, 100))
+println(addition(502, 992))
+println(addition(0, 0))
+println(addition(111, 29))

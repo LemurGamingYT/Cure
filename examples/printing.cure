@@ -1,0 +1,5 @@
+// Print 'Hello world!'
+print("Hello world!")
+
+// Print an int
+print(100)

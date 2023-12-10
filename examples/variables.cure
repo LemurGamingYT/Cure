@@ -1,0 +1,5 @@
+// Create a variable called 'x'
+x = 50 // Compiler automatically sets the type to 'auto'
+int y = 10
+println(x)
+println(y)

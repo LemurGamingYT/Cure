@@ -1,0 +1,10 @@
+// 'println' is a builtin function
+println("Hello world")
+
+// 'print' is the same but just doesn't have a '\n' at the end
+print(100)
+print(200)
+
+// Get the type of objects
+println(type("Hello world"))
+println(type(10.2))
