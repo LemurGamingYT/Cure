@@ -1,0 +1,22 @@
+func main() {
+    // Cure has all the normal programming language operators
+    // Mathmatical
+    print(2 + 10) // Add
+    print(5 - 2) // Subtraction
+    print(9 * 9) // Multiplication
+    print(80 / 2) // Division
+    print(26 % 6) // Modulo
+
+    // Comparison operators
+    print(50 == 5) // Equals equals
+    print(89 != 99) // Not equal to
+    print(8 > 3) // Greater than
+    print(65 >= 65) // Greater than or equal to
+    print(77 < 2) // Less than
+    print(99 <= 300) // Less than or equal to
+
+    // Logical operators
+    print(true && false) // And
+    print(false || false) // Or
+    print(!false) // Not
+}

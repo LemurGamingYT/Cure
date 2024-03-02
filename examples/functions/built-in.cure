@@ -1,0 +1,13 @@
+func main() {
+    // 'print' is a built in function
+    print("Hello world")
+
+    // 'typeof' gets the type of something
+    print(typeof(10))
+    print(typeof("String?"))
+
+    // 'to_string' converts the argument to a string
+    x = to_string(10)
+    print(typeof(x))
+    print(x)
+}

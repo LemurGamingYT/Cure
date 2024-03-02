@@ -1,0 +1,10 @@
+func main() {
+    print(Math.PI)
+    print(Math.E)
+
+    print(Math.sin(10))
+    print(Math.cos(50))
+
+    print(Math.sqrt(81))
+    print(Math.ceil(5.2))
+}

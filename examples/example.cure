@@ -1,0 +1,57 @@
+// Start with a main function
+func main() {
+    // Print out the iconic "Hello world"
+    print("Hello world")
+
+    // Create the 'x' variable
+    x = 10
+    print(x)
+
+    // Stored as a char* in C, automatically freed at the end of the scope
+    y = "Getting the length of this string"
+
+    // Calls String_length(y)
+    print(y.length)
+
+    // Has basic operators: +, -, *, /, %, ==, !=, >, >=, <, <=, &&, ||, !
+    print("I'll be " + y)
+    print(x - 5)
+    print(8 * x)
+    print(x / 2)
+    print(9 % 2)
+    print(10 == 10)
+    print(x != 9)
+    print(x > 30)
+    print(99 >= 30)
+    print(x < 2)
+    print(100 <= 62)
+
+    print(true && true)
+    print(true || false)
+    print(!true)
+
+    // Conditions and control flow
+    if true {
+        print("H")
+    }
+
+    z = 20 < 10
+    if z {
+        print("It's amazing!")
+    } else {
+        print("It's so bad..")
+    }
+
+    // Loop until i is greater than 1000
+    int i = 0 // Variables can be annotated
+    while i < 1000 {
+        i = i + 1
+    }
+
+    // Square root, sine, cosine, tangent and PI
+    print(Math.sqrt(16))
+    print(Math.sin(x))
+    print(Math.cos(x + 2))
+    print(Math.tan(90))
+    print(Math.PI)
+}

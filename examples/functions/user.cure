@@ -1,0 +1,16 @@
+// The main function is a the starting point of the program
+// Other functions can be created
+func test() { // Functions with no return type have an automatic return type of nil
+    print("This is just a test!")
+}
+
+// Parameters are statically typed like the functions
+func test2(int x, int y) -> int {
+    return x + y
+}
+
+// The main function returns an int (you don't have to write it)
+func main() -> int {
+    test() // Call test
+    test2(88, 112)
+}

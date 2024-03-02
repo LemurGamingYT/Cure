@@ -1,0 +1,8 @@
+func main() {
+    // Variables are statically typed for improved performance in C
+    // In Cure, variable can be statically typed
+    x = 20 // Automatically inferred as an int
+    int y = 50 // Statically typed variable
+    print(x)
+    print(y)
+}

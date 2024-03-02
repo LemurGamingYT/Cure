@@ -1,0 +1,4 @@
+func main() {
+    // Cure has a builtin 'print' function to output to the terminal
+    print("Hello world")
+}

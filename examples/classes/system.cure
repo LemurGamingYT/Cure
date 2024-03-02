@@ -1,0 +1,15 @@
+func main() {
+    test = System.getenv("test")
+    if test != "" {
+        print("test is a valid environment variable")
+    } else {
+        print("test is not a valid environment variable")
+    }
+
+    System.console_color(System.fg_red)
+    print("Aha!")
+    System.reset_console_color()
+    print("Oh")
+
+    print("The current time is " + to_string(System.current_time))
+}
