@@ -9,7 +9,6 @@ class Compiler(CureVisitor):
         self.env = {
             'Math': EnvItem('Math', Type.math, False),
             'System': EnvItem('System', Type.system, False),
-            # 'Logger': EnvItem('Logger', Type.logger, False),
             'Mem': EnvItem('Mem', Type.mem, False)
         }
 
@@ -65,6 +64,7 @@ class Compiler(CureVisitor):
 
 
     def run_function_body(self, body: CureParser.BodyContext, params: list[Statement]) -> Statement:
+        temp_env = self.env.copy()
         for param in params:
             p_name = param.code.split(' ')[1]
             self.env[p_name] = EnvItem(p_name, param.type, False)
@@ -73,6 +73,8 @@ class Compiler(CureVisitor):
         for param in params:
             p_name = param.code.split(' ')[1]
             self.env[p_name] = EnvItem(p_name, param.type, False)
+        
+        self.env = temp_env
 
         return body
 

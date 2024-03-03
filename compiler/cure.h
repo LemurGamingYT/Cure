@@ -1,12 +1,13 @@
 #pragma once
 
 #include <stdbool.h>
-#include <Windows.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
 #include <math.h>
 #include <time.h>
+
+#define CURE_VERSION "0.0.1"
 
 // The basic int type
 typedef long long Int;
@@ -51,6 +52,7 @@ typedef struct {
     FILE* w;
 } File;
 
+/*
 // The LogLevel enum, used in the Logger class
 typedef enum {
     LOG_DEBUG, LOG_INFO, LOG_WARNING, LOG_ERROR
@@ -68,7 +70,7 @@ typedef struct {
 // The Logger class
 typedef struct {
     void* _; // Empty field, don't use this
-} Logger;
+} Logger;*/
 
 // The Mem class
 typedef struct {
@@ -226,6 +228,7 @@ String File_repr(File f) {
     return buf;
 }
 
+/*
 // Get the string representation of the LogLevel enum
 String LogLevel_repr(LogLevel l) {
     switch (l) {
@@ -252,7 +255,7 @@ String Log_repr(Log l) {
 // Get the string representation of the Logger class
 String Logger_repr(Logger l) {
     return "Class 'Logger'";
-}
+}*/
 
 // Get the string representation of the Mem class
 String Mem_repr(Mem m) {
@@ -312,6 +315,7 @@ Bool File_bool(File f) {
     return f.r != NULL;
 }
 
+/*
 // Convert the LogLevel enum to a boolean
 Bool Log_bool(Log l) {
     return l.logFile.r != NULL;
@@ -320,7 +324,7 @@ Bool Log_bool(Log l) {
 // Convert the Logger class to a boolean
 Bool Logger_bool(Logger l) {
     return true;
-}
+}*/
 
 // Convert the Mem class to a boolean
 Bool Mem_bool(Mem m) {
@@ -667,6 +671,36 @@ Float Math_log(Float x) {
     return log(x);
 }
 
+// Get the base 10 logarithm of x
+Float Math_log10(Float x) {
+    return log10(x);
+}
+
+// Get the base 2 logarithm of x
+Float Math_log2(Float x) {
+    return log2(x);
+}
+
+// Round x
+Int Math_round(Float x) {
+    return (Int)round(x);
+}
+
+// Get the sign of x
+Int Math_sign(Float x) {
+    return (Int)signbit(x);
+}
+
+// Get the maximum of x and y
+Float Math_max(Float x, Float y) {
+    return fmax(x, y);
+}
+
+// Get the minimum of x and y
+Float Math_min(Float x, Float y) {
+    return fmin(x, y);
+}
+
 
 // Exit the program
 Nil System_exit(Int x) {
@@ -676,6 +710,11 @@ Nil System_exit(Int x) {
 // Execute a shell command
 Int System_shell(String code) {
     return system(code);
+}
+
+// Get the Cure version
+String System_cure_version() {
+    return CURE_VERSION;
 }
 
 // Get an environment variable
@@ -696,6 +735,9 @@ Timer System_current_time() {
     timer.timeinfo = localtime(&t);
     return timer;
 }
+
+#if defined(_WIN32)
+#include <Windows.h>
 
 // Get the total memory usage
 Float System_total_memory_usage() {
@@ -795,6 +837,7 @@ Int System_bg_cyan() {
 Int System_bg_white() {
     return BACKGROUND_RED | BACKGROUND_GREEN | BACKGROUND_BLUE;
 }
+#endif
 
 // Clear the console
 Nil System_clear_console() {
@@ -810,6 +853,10 @@ File System_open_file(String path) {
     return file;
 }
 
+// Print with no newline
+Nil System_print_string(String s) {
+    printf("%s", s);
+}
 
 // Get the path of the file
 String File_path(File f) {
@@ -864,6 +911,12 @@ Nil File_create(File f) {
     f.r = fopen(f.path, "r");
 }
 
+// Close a file
+Nil File_close(File f) {
+    fclose(f.r);
+    fclose(f.w);
+}
+
 // Copy the file
 Nil File_copy(File f, String path) {
     if (!File_exists(f)) {
@@ -906,6 +959,7 @@ Nil File_move(File f, String path) {
 }
 
 
+/*
 // set_level wrapper
 Nil Log_set_level(Log l, LogLevel level) {
     l.level = level;
@@ -947,7 +1001,7 @@ Log Logger_open(String path) {
     Log l;
     l.logFile = System_open_file(path);
     return l;
-}
+}*/
 
 
 // Wrapper for free()
