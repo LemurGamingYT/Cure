@@ -1,0 +1,13 @@
+func main() -> int {
+    print(System)
+
+    print(System.pid) // Process ID
+    print(System.os) // Operating System
+    print(System.arch) // System Architecture
+    print(System.cwd) // Current Working Directory
+
+    System.exit() // Exit the program
+    print("This won't not be printed")
+
+    return 0
+}

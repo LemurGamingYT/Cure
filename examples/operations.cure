@@ -1,0 +1,18 @@
+func main() -> int {
+    print(1 + 1) // Addition
+    print(1 - 1) // Subtraction
+    print(1 * 2) // Multiplication
+    print(4 / 2) // Division
+    print(5 % 2) // Modulus
+    print(2 == 3) // Equality
+    print(5 != 8) // Inequality
+    print(2 < 3) // Less than
+    print(5 > 8) // Greater than
+    print(6 <= 9) // Less than or equal to
+    print(10 >= 10) // Greater than or equal to
+    print(true && false) // Logical AND
+    print(true || false) // Logical OR
+    print(!false) // Logical NOT
+
+    return 0
+}

@@ -1,0 +1,18 @@
+// Add the 'Warn' modification to the 'test' function
+// This is a deprecated function, so it will print a warning when compiling
+[Warn("This function is deprecated, please use 'test2' instead.")]
+func test() -> int {
+    a = 10 + 2
+    return a
+}
+
+// This is the new function that replaces 'test'
+func test2() -> int {
+    return 10 + 2
+}
+
+func main() -> int {
+    test()
+    test2()
+    return 0
+}

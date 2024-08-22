@@ -1,0 +1,10 @@
+func main() -> int {
+    print("Hey") // Print 
+
+    // type gets the type of a value
+    print(type(500))
+    print(type("H"))
+
+    print(to_string(1000)) // to_string converts a value to a string
+    return 0
+}

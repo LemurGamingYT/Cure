@@ -1,0 +1,14 @@
+// 'color' provides a simple interface and standardized way for representing colors
+use "color"
+
+
+func main() -> int {
+    test_rgb = new RGB(255, 255, 255)
+    print(test_rgb)
+
+    test_hsv = test_rgb.to_hsv
+    print(test_hsv)
+    print(test_hsv.to_rgb)
+    
+    return 0
+}

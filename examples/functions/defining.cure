@@ -1,0 +1,19 @@
+// Define a 'test' function that simply prints 'abc' and returns nil
+func test() {
+    print("abc")
+}
+
+// Define a 'test2' function that takes an int and returns an int
+func test2(int a) -> int {
+    return a - 100.7
+}
+
+// Main is a function that returns an int
+func main() -> int {
+    // Call test and test2
+    test()
+    print(test2(50))
+    
+    return 0
+}
+

@@ -1,0 +1,8 @@
+func main() -> int {
+    x = false
+    if !x {
+        print(x)
+    }
+
+    return 0
+}

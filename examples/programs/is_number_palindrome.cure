@@ -1,0 +1,21 @@
+func main() -> int {
+    reversed = 0
+    n = 55
+
+    orig = n
+
+    while n != 0 {
+        remainder = n % 10
+        reversed = reversed * 10 + remainder
+        n /= 10
+    }
+
+    if orig == reversed {
+        print(to_string(orig) + " is a palindrome")
+    } else {
+        print(to_string(orig) + " is not a palindrome")
+    }
+    
+    return 0
+}
+

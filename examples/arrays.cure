@@ -1,0 +1,17 @@
+func main() -> int {
+    // Define an array of random integers
+    arr = int{8914, 614, 94, 90124, 735, 61, 67124, 1526, 74, 124}
+    print(arr) // Print the array
+
+    // Iterate over the arrray
+    i = 0
+    while i < arr.length {
+        print(arr.get(i)) // Get the current array element and output it
+        i += 1
+    }
+
+    // Check if an element exists in the array
+    print(arr.has(614))
+    print(arr.has(123))
+    return 0
+}

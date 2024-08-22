@@ -1,0 +1,36 @@
+func main() -> int {
+    print(Math)
+
+    print(Math.pi) // Pi
+    print(Math.e) // Euler's number
+    print(Math.tau) // 2*Pi
+    print(Math.phi) // Golden ratio
+
+    print(Math.sin(60)) // Sine of 60 degrees
+    print(Math.cos(45)) // Cosine of 45 degrees
+    print(Math.tan(30)) // Tangent of 30 degrees
+    print(Math.asin(0.5)) // Arcsine of 0.5
+    print(Math.acos(0.5)) // Arccosine of 0.5
+    print(Math.atan(1)) // Arctangent of 1
+    print(Math.atan2(1, 2)) // Arctangent of 1/2
+
+    print(Math.sqrt(16)) // Square root of 16
+    print(Math.nth_root(27, 3)) // Cube root of 27
+    print(Math.pow(10, 5)) // 10 to the power of 5
+    print(Math.exp(1)) // e to the power of 1
+    print(Math.log(10)) // Natural logarithm of 10
+    print(Math.log10(100)) // Base 10 logarithm of 100
+    print(Math.log2(1024)) // Base 2 logarithm of 1024
+    print(Math.rad(180)) // Convert 180 degrees to radians
+    print(Math.deg(Math.pi)) // Convert pi radians to degrees
+    print(Math.abs(-10)) // Absolute value of -10
+
+    print(Math.ceil(1.5)) // Round 1.5 up
+    print(Math.floor(1.5)) // Round 1.5 down
+    print(Math.round(1.5)) // Round 1.5 to the nearest integer
+
+    print(Math.min(62, 100)) // Minimum value of 62 and 100
+    print(Math.max(62, 100)) // Maximum value of 62 and 100
+
+    return 0
+}

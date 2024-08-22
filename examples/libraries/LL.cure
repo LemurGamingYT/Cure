@@ -1,0 +1,17 @@
+// Standing for 'Low Level', the LL library is a collection of low level operations such as
+// reading, writing, allocating and freeing memory
+use "LL"
+
+
+func main() -> int {
+    // Allocate 10 bytes of memory
+    ptr = allocate(10)
+
+    // Write the integer value '5' to the allocated memory
+    ptr.write(5)
+    print(ptr.read(int)) // Read an 'int' type from the allocated memory
+
+    // Make sure to free the allocated memory
+    ptr.free()
+    return 0
+}

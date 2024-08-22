@@ -1,0 +1,27 @@
+// 'fstream' is a library that provides a simple interface for handling files
+use "fstream"
+
+
+func main() -> int {
+    // Create a file and open it in write mode
+    file = create_file("test.txt", "w")
+    print(file) // Nice string representation of the file
+    print(file.path) // The input path
+    print(file.mode) // Get the mode that the file was opened in
+
+    print(file.extension) // Get the file extension
+    print(file.is_file) // Check if the file is a file (false if a directory)
+
+    file.write("Hello world\n") // Write some content to the file
+    read = open_file("test.txt", "r") // Since the file is created, simply open it.
+    print(read.contents) // Read the contents of the file
+
+    print(read.size) // Get the size of the file
+
+    // Make sure to close the files
+    file.close()
+    read.close()
+
+    return 0
+}
+
