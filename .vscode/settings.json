@@ -11,6 +11,7 @@
         "limits": "c",
         "type_traits": "c",
         "xmemory": "c",
-        "xutility": "c"
+        "xutility": "c",
+        "sdl.h": "c"
     }
 }

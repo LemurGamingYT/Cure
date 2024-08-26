@@ -3,12 +3,14 @@ use "color"
 
 
 func main() -> int {
+    // Create a new RGB color
     test_rgb = new RGB(255, 255, 255)
-    print(test_rgb)
+    print(test_rgb) // prints: RGB(255, 255, 255)
 
+    // Convert the RGB color to HSV
     test_hsv = test_rgb.to_hsv
     print(test_hsv)
-    print(test_hsv.to_rgb)
+    print(test_hsv.to_rgb) // Convert back to RGB
     
     return 0
 }

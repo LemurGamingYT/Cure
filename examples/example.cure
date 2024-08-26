@@ -50,7 +50,7 @@ func main() -> int {
     arr.sort() // sort the array
 
     // use the 'to_string' function, you can 'to_string()' any type
-    print("Sorted array: " + to_string(arr))
+    print($"Sorted array: {arr}")
 
     // Combine an if branch and check if the array has the number '3894'
     if arr.has(3894) {
@@ -113,13 +113,14 @@ func main() -> int {
     print(file.is_file) // Check if the file is a file (false if a directory)
 
     file.write("Hello world\n") // Write some content to the file
+
+    file.close() // Close the writer file to write the contents to the file
+
     read = open_file("test.txt", "r") // Since the file is created, simply open it.
     print(read.contents) // Read the contents of the file
 
     print(read.size) // Get the size of the file
 
-    // Make sure to close the files
-    file.close()
     read.close()
 
     // successfully executed the program!

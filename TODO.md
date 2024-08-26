@@ -5,13 +5,14 @@
 - [ ] Make the compiler use an AST instead of strings.
 - [x] Fix the bug where the compiler inserts a free call at the end of a function that needs to be returned
 - [ ] Fix nested call, e.g. `print(Math.max(Math.pow(Math.pow(6, 6)), Math.pow(10, 5))) // Maximum value of 6^6 and 10^5`
-- Functions
+- [ ] **(possibly fixed)** Fix compiler free variables scoping issues
+- [ ] Functions
     - [x] Overloading
     - [ ] Default Arguments
     - [ ] Variadic Functions
     - [x] Parameter references (actually just pointers)
     - [ ] Modifications (Python decorators): Such as a Warn modification that prints a warning at compile time
-        - [ ] Benchmark: Prints the time taken to execute a function when the function ends
+        - [x] Benchmark: Prints the time taken to execute a function when the function ends
         - [ ] Memoize: Cache function results
         - [ ] Timeout: Set a maximum execution time for the function
         - [ ] Validate: Check input parameters against specified conditions before executing the function
@@ -22,7 +23,7 @@
 - [ ] REPL (Read Eval Print Loop): For quick experimentation
 - [ ] Dependency Manager: Allow programmers to have a built-in dependency manager to manage bringing in packages.
     - [ ] Use local files: Use not only libraries but other .cure files
-- [ ] Iterative apply operator: Applies an attribute to all elements in an array
+- [ ] Iterative attribute apply operator: Applies an attribute to all elements in an array
 - [ ] Metaprogramming: Compile-time code generation capabilities
 - [ ] Coroutines and async/await: Asynchronous programming features for better concurrency handling.
 - [ ] Libraries
@@ -39,9 +40,16 @@
     - [x] Text library (text wrapping and locale)
     - [ ] Compression library: RLE and other compression techniques
     - [x] Threading library: Thread code in different threads on the CPU
-    - [ ] JSON, XML, TOML, HTML library
+    - [ ] Parsing library
+        - [ ] JSON
+        - [ ] XML
+        - [ ] TOML
+        - [ ] HTML
+        - [ ] YAML
     - [ ] UI library
         - [x] Window, Button, Label and Frame
+        - [ ] Textbox/Textarea, Slider, Checkbox, Radio buttons, Scrolling Frames, etc
+        - [ ] Linux and Mac support
     - [ ] Testing functionality/framework
     - [x] Iterables library: includes Stack and Linked List implementations
     - [x] Color library: RGB, HSV, etc with conversions between them

@@ -27,7 +27,7 @@ func stack_test() {
 func linked_list_test() {
     // Linked Lists are many nodes connected via pointers (or references in higher level languages)
     ll = create_linked_list(int)
-    print("Empty: " + to_string(ll))
+    print($"Empty: {ll}")
 
     // Insert a bunch of elements at the end of the list
     ll.insert_end(10)

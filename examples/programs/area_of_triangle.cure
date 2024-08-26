@@ -1,0 +1,9 @@
+func main() -> int {
+    first_side = 5
+    second_side = 6
+    third_side = 7
+    semi_perimeter = (first_side + second_side + third_side) / 2
+    print($"The area of the triangle is: {(semi_perimeter*(semi_perimeter-first_side)*(semi_perimeter-second_side)*(semi_perimeter-third_side))}")
+
+    return 0
+}

@@ -1,9 +1,3 @@
 func main() -> int {
-    i = "a" + "b"
-    if i == "ab" {
-        i += "c"
-    }
-
-    print(i)
     return 0
 }

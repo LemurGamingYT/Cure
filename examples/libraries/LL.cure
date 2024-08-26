@@ -1,5 +1,6 @@
 // Standing for 'Low Level', the LL library is a collection of low level operations such as
-// reading, writing, allocating and freeing memory
+// reading, writing, allocating and freeing memory. This means that this library is fairly
+// unsafe and should only be used if you know what you're doing.
 use "LL"
 
 

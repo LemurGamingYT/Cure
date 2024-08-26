@@ -1,0 +1,11 @@
+// Define a function that takes an integer reference as a parameter
+func test(int &x) {
+    x = 50
+}
+
+func main() -> int {
+    x = 10
+    test(x) // 'x' is passed by reference
+    print(x) // Output: 50, 'x' has been modified inside the 'test' function
+    return 0
+}

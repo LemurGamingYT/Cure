@@ -1,0 +1,23 @@
+// 'parsers' is a library that contains parsers for various file types
+use "parsers"
+use "fstream"
+
+
+func main() -> int {
+    // open a file in read mode
+    json_file = new File("examples/libraries/test.json", "r")
+
+    // create a JSON parser (you can also pass the string contents of a JSON file)
+    json = new JSONParser(json_file)
+
+    // read a string value from the JSON file
+    name = json.read_string("name")
+    print($"Name: {name}")
+
+    // read an integer value from the JSON file
+    age = json.read_int("age")
+    print($"Age: {age}")
+
+    json_file.close()
+    return 0
+}

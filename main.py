@@ -4,33 +4,25 @@ from subprocess import run
 from pathlib import Path
 from shutil import which
 
-# from SA import SemanticAnalyser
-from cure import CureCompiler
-# from codegen import Codegen
-# from ir import IRBuilder
+from codegen import CodeGen
+from ir import IRBuilder
 
 
 def compile_file(file: Path, args) -> None:
     c_file = file.with_suffix('.c')
     exe_file = file.with_suffix('.exe' if system() == 'Windows' else '.')
     
-    # builder = IRBuilder()
-    # program = builder.build(file.read_text('utf-8'))
+    builder = IRBuilder()
+    program = builder.build(file.read_text('utf-8'))
     
-    # sa = SemanticAnalyser()
-    # print(sa.analyse(program))
-    
-    # codegen = Codegen()
-    # print(codegen.generate(program))
-    
-    compiler = CureCompiler()
-    generated_code = compiler.compile(file.read_text('utf-8'))
+    codegen = CodeGen()
+    generated_code = codegen.generate(program)
     c_file.write_text(generated_code, 'utf-8')
     
     if which('clang-format') is not None:
         run(['clang-format', '-i', c_file.as_posix()])
     
-    compargs = [c_file.as_posix(), '-o', exe_file.as_posix(), *compiler.extra_compile_args]
+    compargs = [c_file.as_posix(), '-o', exe_file.as_posix(), *codegen.extra_compile_args]
     if args.optimize:
         compargs.append('-O2')
     
@@ -47,6 +39,8 @@ def compile(file: Path, args) -> None:
     elif file.is_dir():
         for f in file.iterdir():
             if f.is_file() and f.suffix == '.cure':
+                print(f'Compiling {f.name}')
+                
                 compile_file(f, args)
             elif f.is_dir():
                 compile(f, args)

@@ -1,0 +1,47 @@
+CAESAR_LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+
+func encrypt(string message, int key) -> string {
+    translated = ""
+    foreach c in message.upper() {
+        if CAESAR_LETTERS.has(c) {
+            num = CAESAR_LETTERS.find(c) + key
+            if num >= CAESAR_LETTERS.length {
+                num -= CAESAR_LETTERS.length
+            } else if num < 0 {
+                num += CAESAR_LETTERS.length
+            }
+
+            translated += CAESAR_LETTERS.at(num)
+        } else {
+            translated += c
+        }
+    }
+
+    return translated
+}
+
+func decrypt(string message, int key) -> string {
+    translated = ""
+    foreach c in message.upper() {
+        if CAESAR_LETTERS.has(c) {
+            num = CAESAR_LETTERS.find(c) - key
+            if num >= CAESAR_LETTERS.length {
+                num -= CAESAR_LETTERS.length
+            } else if num < 0 {
+                num += CAESAR_LETTERS.length
+            }
+
+            translated += CAESAR_LETTERS.at(num)
+        } else {
+            translated += c
+        }
+    }
+
+    return translated
+}
+
+func main() -> int {
+    print(encrypt("Secret message", 13))
+    print(decrypt("FRPERG ZRFFNTR", 13))
+    return 0
+}

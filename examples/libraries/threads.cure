@@ -1,0 +1,18 @@
+// 'threads' is a library that allows you to create threads, only supported on Windows for now
+use "threads"
+
+
+// 'test' is a function that takes two integers and prints their sum
+func test(int a, int b) {
+    print(a + b)
+}
+
+func main() -> int {
+    // Create a new thread that calls the 'test' function with the arguments 1 and 2
+    thread = new Thread(test, 1, 2)
+    print(thread) // Print the thread object
+
+    // Wait for the thread to finish
+    thread.join()
+    return 0
+}
