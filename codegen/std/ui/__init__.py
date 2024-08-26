@@ -4,6 +4,9 @@ from codegen.std.ui.label import Label
 from codegen.std.ui.frame import Frame
 
 
+# gcc -o glfw_program c_testing/glfw.c -I./include -L./libs -lglfw3 -lopengl32 -lgdi32
+
+
 class ui:
     def __init__(self, compiler) -> None:
         compiler.extra_compile_args.append('-lgdi32')

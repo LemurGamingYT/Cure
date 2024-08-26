@@ -5,7 +5,7 @@ from pathlib import Path
 from codegen.objects import Object, Position, EnvItem, Free, Type, ID_REGEX, Function
 
 
-HEADER = (Path(__file__).parent / 'include/header.h').absolute().as_posix()
+HEADER = (Path(__file__).parent.parent / 'include/header.h').absolute().as_posix()
 
 
 def func_modification(param_types: tuple[str, ...] | None = None) -> Callable:

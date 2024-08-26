@@ -4,7 +4,7 @@ from codegen.objects import Object, Position, Type, Free
 from codegen.c_manager import c_dec
 
 
-CJSON_PATH = (Path(__file__).parent.parent.parent / 'include/cJSON/cJSON.h').absolute()
+CJSON_PATH = (Path(__file__).parent.parent.parent.parent / 'include/cJSON/cJSON.h').absolute()
 
 
 class json:

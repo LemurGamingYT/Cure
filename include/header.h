@@ -55,7 +55,7 @@ const int MAX_INT = 2147483647;
 const string DIGITS = "0123456789";
 const string PUNCTUATION = "!@#$%^&*()_+-=[]{};:'\"\\|,.<>/?";
 const string LETTERS = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
-const string VERSION = "0.0.2";
+const string VERSION = "0.0.21";
 const float MIN_FLOAT = -1.701411733192644277e+38;
 const float MAX_FLOAT = 1.701411733192644277e+38;
 const int ONE_BILLION = 1000000000;

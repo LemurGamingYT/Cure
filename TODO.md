@@ -1,7 +1,7 @@
 # TODOs
  TODOs for the Cure programming language
 
-*as of v0.0.1*
+*as of v0.0.21*
 - [ ] Make the compiler use an AST instead of strings.
 - [x] Fix the bug where the compiler inserts a free call at the end of a function that needs to be returned
 - [ ] Fix nested call, e.g. `print(Math.max(Math.pow(Math.pow(6, 6)), Math.pow(10, 5))) // Maximum value of 6^6 and 10^5`
@@ -40,6 +40,7 @@
     - [x] Text library (text wrapping and locale)
     - [ ] Compression library: RLE and other compression techniques
     - [x] Threading library: Thread code in different threads on the CPU
+    - [ ] Lua Integration: Lua programming language bindings
     - [ ] Parsing library
         - [ ] JSON
         - [ ] XML

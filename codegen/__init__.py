@@ -46,12 +46,10 @@ class CodeGen(IRVisitor):
         
         self.scope.env['init'] = EnvItem('init', Type('function'), POS_ZERO)
         self.scope.env['args'] = EnvItem('args', str_array, POS_ZERO)
-        self.add_toplevel_code(f"""{str_array.c_type} args;
-void init() {{
-{code}
+        self.init_body_code = f"""{code}
 args = {name};
-}}
-""")
+"""
+        self.add_toplevel_code(f'{str_array.c_type} args;')
     
     def generate(self, program: Program) -> str:
         """Generate C code from IR. Also prepends the `CodeGen.top_level_code` to the output.
@@ -64,6 +62,22 @@ args = {name};
         """
         
         return self.visit(program)
+    
+    def add_c_lib(self, include: Path, libs: Path, *extra_args: str) -> None:
+        """Compile the C code with a given library.
+
+        Args:
+            include (Path): The path to the includes folder with all of the .h files.
+            libs (Path): The path to the libraries folder with all of the .a files.
+            *extra_args (str): Extra arguments to pass to the compiler such as other libraries
+            e.g. -lgdi32.
+        """
+        
+        self.extra_compile_args.extend((
+            f'-I{include.absolute().as_posix()}',
+            f'-L{libs.absolute().as_posix()}',
+            *extra_args
+        ))
     
     def enter_scope(self, params: list[Param] | None = None, **kwargs) -> None:
         """Enter a new scope with a new name environment.
@@ -322,6 +336,11 @@ if {lib_name} not in [type(cls) for cls in libraries]:
     
     def visit_Program(self, node: Program) -> str:
         code = '\n'.join(line + ';' for line in [self.visit(stmt).code for stmt in node.nodes])
+        self.add_toplevel_code(f"""void init() {{
+{self.init_body_code}
+}}
+""")
+        
         return self.top_level_code + '\n' + code
     
     def visit_TypeNode(self, node: TypeNode) -> Type:
@@ -476,7 +495,7 @@ if {lib_name} not in [type(cls) for cls in libraries]:
         else:
             original_name = name
             if self.name_occupied(name):
-                original_name = self.fix_name(name)
+                name = self.fix_name(name)
             
             func = Function(name, return_type, params, node.body)
             for mod in node.modifications:
@@ -633,7 +652,7 @@ if {lib_name} not in [type(cls) for cls in libraries]:
         callee = f'{left.type.c_type}_{op_name}_{right.type.c_type}'
         if self.c_manager.get_object(callee) is None:
             node.pos.error_here(f'Operator \'{node.op}\' is not defined for types \'{left.type}\''\
-                f'and \'{right.type}\'')
+                f' and \'{right.type}\'')
         
         return self.call(callee, [left, right], node.pos)
     
