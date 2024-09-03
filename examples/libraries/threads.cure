@@ -11,6 +11,9 @@ func main() -> int {
     // Create a new thread that calls the 'test' function with the arguments 1 and 2
     thread = new Thread(test, 1, 2)
     print(thread) // Print the thread object
+    print($"Thread ID: {thread.id}") // Print the thread's ID
+
+    thread.start() // Start the thread
 
     // Wait for the thread to finish
     thread.join()

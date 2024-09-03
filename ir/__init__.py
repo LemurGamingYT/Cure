@@ -8,7 +8,7 @@ from ir.parser.CureLexer import CureLexer
 from ir.nodes import (
     Program, Body, TypeNode, ParamNode, ArgNode, Call, Return, Foreach, While,
     If, Use, VarDecl, Value, Identifier, Array, Dict, Brackets, BinOp, UOp, Attribute, New,
-    Ternary, Position, Node, Break, Continue, FuncDecl, Nil, Index, DollarString
+    Ternary, Position, Node, Break, Continue, FuncDecl, Nil, Index, DollarString, Cast, Enum
 )
 
 
@@ -105,6 +105,12 @@ class IRBuilder(CureVisitor):
     def visitBody(self, ctx: CureParser.BodyContext) -> Body:
         return Body(to_pos(ctx), [self.visitBodyStmts(stmt) for stmt in ctx.bodyStmts()])
     
+    def visitEnumAssign(self, ctx: CureParser.EnumAssignContext) -> Enum:
+        return Enum(
+            to_pos(ctx), Identifier(to_pos(ctx.ID(0)), ctx.ID(0).getText()),
+            [Identifier(to_pos(i), i.getText()) for i in ctx.ID()[1:]]
+        )
+    
     def visitVarAssign(self, ctx: CureParser.VarAssignContext) -> VarDecl:
         op: CommonToken | None = ctx.op
         return VarDecl(
@@ -128,58 +134,53 @@ class IRBuilder(CureVisitor):
     def visitParam(self, ctx: CureParser.ParamContext) -> ParamNode:
         return ParamNode(
             to_pos(ctx), ctx.ID().getText(), self.visitType(ctx.type_()),
-            ctx.AMPERSAND() is not None
+            ctx.AMPERSAND() is not None, self.visit(ctx.expr()) if ctx.expr() is not None else None
         )
     
     def visitParams(self, ctx: CureParser.ParamsContext) -> list[ParamNode]:
         return [self.visitParam(param) for param in ctx.param()] if ctx is not None else []
     
     def visitArg(self, ctx: CureParser.ArgContext) -> ArgNode:
-        return ArgNode(to_pos(ctx), self.visitExpr(ctx.expr()))
+        return ArgNode(
+            to_pos(ctx), self.visitExpr(ctx.expr()),
+            ctx.ID().getText() if ctx.ID() is not None else None
+        )
     
     def visitArgs(self, ctx: CureParser.ArgsContext) -> list[ArgNode]:
         return [self.visitArg(arg) for arg in ctx.arg()] if ctx is not None else []
     
     def visitAtom(self, ctx: CureParser.AtomContext) -> Node:
-        if ctx.INT() is not None or ctx.FLOAT() is not None or ctx.STRING() is not None\
-            or ctx.BOOL() is not None or ctx.BIN() is not None or ctx.HEX() is not None:
-            type = ''
-            if ctx.INT() is not None:
-                type = 'int'
-            elif ctx.FLOAT() is not None:
-                type = 'float'
-            elif ctx.STRING() is not None:
-                type = 'string'
-                txt = ctx.getText()
-                if len(txt) > 0 and txt[0] == '$':
-                    nodes: list[Node] = []
-                    
-                    s = txt[2:-1]
-                    i = 0
-                    while i < len(s):
-                        char = s[i]
-                        if char == '{':
-                            i += 1
-                            expr = ''
-                            while s[i] != '}':
-                                expr += s[i]
-                                i += 1
-                            
-                            nodes.append(*self.build(expr).nodes)
-                        else:
-                            nodes.append(Value(to_pos(ctx), char, 'string'))
-                        
+        if ctx.INT() is not None:
+            return Value(to_pos(ctx), ctx.getText(), 'int')
+        elif ctx.FLOAT() is not None:
+            return Value(to_pos(ctx), ctx.getText(), 'float')
+        elif ctx.STRING() is not None:
+            txt = ctx.getText()
+            if len(txt) > 0 and txt[0] == '$':
+                nodes: list[Node] = []
+                
+                s = txt[2:-1]
+                i = 0
+                while i < len(s):
+                    char = s[i]
+                    if char == '{':
                         i += 1
+                        expr = ''
+                        while s[i] != '}':
+                            expr += s[i]
+                            i += 1
+                        
+                        nodes.append(*self.build(expr).nodes)
+                    else:
+                        nodes.append(Value(to_pos(ctx), char, 'string'))
                     
-                    return DollarString(to_pos(ctx), nodes)
-            elif ctx.BOOL() is not None:
-                type = 'bool'
-            elif ctx.BIN() is not None:
-                type = 'bin'
-            elif ctx.HEX() is not None:
-                type = 'hex'
+                    i += 1
+                
+                return DollarString(to_pos(ctx), nodes)
             
-            return Value(to_pos(ctx), ctx.getText(), type)
+            return Value(to_pos(ctx), ctx.getText(), 'string')
+        elif ctx.BOOL() is not None:
+            return Value(to_pos(ctx), ctx.getText(), 'bool')
         elif ctx.NIL() is not None:
             return Nil(to_pos(ctx))
         elif ctx.expr() is not None:
@@ -222,6 +223,7 @@ class IRBuilder(CureVisitor):
             args = None
             if ctx.LPAREN() is not None:
                 args = self.visitArgs(ctx.args())
+            
             return Attribute(
                 to_pos(ctx), self.visitExpr(ctx.expr(0)), ctx.ID().getText(),
                 args
@@ -238,5 +240,12 @@ class IRBuilder(CureVisitor):
             )
         elif ctx.LBRACK() is not None:
             return Index(to_pos(ctx), self.visitExpr(ctx.expr(0)), self.visitExpr(ctx.expr(1)))
+        elif ctx.LPAREN() is not None:
+            return Cast(to_pos(ctx), self.visitExpr(ctx.expr(0)), self.visitType(ctx.type_()))
+        # elif ctx.LBRACE() is not None:
+        #     return ArrayComprehension(
+        #         to_pos(ctx), self.visitExpr(ctx.expr(0)), ctx.ID().getText(),
+        #         self.visitExpr(ctx.expr(1))
+        #     )
         else:
             to_pos(ctx).error_here('Invalid expression')

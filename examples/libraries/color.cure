@@ -11,6 +11,10 @@ func main() -> int {
     test_hsv = test_rgb.to_hsv
     print(test_hsv)
     print(test_hsv.to_rgb) // Convert back to RGB
-    
+
+    // Create a new HSV color
+    test_hex = new HexTriplet("#ffff00")
+    print(test_hex) // prints: HexTriplet(#ffff00)
+    print(test_hex.to_rgb) // Convert to RGB
     return 0
 }

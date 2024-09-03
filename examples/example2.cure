@@ -1,0 +1,41 @@
+// Define a function to add multiple elements to an array
+// '&' is used to pass by reference, meaning the function can modify the array directly
+func add_to_array(array[int] &arr, int x, int y, int z) {
+    arr.add(x)
+    arr.add(y)
+    arr.add(z)
+}
+
+// Define a function with a default parameter
+func triple_add(int a, int b, int c = 3) -> int {
+    return a + b + c
+}
+
+func main() -> int {
+    print(triple_add(1, 2))
+    print(triple_add(1, 2, 4))
+
+    arr = int{}
+    add_to_array(arr, 1, 2, 3)
+    print(arr) // The array has been modified by the function
+
+    // Use the 'serialization' library to serialize each element of the array
+    // and print the result
+    use "serialization"
+
+    writer = new Serialization()
+    
+    foreach i in arr {
+        // Save each element of the array to the Serialization object
+        // each element is saved as the index of the element in the array
+        writer.write_int(to_string(i), i)
+    }
+
+    foreach i in arr {
+        // Read each element of the array from the Serialization object
+        print(writer.read_int(to_string(i)))
+    }
+
+    writer.to_file("test.bin")
+    return 0
+}

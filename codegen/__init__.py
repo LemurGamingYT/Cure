@@ -1,33 +1,46 @@
 from typing import Callable, Any
 from pathlib import Path
 
-from codegen.objects import Scope, Object, Type, Param, EnvItem, Function, Free, validate_args
+from codegen.objects import Scope, Object, Type, Param, EnvItem, Function, Free, validate_args, Arg
+from codegen.c_manager import CManager, STD_PATH, c_dec
 from codegen.array_manager import ArrayManager
 from codegen.dict_manager import DictManager
-from codegen.c_manager import CManager
 from ir.base_visitor import IRVisitor
-from ir.nodes import (
+from ir import (
     Program, Body, TypeNode, ParamNode, ArgNode, Call, Return, Foreach, While,
     If, Use, VarDecl, Value, Identifier, Array, Dict, Brackets, BinOp, UOp, Attribute, New,
-    Ternary, Position, Node, Break, Continue, FuncDecl, Nil, Index, DollarString
+    Ternary, Position, Node, Break, Continue, FuncDecl, Nil, Index, DollarString, IRBuilder,
+    Cast, Enum
 )
 
 
-LIBS_PATH = Path(__file__).parent / 'std'
 op_map = {
     '+': 'add', '-': 'sub', '*': 'mul', '/': 'div', '%': 'mod', '==': 'eq', '!=': 'neq',
     '<': 'lt', '>': 'gt', '<=': 'lte', '>=': 'gte', '&&': 'and', '||': 'or', '!': 'not'
 }
 
 
+def str_to_c(cure: str, scope: Scope | None = None) -> tuple['CodeGen', str]:
+    builder = IRBuilder()
+    program = builder.build(cure)
+    
+    codegen = CodeGen(scope)
+    return codegen, codegen.generate(program)
+
+def cure_to_c(cure: Path, output: Path | None = None) -> tuple['CodeGen', str]:
+    codegen, code = str_to_c(cure.read_text('utf-8'))
+    if output is not None:
+        output.write_text(code, 'utf-8')
+    
+    return codegen, code
+
+
 class CodeGen(IRVisitor):
-    def __init__(self) -> None:
+    def __init__(self, scope: Scope | None = None) -> None:
         self.top_level_code = ''
-        self.scope = Scope()
+        self.scope = scope or Scope()
         
-        self.valid_types = [
-            'int', 'float', 'bool', 'string', 'nil', 'Math', 'System', 'Time', 'hex', 'bin'
-        ]
+        self.valid_types = ['int', 'float', 'bool', 'string', 'nil', 'Math', 'System', 'Time', 'Cure']
         
         self.library_classes: list[object] = []
         self.extra_compile_args: list[str] = []
@@ -35,6 +48,8 @@ class CodeGen(IRVisitor):
         self.c_manager = CManager(self)
         self.dict_manager = DictManager(self)
         self.array_manager = ArrayManager(self)
+        
+        self.add_toplevel_code('#ifndef _CURE_INITIALISED\n')
         
         str_array = self.array_manager.define_array(Type('string'))
         
@@ -46,10 +61,20 @@ class CodeGen(IRVisitor):
         
         self.scope.env['init'] = EnvItem('init', Type('function'), POS_ZERO)
         self.scope.env['args'] = EnvItem('args', str_array, POS_ZERO)
-        self.init_body_code = f"""{code}
-args = {name};
-"""
         self.add_toplevel_code(f'{str_array.c_type} args;')
+        self.add_toplevel_code(f"""void init() {{
+{code}
+args = {name};
+}}
+""")
+
+        self.add_toplevel_code('#define _CURE_INITIALISED\n#endif')
+    
+    def is_string_literal(self, value: Object | str) -> bool:
+        if isinstance(value, Object):
+            return self.is_string_literal(value.code) and value.type == Type('string')
+        
+        return value.startswith('"') and value.endswith('"')
     
     def generate(self, program: Program) -> str:
         """Generate C code from IR. Also prepends the `CodeGen.top_level_code` to the output.
@@ -61,6 +86,7 @@ args = {name};
             str: The output C code.
         """
         
+        self.FILENAME = program.file
         return self.visit(program)
     
     def add_c_lib(self, include: Path, libs: Path, *extra_args: str) -> None:
@@ -68,7 +94,7 @@ args = {name};
 
         Args:
             include (Path): The path to the includes folder with all of the .h files.
-            libs (Path): The path to the libraries folder with all of the .a files.
+            libs (Path): The path to the libraries folder with all of the lib (usually .lib) files.
             *extra_args (str): Extra arguments to pass to the compiler such as other libraries
             e.g. -lgdi32.
         """
@@ -90,6 +116,7 @@ args = {name};
         kwargs.pop('env', None)
         kwargs.pop('parent', None)
         kwargs.pop('ending_code', None)
+        kwargs.pop('local_free_vars', None)
         
         self.scope = Scope(self.scope, env=self.scope.env.copy(), **kwargs)
         
@@ -196,6 +223,7 @@ args = {name};
         if add_code:
             if value is None:
                 pos.warn_here(f'Constant \'{original_name}\' has no value, skipping adding it.')
+                return
             
             self.add_toplevel_code(f'const {type.c_type} {name} = {value};')
         
@@ -218,7 +246,7 @@ args = {name};
             if v not in free_vars
         ) + '\n' + self.scope.ending_code
     
-    def call(self, name: str, args: list[Object], call_position: Position,
+    def call(self, name: str, args: list[Arg], call_position: Position,
              by_user: bool = False) -> Object:
         """Call a function. Supports C std Python functions and user defined functions. Handles
         `Free` variables and checking the parameter types.
@@ -236,6 +264,9 @@ args = {name};
         
         if (item := self.scope.env.get(name)) is not None and (func := item.func) is not None:
             obj = func(self, call_position, *args)
+            if obj is None:
+                call_position.error_here(f'Function \'{name}\' returned absolutely nothing')
+            
             if item.free is None:
                 return Object(obj.code, obj.type, call_position)
             # elif item.free.object_name != '':
@@ -243,16 +274,17 @@ args = {name};
             #         f'Overriding free variable \'{item.free.object_name}\', may cause memory issues'
             #     )
             
-            temp_var = self.create_temp_var(obj.type, call_position, free=item.free)
+            temp_free = Free(free_name=item.free.free_name)
+            temp_var = self.create_temp_var(obj.type, call_position, free=temp_free)
             self.prepend_code(f'{obj.type.c_type} {temp_var} = {obj.code};')
-            return Object(temp_var, obj.type, call_position, free=item.free)
+            return Object(temp_var, obj.type, call_position, free=temp_free)
         elif (c_func := self.c_manager.get_object(name)) is not None:
             if not getattr(c_func, 'can_user_call', False) and by_user:
                 call_position.error_here(f'Name \'{name}\' is not defined')
             
             arg_types: tuple[str, ...] = tuple(
-                arg.type.c_type for arg in args
-                if arg.type.c_type is not None
+                arg.value.type.c_type for arg in args
+                if arg.value.type.c_type is not None
             )
             
             call_func: Callable[..., Any] | None = None
@@ -283,7 +315,7 @@ args = {name};
                     f'\'{name}\' takes {len(params)} arguments, but {len(args)} were given'
                 )
             
-            return call_func(self, call_position, *args)
+            return call_func(self, call_position, *[arg.value for arg in args])
         
         if item is None:
             call_position.error_here(f'Name \'{name}\' is not defined')
@@ -301,7 +333,7 @@ args = {name};
         """
         
         cond = self.visit(expr)
-        return self.call(f'{cond.type}_to_bool', [cond], cond.position)
+        return self.call(f'{cond.type}_to_bool', [Arg(cond)], cond.position)
     
     def use(self, lib_name: str, pos: Position) -> None:
         """Use a Cure library.
@@ -311,9 +343,9 @@ args = {name};
             pos (Position): The position.
         """
         
-        for lib in LIBS_PATH.iterdir():
+        for lib in STD_PATH.iterdir():
             if lib.stem == lib_name:
-                rel_path = lib.relative_to(LIBS_PATH)
+                rel_path = lib.relative_to(STD_PATH)
                 lib_path = rel_path.as_posix().replace('/', '.')
                 if lib_path.endswith('.py'):
                     lib_path = lib_path.removesuffix('.py')
@@ -321,6 +353,9 @@ args = {name};
                 exec(f"""from .std.{lib_path} import {lib_name}
 if {lib_name} not in [type(cls) for cls in libraries]:
     lib = {lib_name}(self)
+    if not getattr(lib, 'CAN_USE', True):
+        pos.error_here(f'Library \\'{lib_name}\\' cannot be used')
+    
     libraries.append(lib)
     objects = CManager.get_all_objects(lib)
     for k, v in objects.items():
@@ -331,16 +366,43 @@ if {lib_name} not in [type(cls) for cls in libraries]:
 })
                 break
         else:
-            pos.error_here(f'Library \'{lib_name}\' not found')
+            full_lib_name = lib_name
+            lib = Path(lib_name).resolve()
+            # if lib_name.startswith('.'):
+            #     if self.FILENAME is None:
+            #         pos.error_here('Cannot perform relative imports without a proper filename')
+                
+            #     lib = (self.FILENAME.parent / lib.name).resolve()
+            #     for _ in range(lib_name.split('/')[0].count('.') - 1):
+            #         lib = lib.parent
+                
+            #     lib_name = '/'.join(lib_name.split('/')[1:])
+            #     lib = lib / lib_name
+            
+            if lib == self.FILENAME:
+                pos.error_here('Cannot use current file')
+            
+            if lib.exists() and lib.is_file():
+                header = lib.with_suffix('.h')
+                sub_codegen, code = cure_to_c(lib)
+                self.scope.env |= sub_codegen.scope.env
+                
+                header.write_text(f"""#pragma once
+#ifdef __cplusplus
+extern "C" {{
+#endif
+{code}
+#ifdef __cplusplus
+}}
+#endif
+""")
+                self.c_manager.include(f'"{header.absolute().as_posix()}"', self)
+            else:
+                pos.error_here(f'Library \'{full_lib_name}\' not found')
     
     
     def visit_Program(self, node: Program) -> str:
         code = '\n'.join(line + ';' for line in [self.visit(stmt).code for stmt in node.nodes])
-        self.add_toplevel_code(f"""void init() {{
-{self.init_body_code}
-}}
-""")
-        
         return self.top_level_code + '\n' + code
     
     def visit_TypeNode(self, node: TypeNode) -> Type:
@@ -368,12 +430,12 @@ if {lib_name} not in [type(cls) for cls in libraries]:
     
     def visit_If(self, node: If) -> Object:
         return Object(
-            f"""if ({self.visit(node.expr).code}) {{
-{self.visit(node.body).code}
-}}{''.join(f''' else if ({self.visit(expr).code}) {{
-{self.visit(body).code}
+            f"""if ({self.condition(node.expr)}) {{
+{self.visit_Body(node.body)}
+}}{''.join(f''' else if ({self.condition(expr)}) {{
+{self.visit_Body(body)}
 }}''' for expr, body in node.elseifs)}{f''' else {{
-{self.visit(node.else_body).code}
+{self.visit_Body(node.else_body)}
 }}''' if node.else_body is not None else ''}
 """,
             Type('nil'), node.pos
@@ -381,8 +443,8 @@ if {lib_name} not in [type(cls) for cls in libraries]:
     
     def visit_While(self, node: While) -> Object:
         return Object(
-            f"""while ({self.visit(node.expr).code}) {{
-{self.visit(node.body).code}
+            f"""while ({self.condition(node.expr)}) {{
+{self.visit_Body(node.body)}
 }}
 """,
             Type('nil'), node.pos
@@ -392,32 +454,33 @@ if {lib_name} not in [type(cls) for cls in libraries]:
         if self.name_occupied(node.loop_name):
             node.pos.error_here(f'Name \'{node.loop_name}\' is already in use')
         
-        iterable = self.visit(node.expr)
+        iterable: Object = self.visit(node.expr)
         
         iter_method_callee = f'iter_{iterable.type.c_type}'
         iter_method = self.c_manager.get_object(iter_method_callee)
         if iter_method is None:
-            node.pos.error_here(f'Cannot iterate over type \'{iterable.type}\'')
+            iterable.position.error_here(f'Cannot iterate over type \'{iterable.type}\'')
         
         len_callee_str = f'{iterable.type.c_type}_length'
         len_callee = self.c_manager.get_object(len_callee_str)
         if len_callee is None:
-            node.pos.error_here(f'Cannot iterate over type \'{iterable.type}\'')
+            iterable.position.error_here(f'Cannot iterate over type \'{iterable.type}\'')
         
-        len_expr = self.call(len_callee_str, [iterable], node.pos)
+        len_expr = self.call(len_callee_str, [Arg(iterable)], node.pos)
         
         i = self.create_temp_var(Type('int'), node.pos)
-        idx_obj = Object(i, Type('int'), node.pos)
+        idx_obj = Arg(Object(i, Type('int'), node.pos))
         
         self.enter_scope(is_in_loop=True)
         
         iter_var = self.create_temp_var(iter_method.return_type, node.pos, node.loop_name)
-        iter_call = self.call(iter_method_callee, [iterable, idx_obj], node.pos)
+        iter_call = self.call(iter_method_callee, [Arg(iterable), idx_obj], node.pos)
         
-        out = Object(f"""for (int {i} = 0; {i} < {len_expr.code}; {i}++) {{
+        out = Object(f"""for (int {i} = 0; {i} < {len_expr}; {i}++) {{
 {self.scope.prepended_code}
-{iter_method.return_type.c_type} {iter_var} = {iter_call.code};
-{self.visit(node.body).code}
+{iter_method.return_type.c_type} {iter_var} = {iter_call};
+{self.visit_Body(node.body)}
+{self.scope.appended_code}
 }}
 """, Type('nil'), node.pos)
         
@@ -451,7 +514,7 @@ if {lib_name} not in [type(cls) for cls in libraries]:
         code_type = Type('nil')
         for stmt in node.nodes:
             stmt_node = self.visit(stmt)
-            if isinstance(stmt, Return):
+            if isinstance(stmt, (Return, If, While, Foreach)):
                 code_type = stmt_node.type
                 free = stmt_node.free
             
@@ -466,34 +529,33 @@ if {lib_name} not in [type(cls) for cls in libraries]:
                 self.scope.appended_code = ''
         
         if code_type == Type('nil'):
-            code.extend(
-                v.code
-                for v in self.scope.local_free_vars
-            )
+            code.extend(v.code for v in self.scope.local_free_vars)
         
         self.exit_scope()
         return Object('\n'.join(code), code_type, node.pos, free=free)
     
     def visit_FuncDecl(self, node: FuncDecl) -> Object:
         name = node.name
-        return_type = self.visit(node.return_type) if node.return_type is not None else Type('nil')
-        params = [self.visit(param) for param in node.params]
+        return_type = self.visit_TypeNode(node.return_type)\
+            if node.return_type is not None else Type('nil')
+        params = [self.visit_ParamNode(param) for param in node.params]
         
         kwargs: dict[str, Any] = {'params': params}
         if name == 'main':
             kwargs['ending_code'] = 'free(args.elements);'
         
-        body = self.visit_Body(node.body, **kwargs)
-        
         new_name = None
+        original_name = name
         if name in self.scope.env:
             new_name = self.get_unique_name(name)
-            self.scope.env[name].func.add_overload(
-                new_name, return_type,
-                [param.type.c_type for param in params]
-            )
+            if (f := self.scope.env[name].func) is not None:
+                f.add_overload(
+                    new_name, return_type,
+                    [param.type.c_type for param in params]
+                )
+            else:
+                node.pos.error_here(f'Name \'{name}\' is used as a variable and not a function')
         else:
-            original_name = name
             if self.name_occupied(name):
                 name = self.fix_name(name)
             
@@ -503,28 +565,32 @@ if {lib_name} not in [type(cls) for cls in libraries]:
                 if modification is not None:
                     func.add_modification(
                         mod.name, mod.pos, modification,
-                        tuple(self.visit(arg) for arg in mod.args)
+                        tuple(self.visit_ArgNode(arg) for arg in mod.args)
                     )
                 elif modification is None:
-                    node.pos.error_here(f'Unknown function modification \'{mod.name}\'')
+                    mod.pos.error_here(f'Unknown function modification \'{mod.name}\'')
             
-            self.scope.env[original_name] = EnvItem(
-                name, Type('function'), node.pos, func, free=body.free
-            )
+            self.scope.env[original_name] = EnvItem(name, Type('function'), node.pos, func)
+        
+        body = self.visit_Body(node.body, **kwargs)
+        self.scope.env[original_name].free = body.free
+        
+        # if body.type != return_type:
+        #     node.pos.error_here(f'Expected return type \'{return_type}\', got \'{body.type}\'')
         
         params_str = ', '.join(str(param) for param in params)
         if new_name is not None:
             name = new_name
         
         return Object(f"""{return_type.c_type} {name}({params_str}) {{
-{body.code}
+{body}
 }}
 """, Type('nil'), node.pos)
     
     def visit_VarDecl(self, node: VarDecl) -> Object:
         name = node.name
-        value = self.visit(node.value)
-        type_ = self.visit(node.type) if node.type is not None else value.type
+        value: Object = self.visit(node.value)
+        type_ = self.visit_TypeNode(node.type) if node.type is not None else value.type
         if value.type != type_:
             node.pos.error_here(f'Expected type \'{type_}\', got \'{value.type}\'')
         
@@ -532,7 +598,7 @@ if {lib_name} not in [type(cls) for cls in libraries]:
         if self.name_occupied(name) and name not in self.scope.env:
             name = self.fix_name(name)
         
-        if value.free is not None:
+        if value.free is not None and not self.scope.has_free(value.free):
             self.scope.local_free_vars.add(value.free)
         
         if (item := self.scope.env.get(name)) is not None:
@@ -550,9 +616,9 @@ if {lib_name} not in [type(cls) for cls in libraries]:
                     node.pos.error_here(f'Operator \'{node.op}\' is not defined for types '\
                         f'\'{val.type}\' and \'{value.type}\'')
                 
-                value = self.call(callee, [val, value], node.pos)
+                value = self.call(callee, [Arg(val), Arg(value)], node.pos)
             
-            return Object(f'{item.name} = {value.code}', item.type, node.pos)
+            return Object(f'{item.name} = {value}', item.type, node.pos)
         else:
             if node.op is not None:
                 node.pos.error_here(f'\'{name}\' is not defined')
@@ -565,12 +631,19 @@ if {lib_name} not in [type(cls) for cls in libraries]:
             return Object(f'{const}{type_.c_type} {name} = {value.code}', type_, node.pos)
     
     def visit_ParamNode(self, node: ParamNode) -> Param:
-        return Param(node.name, self.visit(node.type), node.ref)
+        return Param(
+            node.name, self.visit_TypeNode(node.type), node.ref,
+            self.visit(node.default) if node.default is not None else None
+        )
     
-    def visit_ArgNode(self, node: ArgNode) -> Object:
-        return self.visit(node.expr)
+    def visit_ArgNode(self, node: ArgNode) -> Arg:
+        return Arg(self.visit(node.expr), node.keyword)
     
     def visit_Value(self, node: Value) -> Object:
+        if node.type == 'string':
+            # slice to remove apostrophes and replace with double quotes
+            node.value = f'"{node.value[1:-1]}"'
+        
         return Object(node.value, Type(node.type), node.pos)
     
     def visit_DollarString(self, node: DollarString) -> Object:
@@ -583,12 +656,12 @@ if {lib_name} not in [type(cls) for cls in libraries]:
                 b = self.visit(part)
                 b_var = self.create_temp_var(b.type, node.pos)
                 self.prepend_code(f'string {b_var} = {self.call(
-    f"{b.type.c_type}_to_string", [b], node.pos
-).code};')
+    f"{b.type.c_type}_to_string", [Arg(b)], node.pos
+)};')
                 fmt_variables.append(b_var)
                 fmt += '%s'
         
-        code, buf_free = self.c_manager.fmt_length(self, node.pos, fmt, *fmt_variables)
+        code, buf_free = self.c_manager.fmt_length(self, node.pos, f'"{fmt}"', *fmt_variables)
         self.prepend_code(code)
         return Object(buf_free.object_name, Type('string'), node.pos, free=buf_free)
     
@@ -604,46 +677,50 @@ if {lib_name} not in [type(cls) for cls in libraries]:
             node.pos.error_here(f'Name \'{node.name}\' is not defined')
     
     def visit_Nil(self, node: Nil) -> Object:
-        return Object('NULL', Type('nil'), node.pos)
+        return Object.NULL(node.pos)
     
     def visit_Brackets(self, node: Brackets) -> Object:
         expr = self.visit(node.expr)
         return Object(f'({expr.code})', expr.type, node.pos)
     
     def visit_Array(self, node: Array) -> Object:
-        elements = [self.visit(arg) for arg in node.elements]
+        elements = [self.visit_ArgNode(arg) for arg in node.elements]
         
-        arr_type = self.array_manager.define_array(self.visit(node.type))
+        arr_type = self.array_manager.define_array(self.visit_TypeNode(node.type))
         make_call = self.call(f'{arr_type.c_type}_make', [], node.pos)
         for elem in elements:
-            self.call(f'{arr_type.c_type}_add', [make_call, elem], node.pos)
+            self.call(f'{arr_type.c_type}_add', [Arg(make_call), elem], elem.value.position)
         
         return make_call
     
     def visit_Dict(self, node: Dict) -> Object:
-        key_type = self.visit(node.key_type)
-        value_type = self.visit(node.value_type)
+        key_type = self.visit_TypeNode(node.key_type)
+        value_type = self.visit_TypeNode(node.value_type)
         
         dict_type = self.dict_manager.define_dict(key_type, value_type)
         make_call = self.call(f'{dict_type.c_type}_make', [], node.pos)
         for key, value in node.elements.items():
             self.call(
                 f'{dict_type.c_type}_set',
-                [make_call, self.visit(key), self.visit(value)],
-                node.pos
+                [Arg(make_call), Arg(self.visit(key)), Arg(self.visit(value))],
+                value.pos
             )
         
         return make_call
     
     def visit_Call(self, node: Call) -> Object:
-        return self.call(node.name, [self.visit(arg) for arg in node.args], node.pos, True)
+        args = [self.visit_ArgNode(arg) for arg in node.args]
+        return self.call(node.name, args, node.pos, True)
     
     def visit_Ternary(self, node: Ternary) -> Object:
         true, false = self.visit(node.if_true), self.visit(node.if_false)
         if true.type != false.type:
-            node.pos.error_here('Ternary types must match')
+            node.pos.error_here('Ternary true and false types don\'t match')
         
-        return Object(f'{self.visit(node.cond)} ? {true} : {false}', true.type, node.pos)
+        return Object(
+            f'{self.condition(node.cond)} ? {true.code} : {false.code}',
+            true.type, node.pos
+        )
     
     def visit_BinOp(self, node: BinOp) -> Object:
         op_name = op_map[node.op]
@@ -654,7 +731,7 @@ if {lib_name} not in [type(cls) for cls in libraries]:
             node.pos.error_here(f'Operator \'{node.op}\' is not defined for types \'{left.type}\''\
                 f' and \'{right.type}\'')
         
-        return self.call(callee, [left, right], node.pos)
+        return self.call(callee, [Arg(left), Arg(right)], node.pos)
     
     def visit_UOp(self, node: UOp) -> Object:
         op_name = op_map[node.op]
@@ -663,15 +740,15 @@ if {lib_name} not in [type(cls) for cls in libraries]:
         if self.c_manager.get_object(callee) is None:
             node.pos.error_here(f'Operator \'{node.op}\' is not defined for type \'{value.type}\'')
         
-        return self.call(callee, [value], node.pos)
+        return self.call(callee, [Arg(value)], node.pos)
     
     def visit_Attribute(self, node: Attribute) -> Object:
         obj = self.visit(node.obj)
         callee = f'{obj.type.c_type}_{node.attr}'
         if (func := self.c_manager.get_object(callee)) is not None:
-            args = []
+            args: list[Arg] = []
             if not getattr(func, 'is_static', False):
-                args.append(obj)
+                args.append(Arg(obj))
             
             if getattr(func, 'is_method', False):
                 if node.args is None:
@@ -679,7 +756,7 @@ if {lib_name} not in [type(cls) for cls in libraries]:
                         f'Attribute \'{node.attr}\' is a method, but is accessed like a property'
                     )
                 
-                args.extend(self.visit(arg) for arg in node.args)
+                args.extend(self.visit_ArgNode(arg) for arg in node.args)
             elif getattr(func, 'is_property', False):
                 if node.args is not None:
                     node.pos.error_here(
@@ -693,15 +770,18 @@ if {lib_name} not in [type(cls) for cls in libraries]:
             node.pos.error_here(f'Attribute \'{node.attr}\' is not defined for type \'{obj.type}\'')
     
     def visit_New(self, node: New) -> Object:
-        name = self.visit(node.name).code
+        name = self.visit_Identifier(node.name).code
         callee = f'{name}_new'
         if (func := self.c_manager.get_object(callee)) is not None:
             if not getattr(func, 'is_static', False):
-                node.pos.error_here(f'Class \'{name}\' instantiation method is not static')
+                node.pos.error_here(f'Class instantiation method for \'{name}\' is not static')
             
-            return self.call(callee, [self.visit(arg) for arg in node.args], node.pos)
+            return self.call(callee, [self.visit_ArgNode(arg) for arg in node.args], node.pos)
         
-        node.pos.error_here(f'Class \'{name}\' is not defined')
+        if name in self.valid_types:
+            node.pos.error_here(f'Class instantiation method for \'{name}\' is not defined')
+        
+        node.name.pos.error_here(f'Class \'{name}\' is not defined')
     
     def visit_Index(self, node: Index) -> Object:
         obj = self.visit(node.obj)
@@ -710,4 +790,79 @@ if {lib_name} not in [type(cls) for cls in libraries]:
         if self.c_manager.get_object(callee) is None:
             node.pos.error_here(f'Cannot index type \'{obj.type}\'')
         
-        return self.call(callee, [obj, index], node.pos)
+        return self.call(callee, [Arg(obj), Arg(index)], node.pos)
+    
+    def visit_Cast(self, node: Cast) -> Object:
+        obj: Object = self.visit(node.obj)
+        type = self.visit_TypeNode(node.type)
+        callee = f'{obj.type.c_type}_to_{type.c_type}'
+        if self.c_manager.get_object(callee) is None:
+            node.pos.error_here(f'Cannot cast type \'{obj.type}\' to \'{type}\'')
+        
+        return self.call(callee, [Arg(obj)], node.pos)
+    
+    def visit_Enum(self, node: Enum) -> Object:
+        name = node.name.name
+        if self.name_occupied(name):
+            node.name.pos.error_here(f'Name \'{name}\' is already used')
+        
+        enum_type = 'int'
+        if len(node.members) <= 0xFF:
+            enum_type = 'unsigned char'
+        elif len(node.members) <= 0xFFFF:
+            enum_type = 'unsigned short'
+        elif len(node.members) <= 0xFFFFFFFF:
+            enum_type = 'unsigned int'
+        elif len(node.members) <= 0xFFFFFFFFFFFFFFFF:
+            enum_type = 'unsigned long long'
+        else:
+            node.pos.error_here(f'Enum \'{name}\' has too many members')
+        
+        self.valid_types.append(name)
+        self.add_toplevel_code(f'typedef {enum_type} {name};')
+        
+        @c_dec(
+            add_to_class=self.c_manager, func_name_override=f'{name}_type',
+            is_method=True, is_static=True
+        )
+        def _(_, call_position: Position) -> Object:
+            return Object(f'"{name}"', Type('string'), call_position)
+        
+        @c_dec(
+            param_types=(name,),
+            add_to_class=self.c_manager, func_name_override=f'{name}_to_string',
+            is_method=True
+        )
+        def _(_, call_position: Position, _enum: Object) -> Object:
+            return Object(f'"Enum \'{name}\'"', Type('string'), call_position)
+        
+        for value, member in enumerate(node.members):
+            callee = f'{name}_{member.name}'
+            if self.c_manager.get_object(callee) is not None:
+                node.pos.error_here(f'Enum member \'{member.name}\' is already defined')
+            
+            @c_dec(
+                add_to_class=self.c_manager, func_name_override=callee,
+                is_property=True, is_static=True
+            )
+            def _(_, call_position: Position, value=value) -> Object:
+                return Object(f'(({name})({value}))', Type(name), call_position)
+        
+        @c_dec(
+            param_types=(name, name),
+            add_to_class=self.c_manager, func_name_override=f'{name}_eq_{name}',
+            is_method=True
+        )
+        def _(_, call_position: Position, enum1: Object, enum2: Object) -> Object:
+            return Object(f'(({enum1}) == ({enum2}))', Type('bool'), call_position)
+        
+        @c_dec(
+            param_types=(name, name),
+            add_to_class=self.c_manager, func_name_override=f'{name}_neq_{name}',
+            is_method=True
+        )
+        def _(_, call_position: Position, enum1: Object, enum2: Object) -> Object:
+            return Object(f'(({enum1}) != ({enum2}))', Type('bool'), call_position)
+        
+        self.scope.env[name] = EnvItem(name, Type(name), node.pos)
+        return Object(f'// Enum \'{name}\'', Type('nil'), node.pos)

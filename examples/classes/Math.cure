@@ -1,6 +1,4 @@
 func main() -> int {
-    print(Math)
-
     print(Math.pi) // Pi
     print(Math.e) // Euler's number
     print(Math.tau) // 2*Pi
@@ -30,7 +28,6 @@ func main() -> int {
     print(Math.round(1.5)) // Round 1.5 to the nearest integer
 
     print(Math.min(62, 100)) // Minimum value of 62 and 100
-    print(Math.max(62, 100)) // Maximum value of 62 and 100
-
+    print(Math.max(Math.pow(6, 6), Math.pow(10, 5))) // Maximum value of 6^6 and 10^5
     return 0
 }

@@ -1,0 +1,19 @@
+enum Color { RED, GREEN, BLUE }
+
+func color_to_int(Color color) -> int {
+    if color == Color.RED {
+        return 0
+    } else if color == Color.GREEN {
+        return 1
+    } else if color == Color.BLUE {
+        return 2
+    }
+}
+
+func main() -> int {
+    Color red = Color.RED
+    Color green = Color.GREEN
+    Color blue = Color.BLUE
+    print(color_to_int(red), color_to_int(green), color_to_int(blue))
+    return 0
+}

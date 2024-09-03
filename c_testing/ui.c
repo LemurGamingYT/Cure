@@ -1,6 +1,25 @@
+#ifndef _WIN32
+#error "ui.c can only be ran on Windows"
+#endif
+
 #include <windows.h>
 #include <stdbool.h>
+#include <stdio.h>
 
+
+typedef struct {
+    HFONT obj;
+    const char* name;
+    int size;
+} Font;
+
+typedef struct {
+    HWND hwnd;
+    const char* title;
+    int width;
+    int height;
+    void** widgets;
+} Window;
 
 typedef enum {
     WIDGET_BUTTON, WIDGET_LABEL, WIDGET_FRAME
@@ -11,48 +30,70 @@ typedef struct {
     WidgetType type;
     const char* text;
     int x, y, width, height;
-    COLORREF bg_color;
-    void (*on_click)(void);
+    Font* font;
+    void (*on_click)(Window*);
     struct Widget* next;
 } Widget;
 
-typedef struct {
-    HWND hwnd;
-    const char* title;
-    int width;
-    int height;
-    void** widgets;
-} Window;
+
+void close_window(Window* window);
 
 
 LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
     Window* window = (Window*)GetWindowLongPtr(hwnd, GWLP_USERDATA);
+    static BOOL isMouseTracking = FALSE;
+    static BOOL isButtonPressed = FALSE;
+
     switch (uMsg) {
         case WM_DESTROY:
             PostQuitMessage(0);
+            close_window(window);
             return 0;
         case WM_COMMAND:
             if (HIWORD(wParam) == BN_CLICKED) {
                 Widget* widget = (Widget*)GetWindowLongPtr((HWND)lParam, GWLP_USERDATA);
-                if (widget && widget->on_click) widget->on_click();
+                if (widget && widget->on_click) widget->on_click(window);
             }
             break;
         case WM_CTLCOLORBTN:
         case WM_CTLCOLORSTATIC:
             {
                 Widget* widget = (Widget*)GetWindowLongPtr((HWND)lParam, GWLP_USERDATA);
-                if (widget) {
-                    SetBkColor((HDC)wParam, widget->bg_color);
-                    return (LRESULT)CreateSolidBrush(widget->bg_color);
+                if (widget && widget->font) {
+                    HDC hdc = (HDC)wParam;
+                    SelectObject(hdc, widget->font->obj);
                 }
             }
             break;
     }
+    
     return DefWindowProc(hwnd, uMsg, wParam, lParam);
+}
+
+Font* create_font(const char* name, int size) {
+    Font* font = (Font*)malloc(sizeof(Font));
+    if (!font) {
+        printf("Failed to allocate memory for font.\n");
+        return NULL;
+    }
+
+    font->obj = CreateFont(
+        size, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE, DEFAULT_CHARSET,
+        OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY,
+        DEFAULT_PITCH | FF_DONTCARE, name
+    );
+    font->name = name;
+    font->size = size;
+    return font;
 }
 
 Window* create_window(const char* title, int width, int height) {
     Window* window = malloc(sizeof(Window));
+    if (!window) {
+        printf("Failed to allocate memory for window.\n");
+        return NULL;
+    }
+
     window->title = title;
     window->width = width;
     window->height = height;
@@ -61,7 +102,7 @@ Window* create_window(const char* title, int width, int height) {
     WNDCLASS wc = {0};
     wc.lpfnWndProc = WindowProc;
     wc.hInstance = GetModuleHandle(NULL);
-    wc.lpszClassName = "SimpleUIWindowClass";
+    wc.lpszClassName = "CureUIWindowClass";
     RegisterClass(&wc);
 
     window->hwnd = CreateWindowEx(0, wc.lpszClassName, title, WS_OVERLAPPEDWINDOW,
@@ -73,8 +114,13 @@ Window* create_window(const char* title, int width, int height) {
 
 Widget* create_widget(Window* parent, WidgetType type, const char* text,
                       int x, int y, int width, int height,
-                      void (*on_click)(void), COLORREF bg_color) {
-    Widget* widget = malloc(sizeof(Widget));
+                      void (*on_click)(Window*), Font* font) {
+    Widget* widget = calloc(1, sizeof(Widget));
+    if (!widget) {
+        printf("Failed to allocate memory for widget.\n");
+        return NULL;
+    }
+
     widget->type = type;
     widget->text = text;
     widget->x = x;
@@ -82,7 +128,13 @@ Widget* create_widget(Window* parent, WidgetType type, const char* text,
     widget->width = width;
     widget->height = height;
     widget->on_click = on_click;
-    widget->bg_color = bg_color;
+    if (type != WIDGET_FRAME) {
+        widget->font = font;
+        SendMessage(widget->hwnd, WM_SETFONT, (WPARAM)font->obj, TRUE);
+    } else {
+        widget->font = NULL;
+    }
+
     widget->next = NULL;
 
     const char* class_name;
@@ -122,25 +174,42 @@ Widget* create_widget(Window* parent, WidgetType type, const char* text,
     return widget;
 }
 
-void show_window(Window* window) {
-    ShowWindow(window->hwnd, SW_SHOW);
+void close_window(Window* window) {
+    if (window != NULL && window->widgets != NULL) {
+        Widget* current = (Widget*)window->widgets;
+        while (current) {
+            Widget* next = (Widget*)current->next;
+            DestroyWindow(current->hwnd);
+            if (current->type != WIDGET_FRAME) {
+                DeleteObject(current->font->obj);
+                free(current->font);
+            }
+
+            free(current);
+            current = next;
+        }
+        DestroyWindow(window->hwnd);
+        free(window);
+    }
 }
 
-void close_window(Window* window) {
-    Widget* current = (Widget*)window->widgets;
-    while (current) {
-        Widget* next = (Widget*)current->next;
-        free(current);
-        current = next;
-    }
-    free(window);
+void test_on_click(Window* window) {
+    MessageBox(window->hwnd, "Button clicked!", "Information", MB_OK | MB_ICONINFORMATION);
 }
 
 int main() {
-    Window* window = create_window("Simplified UI", 800, 600);
-    create_widget(window, WIDGET_BUTTON, "Test Button", 350, 250, 150, 30, NULL, RGB(24, 24, 24));
-    create_widget(window, WIDGET_LABEL, "Hello, World!", 350, 200, 150, 30, NULL, RGB(240, 240, 240));
-    show_window(window);
+    Window* window = create_window("Cure UI", 800, 600);
+    Widget* label = create_widget(
+        window, WIDGET_LABEL, "Cure UI", 400, 50, 75, 25, NULL, create_font("Segoe UI", 24)
+    );
+    Widget* btn = create_widget(
+        window, WIDGET_BUTTON, "Test Button", 350, 250, 150, 30, test_on_click,
+        create_font("Segoe UI", 24)
+    );
+
+    Widget* frame = create_widget(window, WIDGET_FRAME, NULL, 10, 10, 765, 535, NULL, NULL);
+
+    ShowWindow(window->hwnd, SW_SHOW);
 
     MSG msg = {0};
     while (GetMessage(&msg, NULL, 0, 0)) {

@@ -1,17 +1,19 @@
 # TODOs
  TODOs for the Cure programming language
 
-*as of v0.0.21*
-- [ ] Make the compiler use an AST instead of strings.
-- [x] Fix the bug where the compiler inserts a free call at the end of a function that needs to be returned
-- [ ] Fix nested call, e.g. `print(Math.max(Math.pow(Math.pow(6, 6)), Math.pow(10, 5))) // Maximum value of 6^6 and 10^5`
-- [ ] **(possibly fixed)** Fix compiler free variables scoping issues
+*as of v0.0.3*
+- [ ] Use **Reference Counting for memory management at compile-time** instead of blindly guessing when to free memory. This is **High Priority** because it will need the compiler and libraries to be modified a lot.
+- [ ] Fix nested arrays
 - [ ] Functions
+    - [ ] Anonymous functions: For example `print(func(int a) {
+    print(a)
+}(2))`
     - [x] Overloading
-    - [ ] Default Arguments
+    - [x] Default Arguments
     - [ ] Variadic Functions
+    - [x] Keyword Arguments
     - [x] Parameter references (actually just pointers)
-    - [ ] Modifications (Python decorators): Such as a Warn modification that prints a warning at compile time
+    - [ ] Modifications (like Python decorators)
         - [x] Benchmark: Prints the time taken to execute a function when the function ends
         - [ ] Memoize: Cache function results
         - [ ] Timeout: Set a maximum execution time for the function
@@ -20,42 +22,71 @@
 - [x] Time functions
 - [x] More math functions
 - [x] More string attributes
-- [ ] REPL (Read Eval Print Loop): For quick experimentation
+- [ ] Import aliasing (use "abc" as abc): Alias the used library into an object that can be used like a class in the program.
+- [ ] REPL (Read Eval Print Loop): For quick experimentation.
 - [ ] Dependency Manager: Allow programmers to have a built-in dependency manager to manage bringing in packages.
-    - [ ] Use local files: Use not only libraries but other .cure files
-- [ ] Iterative attribute apply operator: Applies an attribute to all elements in an array
-- [ ] Metaprogramming: Compile-time code generation capabilities
+    - [x] Use local files: Use not only libraries but other .cure files.
+- [ ] Array Comprehensions: Apply an expression to each element of an array.
+- [ ] Metaprogramming: Compile-time code generation capabilities.
+    - [ ] AST Manipulation: the ability to manipulate the IR/AST at compile time.
+    - [ ] Macros: Code transformation before compilation. For example `macro double(x) x*2
+value = double(5) // Expands to 5*2`
+- [ ] Error handling (try/catch): Catch runtime errors and handle them accordingly.
 - [ ] Coroutines and async/await: Asynchronous programming features for better concurrency handling.
+- [x] Enums: A simple way to define a set of named constants.
+- [ ] First class functions: Gives the ability to have functions as types.
+- [ ] 'extern' keyword: Allows the use of external functions from C.
+- [ ] Generic parameters: Every time a function with generic parameters is called, the compiler will define a new function for the new generic type. For example `func add[T](T a, T b) {
+    return a + b
+}
+
+print(func(8, 10)) // Generates add(int, int) -> int
+print(func(5.7, 9)) // Generates add(float, int) -> float`
+- [x] Casting: Convert a type to another type.
 - [ ] Libraries
     - [x] More File I/O functions
-    - [ ] Buffer library
+    - [ ] Buffer library: Fixed size arrays
     - [x] Big integers and floats
-    - [ ] Language building library
-        - [ ] Regular Expressions
-    - [ ] Command line parsing library
+    - [ ] Language building library: Provides a way to build a language within the Cure language. Gives a configurable lexer, parser and visitor.
+        - [ ] Regular Expressions: Regular expressions for pattern matching.
+            - [x] Match
+            - [ ] Replace
+            - [ ] Split
+            - [ ] Find
+            - [ ] Find All
+            - [ ] Sub
+            - [ ] RegexBuilder class: An interface for building regular expressions easier. Each attribute returns a new RegexBuilder object. For example: `pattern = RegexBuilder().start_of_line().digit().repeat(3).literal("-").digit().repeat(4)
+if pattern.matches("123-4567") {
+    print("Valid")
+}`
+    - [ ] Command line parsing library: Parses command line arguments
     - [ ] Crypto library: Encryption, hashing, etc
-    - [ ] Add more low level functionality to the 'LL' library (such as memory pools, reading and writing from registers, inlining assembly and system call interfaces)
+    - [ ] LL library: Low level library for Cure
+        - [x] Pointers: Allocate memory and deallocate memory
+        - [x] Inline Assembly: Inline assembly code (not tested)
+        - [ ] Memory Pool: Memory pool class for allocating chunks of memory efficiently, https://en.wikipedia.org/wiki/Memory_pool
+        - [ ] Slab Allocator: A slab allocator for allocating memory, https://en.wikipedia.org/wiki/Slab_allocation
     - [ ] Windows API: Wrapper around the C `Windows.h` header
-    - [ ] Http library (GET or POST requests and TCP/IP, UDP, etc sockets)
-    - [x] Text library (text wrapping and locale)
+    - [ ] Http library: GET or POST requests and TCP/IP, UDP, sockets, etc
+    - [x] Text library: Text wrapping and locale
     - [ ] Compression library: RLE and other compression techniques
     - [x] Threading library: Thread code in different threads on the CPU
     - [ ] Lua Integration: Lua programming language bindings
-    - [ ] Parsing library
+    - [ ] Parsing library: Parsing of different kinds of information files
         - [ ] JSON
         - [ ] XML
         - [ ] TOML
         - [ ] HTML
         - [ ] YAML
-    - [ ] UI library
+    - [ ] UI library: A library for creating user interfaces
         - [x] Window, Button, Label and Frame
         - [ ] Textbox/Textarea, Slider, Checkbox, Radio buttons, Scrolling Frames, etc
         - [ ] Linux and Mac support
-    - [ ] Testing functionality/framework
+    - [ ] Testing functionality/framework: A library for testing code
     - [x] Iterables library: includes Stack and Linked List implementations
     - [x] Color library: RGB, HSV, etc with conversions between them
     - [x] Sound library: Low and high level sound control, gives control over low level things like sample rate or number of channels of a .wav file but also has high level functions like play
-    - [ ] Serialization library: Serialize objects
+    - [x] Serialization library: Serialize objects
 - [ ] Classes defined by the programmer (not built-in)
     - [ ] Special class methods: Methods like to_string(), init(), type(), etc. Giving the programmer the ability to define how the compiler handles certain things to do with the custom class
     - [ ] Operator overloading: Define how operators work for a class
@@ -67,3 +98,4 @@ https://github.com/vinta/awesome-python
 https://github.com/JessicaBarclay/awesome-csharp
 https://github.com/avelino/awesome-go
 https://github.com/oz123/awesome-c
+https://project-awesome.org/inputsh/awesome-c

@@ -1,0 +1,8 @@
+use "regex"
+
+
+func main() -> int {
+    re = new Regex("^[a-zA-Z]+$")
+    print(re.match("abc"))
+    return 0
+}

@@ -1,0 +1,29 @@
+func main() -> int {
+    // Define a dictionary with string keys and integer values
+    dict = [string: int]{"one": 1, "two": 2, "three": 3}
+    print(type(dict)) // Print the type of the dictionary
+    print(dict) // Print the dictionary
+
+    // Check if the dictionary has the key "four" and print an error message if it does
+    if dict.has("four") {
+        print("The dictionary has the key 'four', an error has occurred.")
+        return 1
+    }
+
+    // Now add the key "four" to the dictionary with a value of 4
+    dict.set("four", 4)
+
+    print(dict["one"]) // Print the value associated with the key "one"
+    print(dict.get("two")) // Print the value associated with the key "two", same as indexing
+
+    print(dict.keys) // Print the keys of the dictionary (returns a string array)
+    print(dict.values) // Print the values of the dictionary (returns an integer array)
+
+    // Iterate over the dictionary
+    foreach pair in dict {
+        // Print each key and its associated value
+        print(pair.key, pair.value)
+    }
+
+    return 0
+}

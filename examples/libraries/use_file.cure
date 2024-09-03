@@ -1,0 +1,10 @@
+// Use a local file
+use "examples/libraries/local_file.cure"
+
+
+func main() -> int {
+    // Now we can use the functions from the local file
+    print(test())
+    print(test2(10))
+    return 0
+}

@@ -11,7 +11,7 @@ func encrypt(string message, int key) -> string {
                 num += CAESAR_LETTERS.length
             }
 
-            translated += CAESAR_LETTERS.at(num)
+            translated += CAESAR_LETTERS[num]
         } else {
             translated += c
         }
@@ -31,7 +31,7 @@ func decrypt(string message, int key) -> string {
                 num += CAESAR_LETTERS.length
             }
 
-            translated += CAESAR_LETTERS.at(num)
+            translated += CAESAR_LETTERS[num]
         } else {
             translated += c
         }

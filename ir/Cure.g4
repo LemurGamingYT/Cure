@@ -9,6 +9,7 @@ stmt
     | foreachStmt | whileStmt | ifStmt
     | varAssign
     | expr
+    | enumAssign
     | useStmt
     ;
 
@@ -22,14 +23,15 @@ whileStmt: WHILE expr body;
 foreachStmt: FOREACH ID IN expr body;
 useStmt: USE STRING;
 
+enumAssign: ENUM ID LBRACE (ID (COMMA ID)*)? RBRACE;
 funcModifications: LBRACK ID LPAREN args? RPAREN RBRACK;
 funcAssign: funcModifications* FUNC ID LPAREN params? RPAREN (RETURNS type)? body;
 varAssign: CONST? type? ID op=(ADD | SUB | MUL | DIV | MOD)? ASSIGN expr;
 
-arg: expr;
+arg: (ID COLON)? expr;
 args: arg (COMMA arg)*;
 
-param: type AMPERSAND? ID;
+param: type AMPERSAND? ID (ASSIGN expr)?;
 params: param (COMMA param)*;
 
 dict_element: expr COLON expr;
@@ -38,8 +40,6 @@ call: ID LPAREN args? RPAREN;
 atom
     : type LBRACE args? RBRACE
     | LBRACK type COLON type RBRACK LBRACE (dict_element (COMMA dict_element)*)? RBRACE
-    | BIN
-    | HEX
     | INT
     | FLOAT
     | STRING
@@ -50,17 +50,19 @@ atom
     ;
 
 expr
-    : expr DOT ID (LPAREN args? RPAREN)?
-    | call
+    : call
     | atom
-    | uop=NOT expr | uop=SUB expr
-    | expr op=(ADD | SUB) expr
-    | expr op=(MUL | DIV | MOD) expr
-    | expr op=(EEQ | NEQ | GT | LT | GTE | LTE) expr
-    | expr op=(AND | OR) expr
+    | expr DOT ID (LPAREN args? RPAREN)?
+    // | LBRACE expr COLON ID IN expr RBRACE
     | expr IF expr ELSE expr
     | NEW ID LPAREN args? RPAREN
+    | LPAREN type RPAREN expr
     | expr LBRACK expr RBRACK
+    | expr op=(MUL | DIV | MOD) expr
+    | expr op=(ADD | SUB) expr
+    | expr op=(EEQ | NEQ | GT | LT | GTE | LTE) expr
+    | expr op=(AND | OR) expr
+    | uop=(NOT | SUB | ADD) expr
     ;
 
 
@@ -68,6 +70,7 @@ IF: 'if';
 IN: 'in';
 NEW: 'new';
 USE: 'use';
+ENUM: 'enum';
 ELSE: 'else';
 FUNC: 'func';
 WHILE: 'while';
@@ -82,9 +85,7 @@ APOSTROPHE: '\'';
 INT: '-'? [0-9]+;
 FLOAT: '-'? [0-9]* '.' [0-9]+;
 STRING: DOLLAR? '"' .*? '"' | APOSTROPHE .*? APOSTROPHE;
-HEX: '0x' [0-9a-fA-F]+;
 BOOL: 'true' | 'false';
-BIN: '0b' [0-1]+;
 NIL: 'nil';
 ID: [a-zA-Z_][a-zA-Z_0-9]*;
 
@@ -116,6 +117,7 @@ RBRACK: ']';
 DOLLAR: '$';
 RETURNS: '->';
 AMPERSAND: '&';
+ARROWASSIGN: '=>';
 
 COMMENT: '//' .*? '\n' -> skip;
 MULTILINE_COMMENT: '/*' .*? '*/' -> skip;

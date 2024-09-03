@@ -1,6 +1,7 @@
 func main() -> int {
     // Define an array of random integers
     arr = int{8914, 614, 94, 90124, 735, 61, 67124, 1526, 74, 124}
+    print(type(arr)) // Print the type of the array
     print(arr) // Print the array
 
     // Iterate over the arrray
@@ -13,5 +14,31 @@ func main() -> int {
     // Check if an element exists in the array
     print(arr.has(614))
     print(arr.has(123))
+
+    // Sort and reverse the array
+    arr.sort()
+    arr.reverse()
+    print(arr)
+
+    // Pick a random element from the array and remove it
+    rand = arr.pick_random()
+    print(rand)
+    arr.remove(rand)
+    print(arr)
+
+    // Create another array
+    arr2 = int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
+    print(arr2)
+
+    // Compare the two arrays
+    print(arr == arr2) // false
+    print(arr != arr2) // true
+
+    // Add the arrays together
+    arr.add(arr2)
+    print(arr)
+
+    arr2.clear()
+    print(arr2)
     return 0
 }

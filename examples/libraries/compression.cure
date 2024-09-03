@@ -9,7 +9,7 @@ func main() -> int {
 
     // Print the compressed data versus the original data
     print($"Original data: {data}")
-    print("Compressed data: {compressed}")
+    print($"Compressed data: {compressed}")
 
     // See how much space was saved by compressing the data
     saved_bytes = data.length - compressed.length

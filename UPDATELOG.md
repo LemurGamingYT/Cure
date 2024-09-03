@@ -1,5 +1,17 @@
 # Update Log
 
+## Version 0.0.3
+- Default function parameter values
+- Keyword arguments
+- Use of local files
+- Serialization library
+- Lots of bug fixes
+- Casting
+- More examples
+- Enums
+- Regex
+- Minor optimizations
+
 ## Version 0.0.21
 - Fixed bug with function names
 - Added 'merge_sorted_arrays' and 'two_sum' leetcode problems to the examples

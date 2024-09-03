@@ -1,2 +1,2 @@
 # c_testing
- This folder is for testing some random C code. It may also include some C code for future libraries.
+ This folder is for testing some random C code. It may also include some C code for future or updates to libraries.

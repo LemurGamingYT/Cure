@@ -1,18 +1,8 @@
-from codegen.objects import Object, Position
 from codegen.std.compression.rle import RLE
-from codegen.c_manager import c_dec
 
 
 class compression:
-    def __init__(self, compiler) -> None:
-        self.compiler = compiler
-        
+    def __init__(self, codegen) -> None:
         self.rle = RLE()
-    
-    @c_dec(param_types=('string',), can_user_call=True)
-    def _rle_compress(self, compiler, call_position: Position, string: Object) -> Object:
-        return self.rle.rle_compress(compiler, call_position, string)
-
-    @c_dec(param_types=('string',), can_user_call=True)
-    def _rle_decompress(self, compiler, call_position: Position, string: Object) -> Object:
-        return self.rle.rle_decompress(compiler, call_position, string)
+        
+        codegen.c_manager.add_objects(self.rle, self)

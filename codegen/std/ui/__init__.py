@@ -8,12 +8,19 @@ from codegen.std.ui.frame import Frame
 
 
 class ui:
-    def __init__(self, compiler) -> None:
-        compiler.extra_compile_args.append('-lgdi32')
+    def __init__(self, codegen) -> None:
+        codegen.extra_compile_args.append('-lgdi32')
         
-        self.window = Window(compiler)
+        self.window = Window(codegen)
         
-        compiler.add_toplevel_code(f"""#ifdef OS_WINDOWS
+        codegen.add_toplevel_code(f"""#ifndef CURE_UI_H
+#ifdef OS_WINDOWS
+typedef struct {{
+    HFONT obj;
+    const string name;
+    int size;
+}}
+
 typedef struct {{
     HWND hwnd;
     const char* title;
@@ -34,6 +41,7 @@ typedef struct {{
     COLORREF bg_color;
     void (*on_click)(void);
     struct Widget* next;
+    Font font;
 }} Widget;
 
 LRESULT CALLBACK {self.window.window_proc}(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {{
@@ -74,20 +82,25 @@ void close_window(Window* window) {{
 }}
 
 #else
-#error "OS not supported"
+{codegen.c_manager.symbol_not_supported('ui')}
+#endif
 #endif
 """)
         
-        self.button = Button(compiler)
-        self.frame = Frame(compiler)
-        self.label = Label(compiler)
+        self.button = Button(codegen)
+        self.frame = Frame(codegen)
+        self.label = Label(codegen)
         
-        compiler.scope.env['close_window'] = EnvItem(
+        codegen.add_toplevel_code("""#ifndef CURE_UI_H
+#define CURE_UI_H
+#endif
+""")
+        codegen.scope.env['close_window'] = EnvItem(
             'close_window', Type('function'),
             Position(0, 0, '')
         )
         
-        compiler.c_manager.add_objects(self.window, self)
-        compiler.c_manager.add_objects(self.label, self)
-        compiler.c_manager.add_objects(self.button, self)
-        compiler.c_manager.add_objects(self.frame, self)
+        codegen.c_manager.add_objects(self.window, self)
+        codegen.c_manager.add_objects(self.label, self)
+        codegen.c_manager.add_objects(self.button, self)
+        codegen.c_manager.add_objects(self.frame, self)

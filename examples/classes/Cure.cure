@@ -1,0 +1,7 @@
+func main() -> int {
+    print(Cure)
+    
+    Cure.compile("print('Hello, World!')")
+    print(Cure.version)
+    return 0
+}

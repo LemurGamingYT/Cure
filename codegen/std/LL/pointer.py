@@ -3,63 +3,62 @@ from codegen.c_manager import c_dec
 
 
 class Pointer:
-    def __init__(self, compiler) -> None:
-        compiler.valid_types.append('Pointer')
+    def __init__(self, codegen) -> None:
+        codegen.valid_types.append('Pointer')
         
-        compiler.add_toplevel_code("""typedef struct {
+        codegen.add_toplevel_code("""#ifndef CURE_LL_H
+typedef struct {
     void* data;
 } Pointer;
+#endif
 """)
     
-    @c_dec()
+    @c_dec(is_method=True, is_static=True)
     def _Pointer_type(self, _, call_position: Position) -> Object:
         return Object('"Pointer"', Type('string'), call_position)
     
-    @c_dec(param_types=('Pointer',))
-    def _Pointer_to_string(self, compiler, call_position: Position, pointer: Object) -> Object:
+    @c_dec(param_types=('Pointer',), is_method=True)
+    def _Pointer_to_string(self, codegen, call_position: Position, pointer: Object) -> Object:
         ptr = f'({pointer.code})'
-        code, buf_free = compiler.c_manager.fmt_length(
-            compiler, call_position,
-            '%p', ptr
+        code, buf_free = codegen.c_manager.fmt_length(
+            codegen, call_position,
+            '"0x%p"', ptr
         )
         
-        compiler.prepend_code(code)
+        codegen.prepend_code(code)
         return Object(buf_free.object_name, Type('string'), call_position, free=buf_free)
     
     
     @c_dec(param_types=('int',), can_user_call=True)
-    def _allocate(self, compiler, call_position: Position, size: Object) -> Object:
-        ptr = compiler.create_temp_var(Type('Pointer'), call_position)
-        compiler.prepend_code(f"""Pointer {ptr};
-{ptr}.data = malloc({size.code});
-""")
-        
+    def _allocate(self, codegen, call_position: Position, size: Object) -> Object:
+        ptr = codegen.create_temp_var(Type('Pointer'), call_position)
+        codegen.prepend_code(f'Pointer {ptr} = {{ .data = malloc({size}) }};')
         return Object(ptr, Type('Pointer'), call_position)
     
     
     @c_dec(param_types=('int',), is_method=True, is_static=True)
-    def _Pointer_new(self, compiler, call_position: Position, size: Object) -> Object:
-        return self._allocate(compiler, call_position, size)
+    def _Pointer_new(self, codegen, call_position: Position, size: Object) -> Object:
+        return self._allocate(codegen, call_position, size)
     
     @c_dec(param_types=('Pointer', 'int'), is_method=True)
-    def _Pointer_reallocate(self, compiler, call_position: Position,
+    def _Pointer_reallocate(self, codegen, call_position: Position,
                             pointer: Object, size: Object) -> Object:
         ptr = f'({pointer.code})'
-        compiler.prepend_code(f"""{ptr}.data = realloc({ptr}.data, {size.code});
-{compiler.c_manager.buf_check(f'{ptr}.data')}
+        codegen.prepend_code(f"""{ptr}.data = realloc({ptr}.data, {size.code});
+{codegen.c_manager.buf_check(f'{ptr}.data')}
 """)
-        return Object(pointer.code, Type('Pointer'), call_position)
+        return Object(ptr, Type('Pointer'), call_position)
     
     @c_dec(param_types=('Pointer',), is_method=True)
-    def _Pointer_free(self, compiler, call_position: Position, pointer: Object) -> Object:
-        compiler.prepend_code(f'free(({pointer.code}).data);')
+    def _Pointer_free(self, codegen, call_position: Position, pointer: Object) -> Object:
+        codegen.prepend_code(f'free(({pointer.code}).data);')
         return Object('NULL', Type('nil'), call_position)
     
     @c_dec(param_types=('Pointer', 'any'), is_method=True)
-    def _Pointer_write(self, compiler, call_position: Position,
+    def _Pointer_write(self, codegen, call_position: Position,
                        pointer: Object, data: Object) -> Object:
-        data_var = compiler.create_temp_var('string', call_position)
-        compiler.prepend_code(f"""{data.type.c_type} {data_var} = {data.code};
+        data_var = codegen.create_temp_var('string', call_position)
+        codegen.prepend_code(f"""{data.type.c_type} {data_var} = {data.code};
 memcpy(({pointer.code}).data, (void*)(&{data_var}), sizeof({data_var}));
 """)
         return Object('NULL', Type('nil'), call_position)

@@ -3,38 +3,51 @@ from codegen.c_manager import c_dec
 
 
 class Window:
-    def __init__(self, compiler) -> None:
-        compiler.valid_types.append('Window')
+    def __init__(self, codegen) -> None:
+        codegen.valid_types.append('Window')
         
-        self.window_proc = compiler.get_unique_name()
-        compiler.scope.env[self.window_proc] = EnvItem(
+        self.window_proc = codegen.get_unique_name()
+        codegen.scope.env[self.window_proc] = EnvItem(
             self.window_proc, Type('function'),
             Position(0, 0, '')
         )
     
     
-    @c_dec()
+    @c_dec(is_method=True, is_static=True)
     def _Window_type(self, _, call_position: Position, _window: Object) -> Object:
         return Object('"Window"', Type('string'), call_position)
     
-    @c_dec(param_types=('Window',))
+    @c_dec(param_types=('Window',), is_method=True)
     def _Window_to_string(self, _, call_position: Position, _window: Object) -> Object:
         return Object('"class \'Window\'"', Type('string'), call_position)
     
     
+    @c_dec(param_types=('Window',), is_property=True)
+    def _Window_width(self, _, call_position: Position, window: Object) -> Object:
+        return Object(f'(({window.code}).width)', Type('int'), call_position)
+    
+    @c_dec(param_types=('Window',), is_property=True)
+    def _Window_height(self, _, call_position: Position, window: Object) -> Object:
+        return Object(f'(({window.code}).height)', Type('int'), call_position)
+    
+    @c_dec(param_types=('Window',), is_property=True)
+    def _Window_title(self, _, call_position: Position, window: Object) -> Object:
+        return Object(f'(({window.code}).title)', Type('string'), call_position)
+    
     @c_dec(param_types=('string', 'int', 'int'), is_method=True, is_static=True)
-    def _Window_new(self, compiler, call_position: Position, title: Object, width: Object,
+    def _Window_new(self, codegen, call_position: Position, title: Object, width: Object,
                     height: Object) -> Object:
         window_free = Free()
-        window = compiler.create_temp_var(Type('Window'), call_position, free=window_free)
+        window = codegen.create_temp_var(Type('Window'), call_position, free=window_free)
         window_free.object_name = '&' + window
         window_free.free_name = 'close_window'
-        wc = compiler.create_temp_var(Type('WNDCLASS'), call_position)
-        compiler.prepend_code(f"""Window {window};
-{window}.title = {title.code};
-{window}.width = {width.code};
-{window}.height = {height.code};
-{window}.widgets = NULL;
+        wc = codegen.create_temp_var(Type('WNDCLASS'), call_position)
+        codegen.prepend_code(f"""Window {window} = {{
+    .title = {title.code},
+    .width = {width.code},
+    .height = {height.code},
+    .widgets = NULL
+}};
 
 WNDCLASS {wc} = {{0}};
 {wc}.lpfnWndProc = {self.window_proc};
@@ -54,9 +67,9 @@ SetWindowLongPtr({window}.hwnd, GWLP_USERDATA, (LONG_PTR)(&{window}));
         return Object(window, Type('Window'), call_position, free=window_free)
     
     @c_dec(param_types=('Window',), is_method=True)
-    def _Window_run(self, compiler, call_position: Position, window: Object) -> Object:
-        msg = compiler.create_temp_var(Type('MSG'), call_position)
-        compiler.prepend_code(f"""ShowWindow({window.code}.hwnd, SW_SHOW);
+    def _Window_run(self, codegen, call_position: Position, window: Object) -> Object:
+        msg = codegen.create_temp_var(Type('MSG'), call_position)
+        codegen.prepend_code(f"""ShowWindow({window.code}.hwnd, SW_SHOW);
 MSG {msg} = {{0}};
 while (GetMessage(&{msg}, NULL, 0, 0)) {{
     TranslateMessage(&{msg});
@@ -64,4 +77,4 @@ while (GetMessage(&{msg}, NULL, 0, 0)) {{
 }}
 """)
         
-        return Object('NULL', Type('nil'), call_position)
+        return Object.NULL(call_position)

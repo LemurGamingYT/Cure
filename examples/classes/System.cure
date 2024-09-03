@@ -1,11 +1,20 @@
 func main() -> int {
-    print(System)
-
     print(System.pid) // Process ID
     print(System.os) // Operating System
     print(System.arch) // System Architecture
     print(System.cwd) // Current Working Directory
 
+    print(System.running_with_admin) // Check if the program is running with admin privileges
+
+    current_time = System.time // Get the current time according to the os
+    print(current_time)
+    print(current_time.year)
+    print(current_time.month)
+    print(current_time.day)
+    print(current_time.hour)
+    print(current_time.minute)
+    print(current_time.second)
+    
     System.exit() // Exit the program
     print("This won't not be printed")
 

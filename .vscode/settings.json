@@ -12,6 +12,13 @@
         "type_traits": "c",
         "xmemory": "c",
         "xutility": "c",
-        "sdl.h": "c"
+        "sdl.h": "c",
+        "re.h": "c",
+        "format": "c",
+        "initializer_list": "c",
+        "regex": "c",
+        "utility": "c",
+        "vector": "c",
+        "xstring": "c"
     }
 }

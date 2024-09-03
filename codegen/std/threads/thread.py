@@ -3,92 +3,110 @@ from codegen.c_manager import c_dec
 
 
 class Thread:
-    def __init__(self, compiler) -> None:
-        self.compiler = compiler
+    def __init__(self, codegen) -> None:
+        codegen.valid_types.append('Thread')
+        codegen.c_manager.RESERVED_NAMES.append('thread_close')
         
-        compiler.add_toplevel_code("""#ifdef OS_WINDOWS
-typedef struct {
-    HANDLE handle;
-} Thread;
-
-void thread_close(Thread* t) {
+        codegen.add_toplevel_code(f"""#ifndef CURE_THREADS_H
 #ifdef OS_WINDOWS
-    if (t->handle != NULL) {
+typedef struct {{
+    HANDLE handle;
+}} Thread;
+
+void thread_close(Thread* t) {{
+#ifdef OS_WINDOWS
+    if (t->handle != NULL) {{
         CloseHandle(t->handle);
         t->handle = NULL;
-    }
+    }}
 #endif
-}
+}}
 #else
-    #error threading is not supported on this OS
+{codegen.c_manager.symbol_not_supported('threads')}
+#endif
 #endif
 """)
     
     
-    @c_dec()
+    @c_dec(is_method=True, is_static=True)
     def _Thread_type(self, _, call_position: Position) -> Object:
         return Object('"Thread"', Type('string'), call_position)
     
-    @c_dec(param_types=('Thread',))
+    @c_dec(param_types=('Thread',), is_method=True)
     def _Thread_to_string(self, _, call_position: Position, _thread: Object) -> Object:
         return Object('"class \'Thread\'"', Type('string'), call_position)
     
     
-    def create_thread(self, compiler, call_position: Position, func: Object,
+    def create_thread(self, codegen, call_position: Position, func: Object,
                        *args: Object) -> Object:
-        if compiler.scope.env.get(func.code) is None:
+        if codegen.scope.env.get(func.code) is None:
             call_position.error_here(f'Function \'{func.code}\' not found')
         
-        struct = compiler.get_unique_name()
-        compiler.scope.env[struct] = EnvItem(struct, Type(struct), call_position, reserved=True)
-        fn = compiler.scope.env[func.code].func
+        fn = codegen.scope.env[func.code].func
         
-        thread_fn = compiler.get_unique_name()
-        compiler.scope.env[thread_fn] = EnvItem(thread_fn, Type('function'), call_position,
+        thread_fn = codegen.get_unique_name()
+        codegen.scope.env[thread_fn] = EnvItem(thread_fn, Type('function'), call_position,
                                                 reserved=True)
         
         args_str = ', '.join(arg.code for arg in args)
-        compiler.add_toplevel_code(f"""#ifdef OS_WINDOWS
+        codegen.add_toplevel_code(f"""#ifdef OS_WINDOWS
 {fn.returns.c_type} {fn.name}({", ".join(str(param) for param in fn.params)});
 DWORD WINAPI {thread_fn}(void* _) {{
-    {func.code}({args_str});
+    {func}({args_str});
 }}
 #else
-    #error create_thread() is not implemented on this platform
+{codegen.c_manager.symbol_not_supported('Thread.new()')}
 #endif
 """)
         
-        func_args = compiler.create_temp_var(Type(struct + '*'), call_position)
-        handle = compiler.create_temp_var(Type('HANDLE'), call_position)
-        
-        add_args = ''
-        for arg, param in zip(args, fn.params):
-            add_args += f'{func_args}.{param.name} = {arg.code};\n'
-        
         thread_close = Free(free_name='thread_close')
-        thread = compiler.create_temp_var(
+        thread = codegen.create_temp_var(
             Type('Thread'), call_position,
             free=thread_close
         )
         thread_close.object_name = '&' + thread
         
-        compiler.prepend_code(f"""#ifdef OS_WINDOWS
-    Thread {thread};
-    HANDLE {handle} = CreateThread(NULL, 0, {thread_fn}, NULL, 0, NULL);
-    if ({handle} == NULL) {{
-        {compiler.c_manager.err('Threading failed: %d', 'GetLastError()')}
-    }}
-    
-    {thread}.handle = {handle};
+        codegen.prepend_code(f"""#ifdef OS_WINDOWS
+Thread {thread} = {{ .handle = CreateThread(NULL, 0, {thread_fn}, NULL, CREATE_SUSPENDED, NULL) }};
+if ({thread}.handle == NULL) {{
+    {codegen.c_manager.err('Threading failed: %d', 'GetLastError()')}
+}}
 #else
-    #error create_thread() is not implemented on this platform
+{codegen.c_manager.symbol_not_supported('Thread.new()')}
 #endif
 """)
         
         return Object(thread, Type('Thread'), call_position, free=thread_close)
     
     
+    @c_dec(param_types=('Thread',), is_property=True)
+    def _Thread_id(self, codegen, call_position: Position, thread: Object) -> Object:
+        id = codegen.create_temp_var(Type('int'), call_position)
+        codegen.prepend_code(f"""#ifdef OS_WINDOWS
+int {id} = GetThreadId(({thread.code}).handle);
+#else
+{codegen.c_manager.symbol_not_supported('Thread.id')}
+#endif
+""")
+        return Object(id, Type('int'), call_position)
+    
     @c_dec(param_types=('Thread',), is_method=True)
-    def _Thread_join(self, compiler, call_position: Position, thread: Object) -> Object:
-        compiler.prepend_code(f'WaitForSingleObject({thread.code}.handle, INFINITE);')
-        return Object('NULL', Type('nil'), call_position)
+    def _Thread_start(self, codegen, call_position: Position, thread: Object) -> Object:
+        codegen.prepend_code(f"""#ifdef OS_WINDOWS
+ResumeThread(({thread.code}).handle);
+#else
+{codegen.c_manager.symbol_not_supported('Thread.start()')}
+#endif
+""")
+        
+        return Object.NULL(call_position)
+    
+    @c_dec(param_types=('Thread',), is_method=True)
+    def _Thread_join(self, codegen, call_position: Position, thread: Object) -> Object:
+        codegen.prepend_code(f"""#ifdef OS_WINDOWS
+WaitForSingleObject({thread.code}.handle, INFINITE);
+#else
+{codegen.c_manager.symbol_not_supported('Thread.join()')}
+#endif
+""")
+        return Object.NULL(call_position)

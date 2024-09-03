@@ -6,5 +6,21 @@ func main() -> int {
     print(type("H"))
 
     print(to_string(1000)) // to_string converts a value to a string
+
+    print(input("Enter something: ")) // input returns a string from the user
+
+    print(get_char("H")) // get_char returns the ASCII value of a character (or integer)
+    print(get_char(100)) // get_char returns the ASCII value of a character (or integer)
+
+    print(sizeof(int)) // sizeof returns the size of a type
+
+    // insert_c_code inserts C code into the generated code, be careful with this
+    insert_c_code('printf("Hello World!\n")')
+
+    x = 10
+    print(addr_of(x)) // addr_of returns the address of a variable as a string
+
+    assert(x == 10) // If the test fails, the default error message is "Assertion failed"
+    assert(x != 10, "x should not be 10") // This will fail and print the error message
     return 0
 }

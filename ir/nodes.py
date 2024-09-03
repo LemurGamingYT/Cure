@@ -1,6 +1,7 @@
 from dataclasses import dataclass, field
 from typing import NoReturn, Union
 from sys import exit as sys_exit
+from pathlib import Path
 from abc import ABC
 
 from colorama import init, Fore, Style
@@ -40,6 +41,7 @@ class Node(ABC):
 @dataclass(**kwargs)
 class Program(Node):
     nodes: list[Node] = field(default_factory=list)
+    file: Path | None = field(default=None)
 
 @dataclass(**kwargs)
 class Body(Node):
@@ -56,10 +58,12 @@ class ParamNode(Node):
     name: str
     type: TypeNode
     ref: bool = field(default=False)
+    default: Node | None = field(default=None)
 
 @dataclass(**kwargs)
 class ArgNode(Node):
     expr: Node
+    keyword: str | None = field(default=None)
 
 @dataclass(**kwargs)
 class Call(Node):
@@ -184,3 +188,19 @@ class Index(Node):
 @dataclass(**kwargs)
 class DollarString(Node):
     nodes: list[Node] = field(default_factory=list)
+
+@dataclass(**kwargs)
+class Cast(Node):
+    obj: Node
+    type: TypeNode
+
+@dataclass(**kwargs)
+class ArrayComprehension(Node):
+    expr: Node
+    loop_name: str
+    iterable: Node
+
+@dataclass(**kwargs)
+class Enum(Node):
+    name: Identifier
+    members: list[Identifier] = field(default_factory=list)

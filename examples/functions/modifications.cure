@@ -22,8 +22,8 @@ func test_speed() {
 }
 
 func main() -> int {
-    test()
-    test2()
+    print(test())
+    print(test2())
 
     test_speed()
     return 0
