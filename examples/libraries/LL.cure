@@ -6,7 +6,7 @@ use "LL"
 
 func main() -> int {
     // Allocate 10 bytes of memory
-    ptr = allocate(10)
+    ptr = allocate(10) // You can also allocate a new pointer by doing `new Pointer(size)`
 
     // Write the integer value '5' to the allocated memory
     ptr.write(5)
@@ -14,5 +14,24 @@ func main() -> int {
 
     // Make sure to free the allocated memory
     ptr.free()
+
+    // Create a new variable
+    a = 1
+    a_pointer = addr_of(a) // Get the address of the variable
+
+    // Open the current process, so we can access the 'a' variable
+    // An overload of the `new Process` is a program id (an integer)
+    // `new Process()` has improved performance of `new Process(System.pid)`
+    process = new Process()
+    print(process) // Prints the process id with some formatting
+
+    // Read the original value of the 'a' variable, make sure you put in the correct type or this will
+    // lead to undefined behaviour and will break your program
+    original_value = process.read(a_pointer, int)
+    process.write(a_pointer, 10) // Write a new value of '10' into the 'a' variable
+
+    process.close() // Make sure to close the process like you free memory
+
+    print(a) // The variable has been changed now
     return 0
 }

@@ -21,10 +21,28 @@ func test_speed() {
     }
 }
 
+// Use the 'Cache' modification to the 'fib' function
+// This will IMMENSELY speed up your functions by caching the results of each function call
+// This is very effective if you have a recursive function
+[Benchmark()]
+[Cache()]
+func fib(int n) -> int {
+    if n == 0 || n == 1 {
+        return 1
+    } else {
+        return fib(n - 1) + fib(n - 2)
+    }
+}
+
 func main() -> int {
     print(test())
     print(test2())
 
+    // Benchmark will print out the time spent to execute the function in seconds (will not return)
     test_speed()
+
+    // Call the 'fib' function which will cache the function call result
+    // This executes in ~27.5 seconds in my testing without caching, with caching it takes 0.001 seconds
+    print(fib(45))
     return 0
 }

@@ -1,0 +1,29 @@
+func binary_search(array[int] arr, int target) -> int {
+    low = 0
+    high = arr.length - 1
+    while low <= high {
+        mid = Math.floor((low + high) / 2)
+        if arr[mid] == target {
+            return mid
+        } else if arr[mid] < target {
+            low = mid + 1
+        } else {
+            high = mid - 1
+        }
+    }
+
+    return -1
+}
+
+func main() -> int {
+    arr = int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
+    target = 8
+    res = binary_search(arr, target)
+    if res != -1 {
+        print($"Found {target} at index {res}")
+    } else {
+        print($"{target} not found in the array")
+    }
+
+    return 0
+}

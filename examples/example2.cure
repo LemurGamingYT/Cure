@@ -37,5 +37,17 @@ func main() -> int {
     }
 
     writer.to_file("test.bin")
+
+    // Use the 'parsers' library to create a new JSON file
+    use "parsers"
+
+    json = new JSONParser()
+    json.write_string("name", "Douglas")
+    json.write_string("surname", "Crockford")
+    json.write_string("fullname", $"{json.read_string('name')} {json.read_string('surname')}")
+    json.write_string("city", "San Francisco")
+    json.write_int("age", 69)
+    
+    json.to_file("biography.json")
     return 0
 }

@@ -3,8 +3,10 @@ func main() -> int {
     print(System.os) // Operating System
     print(System.arch) // System Architecture
     print(System.cwd) // Current Working Directory
+    print(System.admin) // Check if the program is running with admin privileges
 
-    print(System.running_with_admin) // Check if the program is running with admin privileges
+    cur_pos = System.cursor_pos // Get the current mouse position (returns a Vector2)
+    System.set_cursor_pos(cur_pos + Math.vec2(100.0, 100.0)) // Move the mouse 100 pixels on both axes
 
     current_time = System.time // Get the current time according to the os
     print(current_time)

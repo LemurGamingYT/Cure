@@ -1,5 +1,5 @@
 // Use a local file
-use "examples/libraries/local_file.cure"
+use "./local_file.cure"
 
 
 func main() -> int {

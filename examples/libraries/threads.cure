@@ -1,4 +1,5 @@
-// 'threads' is a library that allows you to create threads, only supported on Windows for now
+// 'threads' is a library that allows you to create threads, most of the library is supported but some
+// is only available on Windows
 use "threads"
 
 
@@ -9,11 +10,14 @@ func test(int a, int b) {
 
 func main() -> int {
     // Create a new thread that calls the 'test' function with the arguments 1 and 2
-    thread = new Thread(test, 1, 2)
+    thread = new Thread(test, 1, 2) // Automatically starts the thread
     print(thread) // Print the thread object
-    print($"Thread ID: {thread.id}") // Print the thread's ID
-
-    thread.start() // Start the thread
+    
+    if System.os == "Windows" {
+        print($"Thread ID: {thread.id}") // Print the thread's ID
+    } else {
+        print($"Thread ID not supported on {System.os}")
+    }
 
     // Wait for the thread to finish
     thread.join()

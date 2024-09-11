@@ -1,10 +1,12 @@
 from codegen.objects import Object, Position
 from codegen.std.LL.pointer import Pointer
+from codegen.std.LL.process import Process
 from codegen.c_manager import c_dec
 
 
 class LL:
     def __init__(self, codegen) -> None:
+        self.process = Process(codegen)
         self.ptr = Pointer(codegen)
         
         codegen.add_toplevel_code("""#ifndef CURE_LL_H
@@ -12,6 +14,7 @@ class LL:
 #endif
 """)
         codegen.c_manager.add_objects(self.ptr, self)
+        codegen.c_manager.add_objects(self.process, self)
     
     @c_dec(param_types=('string',), can_user_call=True)
     def _asm(self, codegen, call_position: Position, string: Object) -> Object:

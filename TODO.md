@@ -1,9 +1,11 @@
 # TODOs
  TODOs for the Cure programming language
 
-*as of v0.0.3*
-- [ ] Use **Reference Counting for memory management at compile-time** instead of blindly guessing when to free memory. This is **High Priority** because it will need the compiler and libraries to be modified a lot.
+*as of v0.0.31*
+- [ ] Fill in the `return_type` and convert each `param_types` string to a `Type()` class in every `c_dec` call.
 - [ ] Fix nested arrays
+- [ ] Support toplevel/global variables
+- [ ] Support overloaded function modifications
 - [ ] Functions
     - [ ] Anonymous functions: For example `print(func(int a) {
     print(a)
@@ -15,7 +17,7 @@
     - [x] Parameter references (actually just pointers)
     - [ ] Modifications (like Python decorators)
         - [x] Benchmark: Prints the time taken to execute a function when the function ends
-        - [ ] Memoize: Cache function results
+        - [x] Cache: Cache function results
         - [ ] Timeout: Set a maximum execution time for the function
         - [ ] Validate: Check input parameters against specified conditions before executing the function
 - [x] Dictionary type
@@ -25,29 +27,29 @@
 - [ ] Import aliasing (use "abc" as abc): Alias the used library into an object that can be used like a class in the program.
 - [ ] REPL (Read Eval Print Loop): For quick experimentation.
 - [ ] Dependency Manager: Allow programmers to have a built-in dependency manager to manage bringing in packages.
-    - [x] Use local files: Use not only libraries but other .cure files.
-- [ ] Array Comprehensions: Apply an expression to each element of an array.
-- [ ] Metaprogramming: Compile-time code generation capabilities.
-    - [ ] AST Manipulation: the ability to manipulate the IR/AST at compile time.
+    - [x] Use local files: Use not only libraries but other .cure files
+- [ ] Array Comprehensions: Apply an expression to each element of an array
+- [ ] Metaprogramming: Compile-time code generation capabilities
+    - [ ] AST Manipulation: the ability to manipulate the IR/AST at compile time
     - [ ] Macros: Code transformation before compilation. For example `macro double(x) x*2
 value = double(5) // Expands to 5*2`
-- [ ] Error handling (try/catch): Catch runtime errors and handle them accordingly.
-- [ ] Coroutines and async/await: Asynchronous programming features for better concurrency handling.
-- [x] Enums: A simple way to define a set of named constants.
-- [ ] First class functions: Gives the ability to have functions as types.
-- [ ] 'extern' keyword: Allows the use of external functions from C.
-- [ ] Generic parameters: Every time a function with generic parameters is called, the compiler will define a new function for the new generic type. For example `func add[T](T a, T b) {
+- [ ] Error handling (try/catch): Catch runtime errors and handle them accordingly
+- [ ] Coroutines and async/await: Asynchronous programming features for better concurrency handling
+- [x] Enums: A simple way to define a set of named constants
+- [ ] First class functions: Gives the ability to have functions as types
+- [ ] 'extern' keyword: Allows the use of external functions from C
+- [ ] Generic parameters: Every time a function with generic parameters is called, the compiler will define a new function for the new generic type. For example `func add[T](T a, T b) -> T {
     return a + b
 }
 
 print(func(8, 10)) // Generates add(int, int) -> int
 print(func(5.7, 9)) // Generates add(float, int) -> float`
-- [x] Casting: Convert a type to another type.
+- [x] Casting: Convert a type to another type
 - [ ] Libraries
     - [x] More File I/O functions
     - [ ] Buffer library: Fixed size arrays
     - [x] Big integers and floats
-    - [ ] Language building library: Provides a way to build a language within the Cure language. Gives a configurable lexer, parser and visitor.
+    - [ ] Language building library: Provides a way to build a language within the Cure language. Provides a configurable lexer, parser and visitor.
         - [ ] Regular Expressions: Regular expressions for pattern matching.
             - [x] Match
             - [ ] Replace
@@ -55,8 +57,8 @@ print(func(5.7, 9)) // Generates add(float, int) -> float`
             - [ ] Find
             - [ ] Find All
             - [ ] Sub
-            - [ ] RegexBuilder class: An interface for building regular expressions easier. Each attribute returns a new RegexBuilder object. For example: `pattern = RegexBuilder().start_of_line().digit().repeat(3).literal("-").digit().repeat(4)
-if pattern.matches("123-4567") {
+            - [ ] RegexBuilder class: An interface for building regular expressions easier. Each attribute returns a new RegexBuilder object. For example: `pattern = RegexBuilder().start_of_line().digit().repeat(3).literal("-").digit().repeat(4).build()
+if pattern.match("123-4567") {
     print("Valid")
 }`
     - [ ] Command line parsing library: Parses command line arguments
@@ -64,6 +66,7 @@ if pattern.matches("123-4567") {
     - [ ] LL library: Low level library for Cure
         - [x] Pointers: Allocate memory and deallocate memory
         - [x] Inline Assembly: Inline assembly code (not tested)
+        - [x] Process manipulation: Read and write memory to processes
         - [ ] Memory Pool: Memory pool class for allocating chunks of memory efficiently, https://en.wikipedia.org/wiki/Memory_pool
         - [ ] Slab Allocator: A slab allocator for allocating memory, https://en.wikipedia.org/wiki/Slab_allocation
     - [ ] Windows API: Wrapper around the C `Windows.h` header
@@ -71,9 +74,11 @@ if pattern.matches("123-4567") {
     - [x] Text library: Text wrapping and locale
     - [ ] Compression library: RLE and other compression techniques
     - [x] Threading library: Thread code in different threads on the CPU
-    - [ ] Lua Integration: Lua programming language bindings
+    - [ ] Cross programming language bindings
+        - [ ] Lua: Lua programming language bindings
+        - [ ] Python: Python programming language bindings
     - [ ] Parsing library: Parsing of different kinds of information files
-        - [ ] JSON
+        - [x] JSON
         - [ ] XML
         - [ ] TOML
         - [ ] HTML
@@ -87,7 +92,11 @@ if pattern.matches("123-4567") {
     - [x] Color library: RGB, HSV, etc with conversions between them
     - [x] Sound library: Low and high level sound control, gives control over low level things like sample rate or number of channels of a .wav file but also has high level functions like play
     - [x] Serialization library: Serialize objects
+    - [ ] Machine learning library
+        - [ ] Neural networks: Neural Network support for Cure
 - [ ] Classes defined by the programmer (not built-in)
+    - [ ] Class methods: Functions inside a class
+    - [ ] Class properties: Similar to variables but inside a class
     - [ ] Special class methods: Methods like to_string(), init(), type(), etc. Giving the programmer the ability to define how the compiler handles certain things to do with the custom class
     - [ ] Operator overloading: Define how operators work for a class
     - [ ] Inheritance: Classes inherit attributes, methods, etc from a parent class
@@ -99,3 +108,11 @@ https://github.com/JessicaBarclay/awesome-csharp
 https://github.com/avelino/awesome-go
 https://github.com/oz123/awesome-c
 https://project-awesome.org/inputsh/awesome-c
+
+
+Things to take a deeper look at:
+General: http://p99.gforge.inria.fr/
+General: http://attractivechaos.github.io/klib/#About
+Deep Learning: https://pjreddie.com/darknet/
+Neural Networks: https://github.com/codeplea/genann
+Advanced Maths: https://github.com/ferreiradaselva/mathc

@@ -10,7 +10,7 @@ Cure is a programming language that is designed to be **very easy, fast and safe
 - **Simplicity**: Cure is designed to be simple to use and learn.
 - **Static typing**: Cure is statically typed meaning that the compiler will check for errors at compile time. Cure also has type inference on variables.
 - **High level**: Cure is a high level language meaning that it is designed to be easy to use and understand. Even though it is a high level language, it still offers low level capabilities such as Pointers.
-- **Memory safety**: Cure is designed to be fast and safe at the same time. Therefore, Cure does not use any garbage collection and instead automatically frees allocated memory.
+- **Memory safety**: Cure is designed to be fast and safe at the same time. Therefore, Cure does not use any garbage collection and instead automatically frees allocated memory in the compiled C code.
 
 ---
 

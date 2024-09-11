@@ -1,8 +1,11 @@
 from typing import Callable, Any
 from pathlib import Path
 
-from codegen.objects import Scope, Object, Type, Param, EnvItem, Function, Free, validate_args, Arg
+from codegen.objects import (
+    Scope, Object, Type, Param, EnvItem, Function, Free, validate_args, Arg, TempVar
+)
 from codegen.c_manager import CManager, STD_PATH, c_dec
+from codegen.class_manager import ClassManager
 from codegen.array_manager import ArrayManager
 from codegen.dict_manager import DictManager
 from ir.base_visitor import IRVisitor
@@ -10,7 +13,7 @@ from ir import (
     Program, Body, TypeNode, ParamNode, ArgNode, Call, Return, Foreach, While,
     If, Use, VarDecl, Value, Identifier, Array, Dict, Brackets, BinOp, UOp, Attribute, New,
     Ternary, Position, Node, Break, Continue, FuncDecl, Nil, Index, DollarString, IRBuilder,
-    Cast, Enum
+    Cast, Enum, Class
 )
 
 
@@ -20,15 +23,17 @@ op_map = {
 }
 
 
-def str_to_c(cure: str, scope: Scope | None = None) -> tuple['CodeGen', str]:
+def str_to_c(cure: str, scope: Scope | None = None,
+             filename: Path | None = None) -> tuple['CodeGen', str]:
     builder = IRBuilder()
     program = builder.build(cure)
+    program.file = filename
     
     codegen = CodeGen(scope)
     return codegen, codegen.generate(program)
 
 def cure_to_c(cure: Path, output: Path | None = None) -> tuple['CodeGen', str]:
-    codegen, code = str_to_c(cure.read_text('utf-8'))
+    codegen, code = str_to_c(cure.read_text('utf-8'), filename=cure)
     if output is not None:
         output.write_text(code, 'utf-8')
     
@@ -38,9 +43,13 @@ def cure_to_c(cure: Path, output: Path | None = None) -> tuple['CodeGen', str]:
 class CodeGen(IRVisitor):
     def __init__(self, scope: Scope | None = None) -> None:
         self.top_level_code = ''
+        self.main_end_code = ''
         self.scope = scope or Scope()
         
-        self.valid_types = ['int', 'float', 'bool', 'string', 'nil', 'Math', 'System', 'Time', 'Cure']
+        self.valid_types = [
+            'int', 'float', 'bool', 'string', 'nil', 'Math', 'System', 'Time', 'Cure', 'Fraction',
+            'Vector2', 'hex'
+        ]
         
         self.library_classes: list[object] = []
         self.extra_compile_args: list[str] = []
@@ -48,6 +57,7 @@ class CodeGen(IRVisitor):
         self.c_manager = CManager(self)
         self.dict_manager = DictManager(self)
         self.array_manager = ArrayManager(self)
+        self.class_manager = ClassManager(self)
         
         self.add_toplevel_code('#ifndef _CURE_INITIALISED\n')
         
@@ -55,8 +65,7 @@ class CodeGen(IRVisitor):
         
         POS_ZERO = Position(0, 0, '')
         code, name = self.c_manager.array_from_c_array(
-            self, POS_ZERO,
-            Type('string'), '__argv'
+            self, POS_ZERO, Type('string'), '__argv', '__argc'
         )
         
         self.scope.env['init'] = EnvItem('init', Type('function'), POS_ZERO)
@@ -65,6 +74,7 @@ class CodeGen(IRVisitor):
         self.add_toplevel_code(f"""void init() {{
 {code}
 args = {name};
+srand(time(NULL));
 }}
 """)
 
@@ -72,7 +82,7 @@ args = {name};
     
     def is_string_literal(self, value: Object | str) -> bool:
         if isinstance(value, Object):
-            return self.is_string_literal(value.code) and value.type == Type('string')
+            return self.is_string_literal(str(value)) and value.type == Type('string')
         
         return value.startswith('"') and value.endswith('"')
     
@@ -114,18 +124,13 @@ args = {name};
         """
         
         kwargs.pop('env', None)
-        kwargs.pop('parent', None)
         kwargs.pop('ending_code', None)
-        kwargs.pop('local_free_vars', None)
         
         self.scope = Scope(self.scope, env=self.scope.env.copy(), **kwargs)
         
         if params is not None:
             for param in params:
-                self.scope.env[param.name] = EnvItem(
-                    f'*({param.name})' if param.ref else param.name,
-                    param.type, Position(0, 0, '')
-                )
+                self.scope.env[param.name] = EnvItem(param.USE(), param.type, Position(0, 0, ''))
     
     def exit_scope(self) -> None:
         """Exit out of a scope and restore the previous scope."""
@@ -144,6 +149,7 @@ args = {name};
         Returns:
             bool: True if the name is occupied and False if the name isn't occupied.
         """
+        
         
         return name in self.scope.env or self.c_manager.get_object(name) is not None or\
             name in self.c_manager.RESERVED_NAMES
@@ -183,7 +189,7 @@ args = {name};
         type_: Type, pos: Position,
         name: str | None = None,
         free: Free | None = None
-    ) -> str:
+    ) -> TempVar:
         """Create a temporary variable. Handles adding freeing, creating a unique name (if one
         if not given) and adding the variable to the scope.
 
@@ -195,7 +201,7 @@ args = {name};
             free (Free | None, optional): The `Free` structure of the variable. Defaults to None.
 
         Returns:
-            str: The output name.
+            TempVar: The temporary variable.
         """
         
         if name is None:
@@ -208,7 +214,7 @@ args = {name};
         if free is not None:
             self.scope.add_free(free)
         
-        return name
+        return TempVar(name, type_, pos, free=free)
     
     def add_toplevel_code(self, code: str) -> None:
         self.top_level_code += code + '\n'
@@ -246,6 +252,30 @@ args = {name};
             if v not in free_vars
         ) + '\n' + self.scope.ending_code
     
+    def handle_free(self, free: Free | None, obj: Object, pos: Position) -> Object:
+        """Handles freeing a variable.
+
+        Args:
+            free (Free): The free structure.
+            out (Object): The object to free.
+            pos (Position): The position.
+
+        Returns:
+            Object: The output code.
+        """
+        
+        if free is None:
+            return Object(str(obj), obj.type, pos)
+        # elif item.free.object_name != '':
+        #     call_position.warn_here(
+        #         f'Overriding free variable \'{item.free.object_name}\', may cause memory issues'
+        #     )
+        
+        temp_free = Free(free_name=free.free_name)
+        temp_var = self.create_temp_var(obj.type, pos, free=temp_free)
+        self.prepend_code(f'{obj.type.c_type} {temp_var} = {obj};')
+        return temp_var.OBJECT()
+    
     def call(self, name: str, args: list[Arg], call_position: Position,
              by_user: bool = False) -> Object:
         """Call a function. Supports C std Python functions and user defined functions. Handles
@@ -267,17 +297,7 @@ args = {name};
             if obj is None:
                 call_position.error_here(f'Function \'{name}\' returned absolutely nothing')
             
-            if item.free is None:
-                return Object(obj.code, obj.type, call_position)
-            # elif item.free.object_name != '':
-            #     call_position.warn_here(
-            #         f'Overriding free variable \'{item.free.object_name}\', may cause memory issues'
-            #     )
-            
-            temp_free = Free(free_name=item.free.free_name)
-            temp_var = self.create_temp_var(obj.type, call_position, free=temp_free)
-            self.prepend_code(f'{obj.type.c_type} {temp_var} = {obj.code};')
-            return Object(temp_var, obj.type, call_position, free=temp_free)
+            return self.handle_free(item.free, obj, call_position)
         elif (c_func := self.c_manager.get_object(name)) is not None:
             if not getattr(c_func, 'can_user_call', False) and by_user:
                 call_position.error_here(f'Name \'{name}\' is not defined')
@@ -304,6 +324,9 @@ args = {name};
                         break
             
             if call_func is None or params is None:
+                if len(arg_types) == 0:
+                    call_position.error_here(f'No matching overload for \'{name}\' with no arguments')
+                
                 arg_types_str = ', '.join(type_ for type_ in arg_types)
                 call_position.error_here(
                     f'No matching overload for \'{name}\' with arguments {arg_types_str}'
@@ -367,17 +390,12 @@ if {lib_name} not in [type(cls) for cls in libraries]:
                 break
         else:
             full_lib_name = lib_name
-            lib = Path(lib_name).resolve()
-            # if lib_name.startswith('.'):
-            #     if self.FILENAME is None:
-            #         pos.error_here('Cannot perform relative imports without a proper filename')
+            lib = Path(lib_name)
+            if not lib.is_absolute() or not lib.exists():
+                if self.FILENAME is None:
+                    pos.error_here('Cannot perform relative imports without a proper filename')
                 
-            #     lib = (self.FILENAME.parent / lib.name).resolve()
-            #     for _ in range(lib_name.split('/')[0].count('.') - 1):
-            #         lib = lib.parent
-                
-            #     lib_name = '/'.join(lib_name.split('/')[1:])
-            #     lib = lib / lib_name
+                lib = self.FILENAME.parent.joinpath(lib)
             
             if lib == self.FILENAME:
                 pos.error_here('Cannot use current file')
@@ -469,7 +487,7 @@ extern "C" {{
         len_expr = self.call(len_callee_str, [Arg(iterable)], node.pos)
         
         i = self.create_temp_var(Type('int'), node.pos)
-        idx_obj = Arg(Object(i, Type('int'), node.pos))
+        idx_obj = Arg(i.OBJECT())
         
         self.enter_scope(is_in_loop=True)
         
@@ -534,6 +552,14 @@ extern "C" {{
         self.exit_scope()
         return Object('\n'.join(code), code_type, node.pos, free=free)
     
+    def visit_Class(self, node: Class) -> Object:
+        name = node.name
+        if self.name_occupied(name):
+            node.pos.error_here(f'Name \'{name}\' is already in use')
+        
+        code = self.class_manager.create_class(name, node.members)
+        return Object(code, Type('nil'), node.pos)
+    
     def visit_FuncDecl(self, node: FuncDecl) -> Object:
         name = node.name
         return_type = self.visit_TypeNode(node.return_type)\
@@ -541,12 +567,16 @@ extern "C" {{
         params = [self.visit_ParamNode(param) for param in node.params]
         
         kwargs: dict[str, Any] = {'params': params}
-        if name == 'main':
-            kwargs['ending_code'] = 'free(args.elements);'
+        is_main_function = name == 'main'
+        if is_main_function:
+            kwargs['ending_code'] = f'free(args.elements);\n{self.main_end_code}\n'
         
         new_name = None
         original_name = name
         if name in self.scope.env:
+            if len(node.modifications) > 0:
+                node.pos.error_here('Overload function modifications are not supported yet')
+            
             new_name = self.get_unique_name(name)
             if (f := self.scope.env[name].func) is not None:
                 f.add_overload(
@@ -574,7 +604,7 @@ extern "C" {{
         
         body = self.visit_Body(node.body, **kwargs)
         self.scope.env[original_name].free = body.free
-        
+                
         # if body.type != return_type:
         #     node.pos.error_here(f'Expected return type \'{return_type}\', got \'{body.type}\'')
         
@@ -583,11 +613,15 @@ extern "C" {{
             name = new_name
         
         return Object(f"""{return_type.c_type} {name}({params_str}) {{
+{'init();' if is_main_function else ''}
 {body}
 }}
 """, Type('nil'), node.pos)
     
     def visit_VarDecl(self, node: VarDecl) -> Object:
+        if self.scope.parent is None:
+            node.pos.error_here('Top level variables are not allowed')
+        
         name = node.name
         value: Object = self.visit(node.value)
         type_ = self.visit_TypeNode(node.type) if node.type is not None else value.type
@@ -618,6 +652,11 @@ extern "C" {{
                 
                 value = self.call(callee, [Arg(val), Arg(value)], node.pos)
             
+            if value.free is not None:
+                self.scope.env[original_name].free = value.free.replace(Free(name))\
+                    if item.free is None else value.free.replace(item.free)
+                self.scope.remove_free(value.free)
+            
             return Object(f'{item.name} = {value}', item.type, node.pos)
         else:
             if node.op is not None:
@@ -628,7 +667,7 @@ extern "C" {{
             )
             
             const = 'const ' if node.is_const else ''
-            return Object(f'{const}{type_.c_type} {name} = {value.code}', type_, node.pos)
+            return Object(f'{const}{type_.c_type} {name} = {str(value)}', type_, node.pos)
     
     def visit_ParamNode(self, node: ParamNode) -> Param:
         return Param(
@@ -658,7 +697,7 @@ extern "C" {{
                 self.prepend_code(f'string {b_var} = {self.call(
     f"{b.type.c_type}_to_string", [Arg(b)], node.pos
 )};')
-                fmt_variables.append(b_var)
+                fmt_variables.append(str(b_var))
                 fmt += '%s'
         
         code, buf_free = self.c_manager.fmt_length(self, node.pos, f'"{fmt}"', *fmt_variables)
@@ -753,14 +792,14 @@ extern "C" {{
             if getattr(func, 'is_method', False):
                 if node.args is None:
                     node.pos.error_here(
-                        f'Attribute \'{node.attr}\' is a method, but is accessed like a property'
+                        f'Attribute \'{node.attr}\' is a method, but is used like a property'
                     )
                 
                 args.extend(self.visit_ArgNode(arg) for arg in node.args)
             elif getattr(func, 'is_property', False):
                 if node.args is not None:
                     node.pos.error_here(
-                        f'Attribute \'{node.attr}\' is a property, but is accessed like a method'
+                        f'Attribute \'{node.attr}\' is a property, but is used like a method'
                     )
             else:
                 node.pos.error_here(f'Invalid attribute \'{node.attr}\' on type \'{obj.type}\'')
@@ -770,7 +809,7 @@ extern "C" {{
             node.pos.error_here(f'Attribute \'{node.attr}\' is not defined for type \'{obj.type}\'')
     
     def visit_New(self, node: New) -> Object:
-        name = self.visit_Identifier(node.name).code
+        name = str(self.visit_Identifier(node.name))
         callee = f'{name}_new'
         if (func := self.c_manager.get_object(callee)) is not None:
             if not getattr(func, 'is_static', False):
@@ -806,20 +845,8 @@ extern "C" {{
         if self.name_occupied(name):
             node.name.pos.error_here(f'Name \'{name}\' is already used')
         
-        enum_type = 'int'
-        if len(node.members) <= 0xFF:
-            enum_type = 'unsigned char'
-        elif len(node.members) <= 0xFFFF:
-            enum_type = 'unsigned short'
-        elif len(node.members) <= 0xFFFFFFFF:
-            enum_type = 'unsigned int'
-        elif len(node.members) <= 0xFFFFFFFFFFFFFFFF:
-            enum_type = 'unsigned long long'
-        else:
-            node.pos.error_here(f'Enum \'{name}\' has too many members')
-        
         self.valid_types.append(name)
-        self.add_toplevel_code(f'typedef {enum_type} {name};')
+        self.add_toplevel_code(f'typedef int {name};')
         
         @c_dec(
             add_to_class=self.c_manager, func_name_override=f'{name}_type',
@@ -847,6 +874,13 @@ extern "C" {{
             )
             def _(_, call_position: Position, value=value) -> Object:
                 return Object(f'(({name})({value}))', Type(name), call_position)
+            
+        @c_dec(
+            param_types=(name,), is_method=True,
+            add_to_class=self.c_manager, func_name_override=f'{name}_to_int'
+        )
+        def _(_, call_position: Position, enum: Object) -> Object:
+            return Object(f'((int)({enum}))', Type('int'), call_position)
         
         @c_dec(
             param_types=(name, name),

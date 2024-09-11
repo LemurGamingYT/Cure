@@ -9,6 +9,7 @@ stmt
     | foreachStmt | whileStmt | ifStmt
     | varAssign
     | expr
+    // | classAssign
     | enumAssign
     | useStmt
     ;
@@ -23,6 +24,10 @@ whileStmt: WHILE expr body;
 foreachStmt: FOREACH ID IN expr body;
 useStmt: USE STRING;
 
+classDeclarations
+    : funcAssign+
+    ;
+classAssign: CLASS ID LBRACE classDeclarations? RBRACE;
 enumAssign: ENUM ID LBRACE (ID (COMMA ID)*)? RBRACE;
 funcModifications: LBRACK ID LPAREN args? RPAREN RBRACK;
 funcAssign: funcModifications* FUNC ID LPAREN params? RPAREN (RETURNS type)? body;
@@ -76,6 +81,7 @@ FUNC: 'func';
 WHILE: 'while';
 BREAK: 'break';
 CONST: 'const';
+CLASS: 'class';
 RETURN: 'return';
 FOREACH: 'foreach';
 CONTINUE: 'continue';

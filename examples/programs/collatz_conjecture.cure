@@ -15,8 +15,7 @@ func conjecture(int num) -> int {
 }
 
 func main() -> int {
-    i = 0
-    while i < 10 {
+    foreach i in range(1, 11) {
         print($"Collatz conjecture for {i}: {conjecture(i)}")
         i += 1
     }

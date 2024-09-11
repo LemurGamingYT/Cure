@@ -50,24 +50,38 @@ class Scope:
     env: dict[str, 'EnvItem'] = field(default_factory=dict)
     is_in_loop: bool = field(default=False)
     
+    @property
+    def toplevel(self) -> 'Scope':
+        top = self
+        while top.parent is not None:
+            top = top.parent
+        
+        return top
+    
     def add_free(self, free: 'Free') -> None:
         self.free_vars.add(free)
         self.local_free_vars.add(free)
     
     def remove_free(self, free: 'Free') -> None:
-        if free in self.free_vars:
-            self.free_vars.remove(free)
+        for i, f in enumerate(self.local_free_vars):
+            if f == free:
+                local_free_vars = list(self.local_free_vars)
+                local_free_vars.pop(i)
+                self.local_free_vars = set(local_free_vars)
 
-        if not self.has_free(free):
-            self.local_free_vars.remove(free)
+        for i, f in enumerate(self.free_vars):
+            if f == free:
+                free_vars = list(self.free_vars)
+                free_vars.pop(i)
+                self.free_vars = set(free_vars)
     
     def has_free(self, free: 'Free') -> bool:
         for f in self.local_free_vars:
-            if f.object_name == free.object_name and f.free_name == free.free_name:
+            if f == free:
                 return True
         
         for f in self.free_vars:
-            if f.object_name == free.object_name and f.free_name == free.free_name:
+            if f == free:
                 return True
 
         return False
@@ -80,6 +94,15 @@ class Free:
     @property
     def code(self) -> str:
         return f'{self.free_name}({self.object_name});'
+    
+    def replace(self, with_free: 'Free') -> 'Free':
+        return Free(with_free.object_name, free_name=self.free_name)
+    
+    def __eq__(self, other: object) -> bool:
+        if isinstance(other, Free):
+            return self.object_name == other.object_name and self.free_name == other.free_name
+        
+        return False
 
 @dataclass(**kwargs)
 class Object:
@@ -91,6 +114,10 @@ class Object:
     @staticmethod
     def NULL(position: Position) -> 'Object':
         return Object('NULL', Type('nil'), position)
+    
+    @staticmethod
+    def STRINGBUF(buf_free: Free, pos: Position) -> 'Object':
+        return Object(buf_free.object_name, Type('string'), pos, free=buf_free)
     
     def __str__(self) -> str:
         return self.code
@@ -104,15 +131,19 @@ class EnvItem:
     reserved: bool = field(default=False)
     free: Free | None = field(default=None)
     is_const: bool = field(default=False)
-    references: int = field(default=0)
+
+@dataclass(**kwargs)
+class TempVar:
+    name: str
+    type: Type
+    created_at: Position
+    free: Free | None = field(default=None)
     
-    def increment_references(self, _) -> None:
-        self.references += 1
+    def __str__(self) -> str:
+        return self.name
     
-    def decrement_references(self, codegen) -> None:
-        self.references -= 1
-        if self.references == 0 and self.free is not None:
-            codegen.append_code(self.free.code)
+    def OBJECT(self) -> Object:
+        return Object(self.name, self.type, self.created_at, free=self.free)
 
 @dataclass(**kwargs)
 class Arg:
@@ -127,7 +158,13 @@ class Param:
     default: Object | None = field(default=None)
     
     def __str__(self) -> str:
-        return f'{self.type.c_type}{"*" if self.ref else ""} {self.name}'
+        return f'{self.get_type()} {self.name}'
+    
+    def get_type(self) -> str:
+        return f'{self.type.c_type}{"*" if self.ref else ""}'
+    
+    def USE(self) -> str:
+        return f'*({self.name})' if self.ref else self.name
 
 @dataclass(**kwargs)
 class Function:
@@ -139,71 +176,73 @@ class Function:
     callables: list[tuple[Callable, tuple]] = field(default_factory=list)
     body_objects: list[Object] = field(default_factory=list)
     
+    def call_code(self, args: list[Arg], callee: str | None = None) -> str:
+        return f'{callee or self.name}({", ".join(str(arg.value) for arg in args)})'
+    
     def __call__(self, compiler, call_position: Position, *args: Arg) -> Object | None:
-        for item in compiler.scope.env.values():
-            if item.func is not None and item.func.name == self.name:
-                for c, mod_args in self.callables:
-                    c(
-                        compiler, self, call_position,
-                        [arg.value for arg in args],
-                        [arg.value for arg in mod_args]
-                    )
+        new_args: list[Arg | None] = [None] * len(self.params)
+        arg: Arg | None
+        for i, arg in enumerate(args):
+            if arg.name is None:
+                new_args[i] = arg
+            else:
+                param_index = next((
+                    i for i, p in enumerate(self.params)
+                    if p.name == arg.name
+                ), None)
+                if param_index is None:
+                    arg.value.position.error_here(f'Unknown keyword argument \'{arg.name}\'')
                 
-                new_args: list[Arg | None] = [None] * len(self.params)
-                arg: Arg | None
-                for i, arg in enumerate(args):
-                    if arg.name is None:
-                        new_args[i] = arg
-                    else:
-                        param_index = next((
-                            i for i, p in enumerate(self.params)
-                            if p.name == arg.name
-                        ), None)
-                        if param_index is None:
-                            arg.value.position.error_here(f'Unknown keyword argument \'{arg.name}\'')
-                        
-                        new_args[param_index] = arg
-                
-                for i, (param, arg) in enumerate(zip(self.params, new_args)):
-                    if arg is None:
-                        if param.default is not None:
-                            new_args[i] = Arg(param.default, param.name)
-                        else:
-                            call_position.error_here(f'Missing required argument \'{param.name}\'')
-                
-                for arg, param in zip(new_args, self.params):
-                    if param.ref and arg is not None:
-                        var_name = arg.value.code
-                        if ID_REGEX.fullmatch(var_name) is None:
-                            arg.value.position.error_here('Cannot modify a non-variable')
-                        
-                        if (var := compiler.scope.env.get(var_name)) is not None:
-                            if var.func is not None:
-                                arg.value.position.error_here('Cannot modify a function')
-                            elif var.is_const:
-                                arg.value.position.error_here('Cannot modify a constant')
-                            elif var.reserved:
-                                arg.value.position.error_here('Cannot modify a non-variable')
-                        
-                        arg.value.code = f'&({var_name})'
-                
-                if len(new_args) != len(self.params):
-                    call_position.error_here(
-                        f'Expected {len(self.params)} arguments, got {len(new_args)}'
-                    )
-                
-                if None in new_args:
-                    call_position.error_here(f'Missing required argument \'{param.name}\'')
-                
-                # bypassing mypy
-                passing_args: list[Arg] = [arg for arg in new_args if arg is not None]
-                callee, return_type = self.get_callee(passing_args, call_position)
-                return Object(
-                    f'{callee}({", ".join(arg.value.code for arg in passing_args)})',
-                    return_type, call_position
-                )
+                new_args[param_index] = arg
         
-        return None
+        for i, (param, arg) in enumerate(zip(self.params, new_args)):
+            if arg is None:
+                if param.default is not None:
+                    new_args[i] = Arg(param.default, param.name)
+                else:
+                    call_position.error_here(f'Missing required argument \'{param.name}\'')
+        
+        for arg, param in zip(new_args, self.params):
+            if param.ref and arg is not None:
+                var_name = str(arg.value)
+                if ID_REGEX.fullmatch(var_name) is None:
+                    arg.value.position.error_here('Cannot modify a non-variable')
+                
+                if (var := compiler.scope.env.get(var_name)) is not None:
+                    if var.func is not None:
+                        arg.value.position.error_here('Cannot modify a function')
+                    elif var.is_const:
+                        arg.value.position.error_here('Cannot modify a constant')
+                    elif var.reserved:
+                        arg.value.position.error_here('Cannot modify a non-variable')
+                
+                arg.value.code = f'&({var_name})'
+        
+        if len(new_args) != len(self.params):
+            call_position.error_here(
+                f'Expected {len(self.params)} arguments, got {len(new_args)}'
+            )
+        
+        if None in new_args:
+            call_position.error_here(f'Missing required argument \'{param.name}\'')
+        
+        # bypassing mypy
+        passing_args: list[Arg] = [arg for arg in new_args if arg is not None]
+        
+        for c, mod_args in self.callables:
+            mod_res = c(
+                compiler, self, call_position,
+                passing_args,
+                [arg.value for arg in mod_args]
+            )
+            if mod_res is not None and isinstance(mod_res, Object):
+                return mod_res
+        
+        callee, return_type = self.get_callee(passing_args, call_position)
+        return Object(
+            self.call_code(passing_args, callee),
+            return_type, call_position
+        )
     
     def add_modification(self, name: str, pos: Position, func: Callable,
                          args: tuple[Arg, ...]) -> None:

@@ -1,4 +1,4 @@
-from codegen.objects import Object, Position, Type
+from codegen.objects import Object, Position, Type, TempVar
 from codegen.c_manager import c_dec
 
 
@@ -34,32 +34,101 @@ typedef struct {{
 #endif
 """)
     
-    @c_dec(is_method=True, is_static=True)
-    def _WavFile_type(self, _, call_position: Position) -> Object:
-        return Object('"WavFile"', Type('string'), call_position)
-    
-    @c_dec(param_types=('WavFile',), is_method=True)
-    def _WavFile_to_string(self, codegen, call_position: Position, wav: Object) -> Object:
-        w = f'({wav.code})'
-        code, buf_free = codegen.c_manager.fmt_length(
-            codegen, call_position,
-            '"WavFile(file=%s)"', f'{w}.filename',
-        )
+        @c_dec(is_method=True, is_static=True, add_to_class=self)
+        def _WavFile_type(_, call_position: Position) -> Object:
+            return Object('"WavFile"', Type('string'), call_position)
         
-        codegen.prepend_code(code)
-        return Object(buf_free.object_name, Type('string'), call_position, free=buf_free)
-    
+        @c_dec(param_types=('WavFile',), is_method=True, add_to_class=self)
+        def _WavFile_to_string(codegen, call_position: Position, wav: Object) -> Object:
+            w = f'({wav})'
+            code, buf_free = codegen.c_manager.fmt_length(
+                codegen, call_position,
+                '"WavFile(file=%s)"', f'{w}.filename',
+            )
+            
+            codegen.prepend_code(code)
+            return Object.STRINGBUF(buf_free, call_position)
+        
+        @c_dec(param_types=('WavFile',), is_property=True, add_to_class=self)
+        def _WavFile_chunk_id(_, call_position: Position, wav: Object) -> Object:
+            return Object(f'(({wav}).header.chunkID)', Type('string'), call_position)
+        
+        @c_dec(param_types=('WavFile',), is_property=True, add_to_class=self)
+        def _WavFile_chunk_size(_, call_position: Position, wav: Object) -> Object:
+            return Object(f'(({wav}).header.chunkSize)', Type('int'), call_position)
+        
+        @c_dec(param_types=('WavFile',), is_property=True, add_to_class=self)
+        def _WavFile_format(_, call_position: Position, wav: Object) -> Object:
+            return Object(f'(({wav}).header.format)', Type('string'), call_position)
+        
+        @c_dec(param_types=('WavFile',), is_property=True, add_to_class=self)
+        def _WavFile_subchunk1_id(_, call_position: Position, wav: Object) -> Object:
+            return Object(f'(({wav}).header.subchunk1ID)', Type('string'), call_position)
+        
+        @c_dec(param_types=('WavFile',), is_property=True, add_to_class=self)
+        def _WavFile_subchunk1_size(_, call_position: Position, wav: Object) -> Object:
+            return Object(f'(({wav}).header.subchunk1Size)', Type('int'), call_position)
+        
+        @c_dec(param_types=('WavFile',), is_property=True, add_to_class=self)
+        def _WavFile_audio_format(_, call_position: Position, wav: Object) -> Object:
+            return Object(f'(({wav}).header.audioFormat)', Type('int'), call_position)
+        
+        @c_dec(param_types=('WavFile',), is_property=True, add_to_class=self)
+        def _WavFile_num_channels(_, call_position: Position, wav: Object) -> Object:
+            return Object(f'(({wav}).header.numChannels)', Type('int'), call_position)
+        
+        @c_dec(param_types=('WavFile',), is_property=True, add_to_class=self)
+        def _WavFile_sample_rate(_, call_position: Position, wav: Object) -> Object:
+            return Object(f'(({wav}).header.sampleRate)', Type('int'), call_position)
+        
+        @c_dec(param_types=('WavFile',), is_property=True, add_to_class=self)
+        def _WavFile_byte_rate(_, call_position: Position, wav: Object) -> Object:
+            return Object(f'(({wav}).header.byteRate)', Type('int'), call_position)
+        
+        @c_dec(param_types=('WavFile',), is_property=True, add_to_class=self)
+        def _WavFile_block_align(_, call_position: Position, wav: Object) -> Object:
+            return Object(f'(({wav}).header.blockAlign)', Type('int'), call_position)
+        
+        @c_dec(param_types=('WavFile',), is_property=True, add_to_class=self)
+        def _WavFile_bits_per_sample(_, call_position: Position, wav: Object) -> Object:
+            return Object(f'(({wav}).header.bitsPerSample)', Type('int'), call_position)
+        
+        @c_dec(param_types=('WavFile',), is_property=True, add_to_class=self)
+        def _WavFile_subchunk2_id(_, call_position: Position, wav: Object) -> Object:
+            return Object(f'(({wav}).header.subchunk2ID)', Type('string'), call_position)
+        
+        @c_dec(param_types=('WavFile',), is_property=True, add_to_class=self)
+        def _WavFile_subchunk2_size(_, call_position: Position, wav: Object) -> Object:
+            return Object(f'(({wav}).header.subchunk2Size)', Type('int'), call_position)
+        
+        @c_dec(param_types=('WavFile',), is_property=True, add_to_class=self)
+        def _WavFile_filename(_, call_position: Position, wav: Object) -> Object:
+            return Object(f'(({wav}).filename)', Type('string'), call_position)
+        
+        @c_dec(param_types=('WavFile',), is_method=True, add_to_class=self)
+        def _WavFile_play(codegen, call_position: Position, wav: Object) -> Object:
+            codegen.prepend_code(f"""#ifdef OS_WINDOWS
+if (!PlaySound(({wav}).filename, NULL, SND_FILENAME | SND_SYNC)) {{
+    {codegen.c_manager.err('WavFile.play() failed, error code %lu', 'GetLastError()')}
+}}
+#else
+{codegen.c_manager.symbol_not_supported('WavFile.play()')}
+#endif
+""")
+            return Object.NULL(call_position)
+
+        
     def make_wav_file(self, codegen, call_position: Position, file: Object) -> Object:
         if file.type.type == 'string':
-            fptr = codegen.create_temp_var(Type('FilePointer', 'FILE*'), call_position)
-            header = codegen.create_temp_var(Type('WavHeader'), call_position)
-            wav_file = codegen.create_temp_var(Type('WavFile'), call_position)
-            codegen.prepend_code(f"""FILE* {fptr} = fopen({file.code}, "rb");
+            fptr: TempVar = codegen.create_temp_var(Type('FilePointer', 'FILE*'), call_position)
+            header: TempVar = codegen.create_temp_var(Type('WavHeader'), call_position)
+            wav_file: TempVar = codegen.create_temp_var(Type('WavFile'), call_position)
+            codegen.prepend_code(f"""FILE* {fptr} = fopen({file}, "rb");
 if ({fptr} == NULL) {{
     {codegen.c_manager.err('Could not open file')}
 }}
 
-WavFile {wav_file} = {{ .filename = {file.code} }};
+WavFile {wav_file} = {{ .filename = {file} }};
 WavHeader {header};
 fread(&{header}, sizeof({header}), 1, {fptr});
 {wav_file}.header = {header};
@@ -67,75 +136,6 @@ fread(&{header}, sizeof({header}), 1, {fptr});
 fclose({fptr});
 """)
             
-            return Object(wav_file, Type('WavFile'), call_position)
+            return wav_file.OBJECT()
         
         call_position.error_here(f'Expected string, got \'{file.type.type}\'')
-    
-    
-    @c_dec(param_types=('WavFile',), is_property=True)
-    def _WavFile_chunk_id(self, _, call_position: Position, wav: Object) -> Object:
-        return Object(f'(({wav.code}).header.chunkID)', Type('string'), call_position)
-    
-    @c_dec(param_types=('WavFile',), is_property=True)
-    def _WavFile_chunk_size(self, _, call_position: Position, wav: Object) -> Object:
-        return Object(f'(({wav.code}).header.chunkSize)', Type('int'), call_position)
-    
-    @c_dec(param_types=('WavFile',), is_property=True)
-    def _WavFile_format(self, _, call_position: Position, wav: Object) -> Object:
-        return Object(f'(({wav.code}).header.format)', Type('string'), call_position)
-    
-    @c_dec(param_types=('WavFile',), is_property=True)
-    def _WavFile_subchunk1_id(self, _, call_position: Position, wav: Object) -> Object:
-        return Object(f'(({wav.code}).header.subchunk1ID)', Type('string'), call_position)
-    
-    @c_dec(param_types=('WavFile',), is_property=True)
-    def _WavFile_subchunk1_size(self, _, call_position: Position, wav: Object) -> Object:
-        return Object(f'(({wav.code}).header.subchunk1Size)', Type('int'), call_position)
-    
-    @c_dec(param_types=('WavFile',), is_property=True)
-    def _WavFile_audio_format(self, _, call_position: Position, wav: Object) -> Object:
-        return Object(f'(({wav.code}).header.audioFormat)', Type('int'), call_position)
-    
-    @c_dec(param_types=('WavFile',), is_property=True)
-    def _WavFile_num_channels(self, _, call_position: Position, wav: Object) -> Object:
-        return Object(f'(({wav.code}).header.numChannels)', Type('int'), call_position)
-    
-    @c_dec(param_types=('WavFile',), is_property=True)
-    def _WavFile_sample_rate(self, _, call_position: Position, wav: Object) -> Object:
-        return Object(f'(({wav.code}).header.sampleRate)', Type('int'), call_position)
-    
-    @c_dec(param_types=('WavFile',), is_property=True)
-    def _WavFile_byte_rate(self, _, call_position: Position, wav: Object) -> Object:
-        return Object(f'(({wav.code}).header.byteRate)', Type('int'), call_position)
-    
-    @c_dec(param_types=('WavFile',), is_property=True)
-    def _WavFile_block_align(self, _, call_position: Position, wav: Object) -> Object:
-        return Object(f'(({wav.code}).header.blockAlign)', Type('int'), call_position)
-    
-    @c_dec(param_types=('WavFile',), is_property=True)
-    def _WavFile_bits_per_sample(self, _, call_position: Position, wav: Object) -> Object:
-        return Object(f'(({wav.code}).header.bitsPerSample)', Type('int'), call_position)
-    
-    @c_dec(param_types=('WavFile',), is_property=True)
-    def _WavFile_subchunk2_id(self, _, call_position: Position, wav: Object) -> Object:
-        return Object(f'(({wav.code}).header.subchunk2ID)', Type('string'), call_position)
-    
-    @c_dec(param_types=('WavFile',), is_property=True)
-    def _WavFile_subchunk2_size(self, _, call_position: Position, wav: Object) -> Object:
-        return Object(f'(({wav.code}).header.subchunk2Size)', Type('int'), call_position)
-    
-    @c_dec(param_types=('WavFile',), is_property=True)
-    def _WavFile_filename(self, _, call_position: Position, wav: Object) -> Object:
-        return Object(f'(({wav.code}).filename)', Type('string'), call_position)
-    
-    @c_dec(param_types=('WavFile',), is_method=True)
-    def _WavFile_play(self, codegen, call_position: Position, wav: Object) -> Object:
-        codegen.prepend_code(f"""#ifdef OS_WINDOWS
-if (!PlaySound(({wav.code}).filename, NULL, SND_FILENAME | SND_SYNC)) {{
-    {codegen.c_manager.err('WavFile.play() failed, error code %lu', 'GetLastError()')}
-}}
-#else
-{codegen.c_manager.symbol_not_supported('WavFile.play()')}
-#endif
-""")
-        return Object.NULL(call_position)

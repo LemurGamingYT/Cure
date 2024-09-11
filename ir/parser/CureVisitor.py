@@ -64,6 +64,16 @@ class CureVisitor(ParseTreeVisitor):
         return self.visitChildren(ctx)
 
 
+    # Visit a parse tree produced by CureParser#classDeclarations.
+    def visitClassDeclarations(self, ctx:CureParser.ClassDeclarationsContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by CureParser#classAssign.
+    def visitClassAssign(self, ctx:CureParser.ClassAssignContext):
+        return self.visitChildren(ctx)
+
+
     # Visit a parse tree produced by CureParser#enumAssign.
     def visitEnumAssign(self, ctx:CureParser.EnumAssignContext):
         return self.visitChildren(ctx)

@@ -204,3 +204,20 @@ class ArrayComprehension(Node):
 class Enum(Node):
     name: Identifier
     members: list[Identifier] = field(default_factory=list)
+
+@dataclass(**kwargs)
+class ClassProperty(Node):
+    name: str
+    value: Node
+    type: TypeNode
+
+@dataclass(**kwargs)
+class ClassMethod(FuncDecl):
+    pass
+
+ClassMembers = list[ClassProperty | ClassMethod]
+
+@dataclass(**kwargs)
+class Class(Node):
+    name: str
+    members: ClassMembers = field(default_factory=ClassMembers)

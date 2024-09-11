@@ -1,0 +1,29 @@
+use "regex"
+
+
+class Car {
+    func init(string model, string numberplate, float fuel) {}
+
+    func to_string() -> string {
+        return $"Car({self.numberplate})"
+    }
+
+    func is_valid_numberplate() -> bool {
+        NUMBERPLATE_REGEX = new Regex("^[A-Z][A-Z][0-9][0-9][A-Z][A-Z][A-Z]$")
+        match = NUMBERPLATE_REGEX.fullmatch(self.numberplate)
+        return match.is_match
+    }
+
+    func drive(string destination) {
+        print($"Driving to {destination}")
+        self.set_fuel(self.fuel - destination.length * 5)
+    }
+}
+
+
+func main() -> int {
+    my_car = new Car("Toyota", "BP68ZGGC", 100.0)
+    print(my_car)
+    print(my_car.is_valid_numberplate())
+    return 0
+}

@@ -15,6 +15,6 @@ func main() -> int {
 
     print(test2("hello world")) // both 'i' and 'j' are given immediately
     print(test2("abc", 1))
-    print(test2("this is just a test", j: 4)) // Pass 'j' but not 'i'. 'i' is still '0'
+    print(test2("this is just a test", j: 5)) // Pass 'j' but not 'i'. 'i' is still '0'
     return 0
 }

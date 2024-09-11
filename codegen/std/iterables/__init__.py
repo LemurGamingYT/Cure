@@ -8,7 +8,6 @@ class iterables:
     def __init__(self, codegen) -> None:
         self.ll = LinkedList(codegen)
         self.stack = Stack(codegen)
-        self.codegen = codegen
     
     @c_dec(param_types=('type', 'int'), can_user_call=True)
     def _create_stack(self, codegen, call_position: Position, type: Object,

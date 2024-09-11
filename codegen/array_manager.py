@@ -1,4 +1,4 @@
-from codegen.objects import Position, Object, Free, Type, Arg
+from codegen.objects import Position, Object, Free, Type, Arg, TempVar
 from codegen.c_manager import CManager, c_dec
 
 DEFAULT_CAPACITY = 10
@@ -30,21 +30,21 @@ class ArrayManager:
             is_method=True
         )
         def array_string(codegen, call_position: Position, arr: Object) -> Object:
-            size = codegen.create_temp_var(Type('int', 'size_t'), call_position)
-            i = codegen.create_temp_var(Type('int', 'size_t'), call_position)
+            size: TempVar = codegen.create_temp_var(Type('int', 'size_t'), call_position)
+            i: TempVar = codegen.create_temp_var(Type('int', 'size_t'), call_position)
             buf_free = Free()
-            buf = codegen.create_temp_var(Type('string'), call_position, free=buf_free)
-            remaining = codegen.create_temp_var(Type('int', 'size_t'), call_position)
+            buf: TempVar = codegen.create_temp_var(Type('string'), call_position, free=buf_free)
+            remaining: TempVar = codegen.create_temp_var(Type('int', 'size_t'), call_position)
             a = f'({arr})'
             get_element = Arg(Object(f'{a}.elements[{i}]', type, call_position))
-            elem = codegen.create_temp_var(Type('string'), call_position)
+            elem: TempVar = codegen.create_temp_var(Type('string'), call_position)
             
             codegen.prepend_code(f"""string {buf} = NULL;
 size_t {size} = 3; // '{{', '}}' and '\\0'
 for (size_t {i} = 0; {i} < {a}.length; {i}++) {{
 """)
             codegen.prepend_code(f"""
-    {size} += strlen({codegen.call(f'{type.c_type}_to_string', [get_element], call_position).code});
+    {size} += strlen({codegen.call(f'{type.c_type}_to_string', [get_element], call_position)});
     if ({i} < {a}.length - 1) {size} += 2; // ',' and ' '
 }}
 
@@ -58,7 +58,7 @@ for (size_t {i} = 0; {i} < {a}.length; {i}++) {{
             codegen.prepend_code(f"""
     string {elem} = {codegen.call(
     f'{type.c_type}_to_string', [get_element], call_position
-).code};
+)};
 strncat({buf}, {elem}, {remaining});
     {remaining} -= strlen({elem});
     if ({i} < {a}.length - 1) {{
@@ -69,12 +69,12 @@ strncat({buf}, {elem}, {remaining});
 strncat({buf}, "}}", {remaining});
 """)
             
-            return Object(buf, Type('string'), call_position, free=buf_free)
+            return buf.OBJECT()
         
         @c_dec(add_to_class=c_manager, func_name_override=f'{array_type.c_type}_make')
         def array_make(codegen, call_position: Position) -> Object:
             arr_free = Free()
-            arr = codegen.create_temp_var(array_type, call_position, free=arr_free)
+            arr: TempVar = codegen.create_temp_var(array_type, call_position, free=arr_free)
             arr_free.object_name = f'{arr}.elements'
             codegen.prepend_code(f"""{array_type.c_type} {arr} = {{
     .length = 0, .capacity = {DEFAULT_CAPACITY},
@@ -83,7 +83,7 @@ strncat({buf}, "}}", {remaining});
 {codegen.c_manager.buf_check(f'{arr}.elements')}
 """)
             
-            return Object(arr, array_type, call_position, free=arr_free)
+            return arr.OBJECT()
         
         @c_dec(
             add_to_class=c_manager, func_name_override=f'{array_type.c_type}_type', 
@@ -107,7 +107,7 @@ strncat({buf}, "}}", {remaining});
         
         def array_add_range(codegen, call_position: Position,
                             arr: Object, elements: Object) -> Object:
-            i = codegen.create_temp_var(Type('int'), call_position)
+            i: TempVar = codegen.create_temp_var(Type('int'), call_position)
             elems = f'({elements})'
             codegen.prepend_code(f"""for (size_t {i} = 0; {i} < {elems}.length; {i}++) {{
 """)
@@ -121,13 +121,12 @@ strncat({buf}, "}}", {remaining});
         
         @c_dec(
             param_types=(array_type.c_type, type.c_type),
+            add_to_class=c_manager, func_name_override=f'{array_type.c_type}_add',
             is_method=True,
             overloads={
                 ((array_type.c_type, 'int', type.c_type), 'nil'): array_insert,
                 ((array_type.c_type, array_type.c_type), 'nil'): array_add_range
             },
-            add_to_class=c_manager,
-            func_name_override=f'{array_type.c_type}_add'
         )
         def array_add(codegen, call_position: Position, arr: Object, element: Object) -> Object:
             a = f'({arr})'
@@ -144,9 +143,8 @@ strncat({buf}, "}}", {remaining});
         
         @c_dec(
             param_types=(array_type.c_type, 'int', type.c_type),
+            add_to_class=c_manager, func_name_override=f'{array_type.c_type}_set',
             is_method=True,
-            add_to_class=c_manager,
-            func_name_override=f'{array_type.c_type}_set'
         )
         def array_set(codegen, call_position: Position, arr: Object, index: Object,
                       element: Object) -> Object:
@@ -161,14 +159,13 @@ strncat({buf}, "}}", {remaining});
         
         @c_dec(
             param_types=(array_type.c_type, 'int'),
+            add_to_class=c_manager, func_name_override=f'{array_type.c_type}_get',
             is_method=True,
-            add_to_class=c_manager,
-            func_name_override=f'{array_type.c_type}_get'
         )
         def array_get(codegen, call_position: Position, arr: Object, index: Object) -> Object:
             a = f'({arr})'
             i = f'({index})'
-            idx = codegen.create_temp_var(Type('int'), call_position)
+            idx: TempVar = codegen.create_temp_var(Type('int'), call_position)
             codegen.prepend_code(f"""int {idx} = {i};
 if ({idx} < 0) {{
     {idx} = {a}.length + {idx};
@@ -184,58 +181,48 @@ if ({idx} < 0) {{
         
         @c_dec(
             param_types=(array_type.c_type,),
+            add_to_class=c_manager, func_name_override=f'{array_type.c_type}_length',
             is_property=True,
-            add_to_class=c_manager,
-            func_name_override=f'{array_type.c_type}_length'
         )
         def array_length(_, call_position: Position, arr: Object) -> Object:
             return Object(f'(({arr}).length)', Type('int'), call_position)
         
         @c_dec(
             param_types=(array_type.c_type,),
+            add_to_class=c_manager, func_name_override=f'{array_type.c_type}_capacity',
             is_property=True,
-            add_to_class=c_manager,
-            func_name_override=f'{array_type.c_type}_capacity'
         )
         def array_capacity(_, call_position: Position, arr: Object) -> Object:
             return Object(f'(({arr}).capacity)', Type('int'), call_position)
         
         @c_dec(
             param_types=(array_type.c_type, type.c_type),
+            add_to_class=c_manager, func_name_override=f'{array_type.c_type}_has',
             is_method=True,
-            add_to_class=c_manager,
-            func_name_override=f'{array_type.c_type}_has'
         )
         def array_has(codegen, call_position: Position, arr: Object, element: Object) -> Object:
-            has_var = codegen.create_temp_var(Type('bool'), call_position)
-            i = codegen.create_temp_var(Type('int'), call_position)
-            codegen.prepend_code(f"""bool {has_var} = false;
-for (size_t {i} = 0; {i} < ({arr}).length; {i}++) {{
-    if ((({arr}).elements[{i}]) == ({element})) {has_var} = true;
-}}
-""")
-            
-            return Object(has_var, Type('bool'), call_position)
+            return Object(
+                f'(({array_find(codegen, call_position, arr, element)}) != -1)',
+                Type('bool'), call_position
+            )
         
         @c_dec(
             param_types=(array_type.c_type, type.c_type),
+            add_to_class=c_manager, func_name_override=f'{array_type.c_type}_add_{type.c_type}',
             is_method=True,
-            add_to_class=c_manager,
-            func_name_override=f'{array_type.c_type}_add_{type.c_type}'
         )
         def array_add_type(codegen, call_position: Position, arr: Object, element: Object) -> Object:
             return array_add(codegen, call_position, arr, element)
         
         @c_dec(
             param_types=(array_type.c_type,),
+            add_to_class=c_manager, func_name_override=f'{array_type.c_type}_reverse',
             is_method=True,
-            add_to_class=c_manager,
-            func_name_override=f'{array_type.c_type}_reverse'
         )
         def array_reverse(codegen, call_position: Position, arr: Object) -> Object:
             a = f'({arr})'
-            i = codegen.create_temp_var(Type('int'), call_position)
-            temp = codegen.create_temp_var(type, call_position)
+            i: TempVar = codegen.create_temp_var(Type('int'), call_position)
+            temp: TempVar = codegen.create_temp_var(type, call_position)
             codegen.prepend_code(f"""for (size_t {i} = 0; {i} < {a}.length / 2; {i}++) {{
     {type} {temp} = {a}.elements[{i}];
     {a}.elements[{i}] = {a}.elements[{a}.length - {i} - 1];
@@ -247,15 +234,14 @@ for (size_t {i} = 0; {i} < ({arr}).length; {i}++) {{
         
         @c_dec(
             param_types=(array_type.c_type,),
+            add_to_class=c_manager, func_name_override=f'{array_type.c_type}_sort',
             is_method=True,
-            add_to_class=c_manager,
-            func_name_override=f'{array_type.c_type}_sort'
         )
         def array_sort(codegen, call_position: Position, arr: Object) -> Object:
             a = f'({arr})'
-            i = codegen.create_temp_var(Type('int'), call_position)
-            j = codegen.create_temp_var(Type('int'), call_position)
-            temp = codegen.create_temp_var(type, call_position)
+            i: TempVar = codegen.create_temp_var(Type('int'), call_position)
+            j: TempVar = codegen.create_temp_var(Type('int'), call_position)
+            temp: TempVar = codegen.create_temp_var(type, call_position)
             codegen.prepend_code(f"""for (size_t {i} = 0; {i} < {a}.length; {i}++) {{
     for (size_t {j} = 0; {j} < {a}.length - 1; {j}++) {{
         if ({a}.elements[{j}] > {a}.elements[{j} + 1]) {{
@@ -270,14 +256,13 @@ for (size_t {i} = 0; {i} < ({arr}).length; {i}++) {{
         
         @c_dec(
             param_types=(array_type.c_type, type.c_type),
+            add_to_class=c_manager, func_name_override=f'{array_type.c_type}_remove',
             is_method=True,
-            add_to_class=c_manager,
-            func_name_override=f'{array_type.c_type}_remove'
         )
         def array_remove(codegen, call_position: Position, arr: Object, element: Object) -> Object:
             a = f'({arr})'
-            i = codegen.create_temp_var(Type('int'), call_position)
-            j = codegen.create_temp_var(Type('int'), call_position)
+            i: TempVar = codegen.create_temp_var(Type('int'), call_position)
+            j: TempVar = codegen.create_temp_var(Type('int'), call_position)
             codegen.prepend_code(f"""for (size_t {i} = 0; {i} < {a}.length; {i}++) {{
     if ({a}.elements[{i}] == ({element})) {{
         for (size_t {j} = {i}; {j} < {a}.length - 1; {j}++) {{
@@ -292,15 +277,14 @@ for (size_t {i} = 0; {i} < ({arr}).length; {i}++) {{
         
         @c_dec(
             param_types=(array_type.c_type, 'int'),
+            add_to_class=c_manager, func_name_override=f'{array_type.c_type}_remove_at',
             is_method=True,
-            add_to_class=c_manager,
-            func_name_override=f'{array_type.c_type}_remove_at'
         )
         def array_remove_at(codegen, call_position: Position,
                             arr: Object, index: Object) -> Object:
             a = f'({arr})'
             i = f'({index})'
-            j = codegen.create_temp_var(Type('int'), call_position)
+            j: TempVar = codegen.create_temp_var(Type('int'), call_position)
             codegen.prepend_code(f"""if ({i} >= {a}.length || {i} < 0) {{
     {c_manager.err('Index out of range')}
 }}
@@ -314,15 +298,14 @@ for (size_t {j} = {i}; {j} < {a}.length - 1; {j}++) {{
         
         @c_dec(
             param_types=(array_type.c_type, type.c_type),
+            add_to_class=c_manager, func_name_override=f'{array_type.c_type}_pop',
             is_method=True,
-            add_to_class=c_manager,
-            func_name_override=f'{array_type.c_type}_pop'
         )
         def array_pop(codegen, call_position: Position, arr: Object, elem: Object) -> Object:
             a = f'({arr})'
-            popped = codegen.create_temp_var(type, call_position)
-            i = codegen.create_temp_var(Type('int'), call_position)
-            j = codegen.create_temp_var(Type('int'), call_position)
+            popped: TempVar = codegen.create_temp_var(type, call_position)
+            i: TempVar = codegen.create_temp_var(Type('int'), call_position)
+            j: TempVar = codegen.create_temp_var(Type('int'), call_position)
             codegen.prepend_code(f"""if ({a}.length == 0) {{
     {c_manager.err('Array is empty')}
 }}
@@ -343,19 +326,18 @@ if (!{popped}) {{
 }}
 """)
             
-            return Object(popped, type, call_position)
+            return popped.OBJECT()
         
         @c_dec(
             param_types=(array_type.c_type, 'int'),
+            add_to_class=c_manager, func_name_override=f'{array_type.c_type}_pop_at',
             is_method=True,
-            add_to_class=c_manager,
-            func_name_override=f'{array_type.c_type}_pop_at'
         )
         def array_pop_at(codegen, call_position: Position, arr: Object, index: Object) -> Object:
             a = f'({arr})'
             i = f'({index})'
-            popped = codegen.create_temp_var(type, call_position)
-            j = codegen.create_temp_var(Type('int'), call_position)
+            popped: TempVar = codegen.create_temp_var(type, call_position)
+            j: TempVar = codegen.create_temp_var(Type('int'), call_position)
             codegen.prepend_code(f"""if ({i} >= {a}.length || {i} < 0) {{
     {c_manager.err('Index out of range')}
 }}
@@ -367,13 +349,12 @@ for (size_t {j} = {i}; {j} < {a}.length - 1; {j}++) {{
 }}
 """)
             
-            return Object(popped, type, call_position)
+            return popped.OBJECT()
         
         @c_dec(
             param_types=(array_type.c_type,),
+            add_to_class=c_manager, func_name_override=f'{array_type.c_type}_clear',
             is_method=True,
-            add_to_class=c_manager,
-            func_name_override=f'{array_type.c_type}_clear'
         )
         def array_clear(codegen, call_position: Position, arr: Object) -> Object:
             a = f'({arr})'
@@ -383,17 +364,17 @@ for (size_t {j} = {i}; {j} < {a}.length - 1; {j}++) {{
 {a}.elements = ({type.c_type}*)malloc(sizeof({type.c_type}) * {DEFAULT_CAPACITY});
 {c_manager.buf_check(f'{a}.elements')}
 """)
+            
             return Object.NULL(call_position)
         
         @c_dec(
             param_types=(array_type.c_type,),
+            add_to_class=c_manager, func_name_override=f'{array_type.c_type}_any',
             is_method=True,
-            add_to_class=c_manager,
-            func_name_override=f'{array_type.c_type}_any'
         )
         def array_any(codegen, call_position: Position, arr: Object) -> Object:
-            res = codegen.create_temp_var(Type('bool'), call_position)
-            i = codegen.create_temp_var(Type('int'), call_position)
+            res: TempVar = codegen.create_temp_var(Type('bool'), call_position)
+            i: TempVar = codegen.create_temp_var(Type('int'), call_position)
             a = f'({arr})'
             codegen.prepend_code(f"""bool {res} = false;
 for (size_t {i} = 0; {i} < {a}.length; {i}++) {{
@@ -408,17 +389,16 @@ for (size_t {i} = 0; {i} < {a}.length; {i}++) {{
 }}
 """)
             
-            return Object(res, Type('bool'), call_position)
+            return res.OBJECT()
         
         @c_dec(
             param_types=(array_type.c_type,),
+            add_to_class=c_manager, func_name_override=f'{array_type.c_type}_all',
             is_method=True,
-            add_to_class=c_manager,
-            func_name_override=f'{array_type.c_type}_all'
         )
         def array_all(codegen, call_position: Position, arr: Object) -> Object:
-            res = codegen.create_temp_var(Type('bool'), call_position)
-            i = codegen.create_temp_var(Type('int'), call_position)
+            res: TempVar = codegen.create_temp_var(Type('bool'), call_position)
+            i: TempVar = codegen.create_temp_var(Type('int'), call_position)
             a = f'({arr})'
             codegen.prepend_code(f"""bool {res} = true;
 for (size_t {i} = 0; {i} < {a}.length; {i}++) {{
@@ -433,12 +413,11 @@ for (size_t {i} = 0; {i} < {a}.length; {i}++) {{
 }}
 """)
             
-            return Object(res, Type('bool'), call_position)
+            return res.OBJECT()
         
         @c_dec(
             param_types=(array_type.c_type,),
-            add_to_class=c_manager,
-            func_name_override=f'{array_type.c_type}_pick_random',
+            add_to_class=c_manager, func_name_override=f'{array_type.c_type}_pick_random',
             is_method=True
         )
         def array_pick_random(codegen, call_position: Position, arr: Object) -> Object:
@@ -448,15 +427,37 @@ for (size_t {i} = 0; {i} < {a}.length; {i}++) {{
 ).code}])', type, call_position)
         
         @c_dec(
+            param_types=(array_type.c_type, type.c_type),
+            add_to_class=c_manager, func_name_override=f'{array_type.c_type}_find',
+            is_method=True
+        )
+        def array_find(codegen, call_position: Position, arr: Object, value: Object) -> Object:
+            a = f'({arr})'
+            i: TempVar = codegen.create_temp_var(Type('int'), call_position)
+            idx: TempVar = codegen.create_temp_var(Type('int'), call_position)
+            codegen.prepend_code(f"""int {idx} = -1;
+for (size_t {i} = 0; {i} < {a}.length; {i}++) {{
+""")
+            codegen.prepend_code(f"""if ({codegen.call(
+    f'{type.c_type}_eq_{type.c_type}',
+    [Arg(Object(f'{a}.elements[{i}]', type, call_position)), Arg(value)], call_position
+)}) {{
+        {idx} = {i};
+        break;
+    }}
+}}
+""")
+            return idx.OBJECT()
+        
+        @c_dec(
             param_types=(array_type.c_type, array_type.c_type),
-            add_to_class=c_manager,
-            func_name_override=f'{array_type.c_type}_eq_{array_type.c_type}'
+            add_to_class=c_manager, func_name_override=f'{array_type.c_type}_eq_{array_type.c_type}'
         )
         def array_eq_array(codegen, call_position: Position, arr1: Object, arr2: Object) -> Object:
             a1 = f'({arr1})'
             a2 = f'({arr2})'
-            res = codegen.create_temp_var(Type('bool'), call_position)
-            i = codegen.create_temp_var(Type('int'), call_position)
+            res: TempVar = codegen.create_temp_var(Type('bool'), call_position)
+            i: TempVar = codegen.create_temp_var(Type('int'), call_position)
             codegen.prepend_code(f"""bool {res} = true;
 for (size_t {i} = 0; {i} < {a1}.length; {i}++) {{
     if ({a1}.elements[{i}] != {a2}.elements[{i}]) {{
@@ -466,19 +467,17 @@ for (size_t {i} = 0; {i} < {a1}.length; {i}++) {{
 }}
 """)
 
-            return Object(res, Type('bool'), call_position)
+            return res.OBJECT()
         
         @c_dec(
             param_types=(array_type.c_type, array_type.c_type),
-            return_type=type,
-            add_to_class=c_manager,
-            func_name_override=f'{array_type.c_type}_neq_{array_type.c_type}'
+            add_to_class=c_manager, func_name_override=f'{array_type.c_type}_neq_{array_type.c_type}',
         )
         def array_neq_array(codegen, call_position: Position, arr1: Object, arr2: Object) -> Object:
             a1 = f'({arr1})'
             a2 = f'({arr2})'
-            res = codegen.create_temp_var(Type('bool'), call_position)
-            i = codegen.create_temp_var(Type('int'), call_position)
+            res: TempVar = codegen.create_temp_var(Type('bool'), call_position)
+            i: TempVar = codegen.create_temp_var(Type('int'), call_position)
             codegen.prepend_code(f"""bool {res} = true;
 for (size_t {i} = 0; {i} < {a1}.length; {i}++) {{
     if ({a1}.elements[{i}] != {a2}.elements[{i}]) {{
@@ -488,7 +487,7 @@ for (size_t {i} = 0; {i} < {a1}.length; {i}++) {{
 }}
 """)
             
-            return Object(res, Type('bool'), call_position)
+            return res.OBJECT()
         
         @c_dec(
             param_types=(array_type.c_type, array_type.c_type),

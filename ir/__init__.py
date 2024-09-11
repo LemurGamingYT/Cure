@@ -8,7 +8,8 @@ from ir.parser.CureLexer import CureLexer
 from ir.nodes import (
     Program, Body, TypeNode, ParamNode, ArgNode, Call, Return, Foreach, While,
     If, Use, VarDecl, Value, Identifier, Array, Dict, Brackets, BinOp, UOp, Attribute, New,
-    Ternary, Position, Node, Break, Continue, FuncDecl, Nil, Index, DollarString, Cast, Enum
+    Ternary, Position, Node, Break, Continue, FuncDecl, Nil, Index, DollarString, Cast, Enum,
+    ClassProperty, ClassMethod, Class
 )
 
 
@@ -129,6 +130,24 @@ class IRBuilder(CureVisitor):
             self.visitParams(ctx.params()),
             self.visitType(ctx.type_()) if ctx.type_() is not None else None,
             [self.visitFuncModifications(mod) for mod in ctx.funcModifications()]
+        )
+    
+    def visitClassDeclarations(self, ctx: CureParser.ClassDeclarationsContext | None)\
+        -> list[ClassMethod | ClassProperty]:
+        if ctx is None:
+            return []
+        
+        functions = [self.visitFuncAssign(func) for func in ctx.funcAssign()]
+        return [
+            ClassMethod(func.pos, func.name, func.body, func.params, func.return_type,
+                        func.modifications)
+            for func in functions
+        ]
+    
+    def visitClassAssign(self, ctx: CureParser.ClassAssignContext) -> Class:
+        return Class(
+            to_pos(ctx), ctx.ID().getText(),
+            self.visitClassDeclarations(ctx.classDeclarations())
         )
     
     def visitParam(self, ctx: CureParser.ParamContext) -> ParamNode:

@@ -1,19 +1,23 @@
-enum Color { RED, GREEN, BLUE }
+enum Color { RED, GREEN, BLUE } // Define an enum with 3 values
 
+// Create a function to convert a Color enum to an integer
 func color_to_int(Color color) -> int {
-    if color == Color.RED {
+    if color == Color.RED { // RED
         return 0
-    } else if color == Color.GREEN {
+    } else if color == Color.GREEN { // GREEN
         return 1
-    } else if color == Color.BLUE {
+    } else if color == Color.BLUE { // BLUE
         return 2
     }
 }
 
 func main() -> int {
+    // Enums are custom and separate types
     Color red = Color.RED
     Color green = Color.GREEN
     Color blue = Color.BLUE
+    
+    // Test the color_to_int function
     print(color_to_int(red), color_to_int(green), color_to_int(blue))
     return 0
 }

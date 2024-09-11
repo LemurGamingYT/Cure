@@ -1,5 +1,11 @@
 # Update Log
 
+## Version 0.0.31
+- Cache() function modification
+- Bug fixes
+- Relative file use
+- Process manipulation in the LowLevel library
+
 ## Version 0.0.3
 - Default function parameter values
 - Keyword arguments

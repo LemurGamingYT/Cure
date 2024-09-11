@@ -1,4 +1,4 @@
-from codegen.objects import Object, Position, Free, Type, Arg
+from codegen.objects import Object, Position, Free, Type, Arg, TempVar
 from codegen.c_manager import c_dec
 
 
@@ -22,28 +22,24 @@ static char* decoding_table = NULL;
 static int mod_table[] = {0, 2, 1};
 """)
     
-    # FIXME: encode does not work for many strings
-    @c_dec(
-        param_types=('string',),
-        can_user_call=True
-    )
-    def _base64_encode(self, codegen, call_position: Position, data: Object) -> Object:
-        codegen.c_manager.include('<string.h>', codegen)
-        codegen.c_manager.include('<stdint.h>', codegen)
-        
-        buf_free = Free()
-        buf = codegen.create_temp_var(Type('string'), call_position, free=buf_free)
-        input_length = codegen.create_temp_var(Type('int'), call_position)
-        output_length = codegen.create_temp_var(Type('int'), call_position)
-        i = codegen.create_temp_var(Type('int'), call_position)
-        j = codegen.create_temp_var(Type('int'), call_position)
-        octet_a = codegen.create_temp_var(Type('int'), call_position)
-        octet_b = codegen.create_temp_var(Type('int'), call_position)
-        octet_c = codegen.create_temp_var(Type('int'), call_position)
-        triple = codegen.create_temp_var(Type('int'), call_position)
-        d = f'({data.code})'
-        data_len = codegen.call('string_length', [Arg(data)], call_position)
-        codegen.prepend_code(f"""size_t {input_length} = {data_len.code};
+        @c_dec(param_types=('string',), can_user_call=True, add_to_class=self)
+        def _base64_encode(codegen, call_position: Position, data: Object) -> Object:
+            codegen.c_manager.include('<string.h>', codegen)
+            codegen.c_manager.include('<stdint.h>', codegen)
+            
+            buf_free = Free()
+            buf: TempVar = codegen.create_temp_var(Type('string'), call_position, free=buf_free)
+            input_length: TempVar = codegen.create_temp_var(Type('int'), call_position)
+            output_length: TempVar = codegen.create_temp_var(Type('int'), call_position)
+            i: TempVar = codegen.create_temp_var(Type('int'), call_position)
+            j: TempVar = codegen.create_temp_var(Type('int'), call_position)
+            octet_a: TempVar = codegen.create_temp_var(Type('int'), call_position)
+            octet_b: TempVar = codegen.create_temp_var(Type('int'), call_position)
+            octet_c: TempVar = codegen.create_temp_var(Type('int'), call_position)
+            triple: TempVar = codegen.create_temp_var(Type('int'), call_position)
+            d = f'({data})'
+            data_len: Object = codegen.call('string_length', [Arg(data)], call_position)
+            codegen.prepend_code(f"""size_t {input_length} = {data_len};
 size_t {output_length} = 4 * (({input_length} + 2) / 3);
 string {buf} = (string)malloc({output_length});
 {codegen.c_manager.buf_check(buf)}
@@ -66,27 +62,27 @@ for (int {i} = 0; {i} < mod_table[{input_length} % 3]; {i}++)
 
 {buf}[{output_length}] = '\\0';
 """)
+            
+            return buf.OBJECT()
         
-        return Object(buf, Type('string'), call_position, free=buf_free)
-    
-    @c_dec(param_types=('string',), can_user_call=True)
-    def _base64_decode(self, codegen, call_position: Position, enc: Object) -> Object:
-        codegen.c_manager.include('<string.h>', codegen)
-        codegen.c_manager.include('<stdint.h>', codegen)
-        
-        e = f'({enc.code})'
-        buf_free = Free()
-        buf = codegen.create_temp_var(Type('string'), call_position, free=buf_free)
-        input_length = codegen.create_temp_var(Type('int'), call_position)
-        output_length = codegen.create_temp_var(Type('int'), call_position)
-        i = codegen.create_temp_var(Type('int'), call_position)
-        j = codegen.create_temp_var(Type('int'), call_position)
-        sextet_a = codegen.create_temp_var(Type('int'), call_position)
-        sextet_b = codegen.create_temp_var(Type('int'), call_position)
-        sextet_c = codegen.create_temp_var(Type('int'), call_position)
-        sextet_d = codegen.create_temp_var(Type('int'), call_position)
-        triple = codegen.create_temp_var(Type('int'), call_position)
-        codegen.prepend_code(f"""unsigned char* {buf} = NULL;
+        @c_dec(param_types=('string',), can_user_call=True, add_to_class=self)
+        def _base64_decode(codegen, call_position: Position, enc: Object) -> Object:
+            codegen.c_manager.include('<string.h>', codegen)
+            codegen.c_manager.include('<stdint.h>', codegen)
+            
+            e = f'({enc})'
+            buf_free = Free()
+            buf: TempVar = codegen.create_temp_var(Type('string'), call_position, free=buf_free)
+            input_length: TempVar = codegen.create_temp_var(Type('int'), call_position)
+            output_length: TempVar = codegen.create_temp_var(Type('int'), call_position)
+            i: TempVar = codegen.create_temp_var(Type('int'), call_position)
+            j: TempVar = codegen.create_temp_var(Type('int'), call_position)
+            sextet_a: TempVar = codegen.create_temp_var(Type('int'), call_position)
+            sextet_b: TempVar = codegen.create_temp_var(Type('int'), call_position)
+            sextet_c: TempVar = codegen.create_temp_var(Type('int'), call_position)
+            sextet_d: TempVar = codegen.create_temp_var(Type('int'), call_position)
+            triple: TempVar = codegen.create_temp_var(Type('int'), call_position)
+            codegen.prepend_code(f"""unsigned char* {buf} = NULL;
 if (decoding_table == NULL) {{
     decoding_table = malloc(256);
     {codegen.c_manager.buf_check('decoding_table')}
@@ -127,5 +123,5 @@ for (int {i} = 0, {j} = 0; {i} < {input_length};) {{
 free(decoding_table);
 decoding_table = NULL;
 """)
-        
-        return Object(buf, Type('string'), call_position, free=buf_free)
+            
+            return buf.OBJECT()

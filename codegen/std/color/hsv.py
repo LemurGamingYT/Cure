@@ -1,4 +1,4 @@
-from codegen.objects import Object, Position, Type
+from codegen.objects import Object, Position, Type, TempVar
 from codegen.c_manager import c_dec
 
 
@@ -13,54 +13,49 @@ typedef struct {
 #endif
 """)
     
-    @c_dec(is_method=True, is_static=True)
-    def _HSV_type(self, _, call_position: Position) -> Object:
-        return Object('"HSV"', Type('string'), call_position)
-    
-    @c_dec(param_types=('int', 'int', 'int'), is_method=True)
-    def _HSV_to_string(self, codegen, call_position: Position, hsv: Object) -> Object:
-        cls = f'({hsv})'
-        code, buf_free = codegen.c_manager.fmt_length(
-            codegen, call_position,
-            '"HSV(%f, %f, %f)"',
-            f'{cls}.h', f'{cls}.s', f'{cls}.v'
-        )
+        @c_dec(is_method=True, is_static=True, add_to_class=self)
+        def _HSV_type(_, call_position: Position) -> Object:
+            return Object('"HSV"', Type('string'), call_position)
         
-        codegen.prepend_code(code)
-        return Object(buf_free.object_name, Type('string'), call_position, free=buf_free)
-    
-    
-    @c_dec(param_types=('HSV',), is_property=True)
-    def _HSV_h(self, _, call_position: Position, hsv: Object) -> Object:
-        return Object(f'(({hsv}).h)', Type('float'), call_position)
-    
-    @c_dec(param_types=('HSV',), is_property=True)
-    def _HSV_s(self, _, call_position: Position, hsv: Object) -> Object:
-        return Object(f'(({hsv}).s)', Type('float'), call_position)
-    
-    @c_dec(param_types=('HSV',), is_property=True)
-    def _HSV_v(self, _, call_position: Position, hsv: Object) -> Object:
-        return Object(f'(({hsv}).v)', Type('float'), call_position)
-    
-    @c_dec(
-        param_types=('HSV',),
-        is_property=True
-    )
-    def _HSV_to_rgb(self, codegen, call_position: Position, hsv: Object) -> Object:
-        codegen.c_manager.include('<math.h>', codegen)
+        @c_dec(param_types=('int', 'int', 'int'), is_method=True, add_to_class=self)
+        def _HSV_to_string(codegen, call_position: Position, hsv: Object) -> Object:
+            cls = f'({hsv})'
+            code, buf_free = codegen.c_manager.fmt_length(
+                codegen, call_position, '"HSV(%f, %f, %f)"', f'{cls}.h', f'{cls}.s', f'{cls}.v'
+            )
+            
+            codegen.prepend_code(code)
+            return Object.STRINGBUF(buf_free, call_position)
         
-        cls = f'({hsv})'
-        h = codegen.create_temp_var(Type('float'), call_position)
-        s  = codegen.create_temp_var(Type('float'), call_position)
-        v  = codegen.create_temp_var(Type('float'), call_position)
-        c = codegen.create_temp_var(Type('float'), call_position)
-        x = codegen.create_temp_var(Type('float'), call_position)
-        m = codegen.create_temp_var(Type('float'), call_position)
-        r1 = codegen.create_temp_var(Type('float'), call_position)
-        g1 = codegen.create_temp_var(Type('float'), call_position)
-        b1 = codegen.create_temp_var(Type('float'), call_position)
-        rgb = codegen.create_temp_var(Type('RGB'), call_position)
-        codegen.prepend_code(f"""float {h} = {cls}.h;
+        
+        @c_dec(param_types=('HSV',), is_property=True, add_to_class=self)
+        def _HSV_h(_, call_position: Position, hsv: Object) -> Object:
+            return Object(f'(({hsv}).h)', Type('float'), call_position)
+        
+        @c_dec(param_types=('HSV',), is_property=True, add_to_class=self)
+        def _HSV_s(_, call_position: Position, hsv: Object) -> Object:
+            return Object(f'(({hsv}).s)', Type('float'), call_position)
+        
+        @c_dec(param_types=('HSV',), is_property=True, add_to_class=self)
+        def _HSV_v(_, call_position: Position, hsv: Object) -> Object:
+            return Object(f'(({hsv}).v)', Type('float'), call_position)
+        
+        @c_dec(param_types=('HSV',), is_property=True, add_to_class=self)
+        def _HSV_to_rgb(codegen, call_position: Position, hsv: Object) -> Object:
+            codegen.c_manager.include('<math.h>', codegen)
+            
+            cls = f'({hsv})'
+            h: TempVar = codegen.create_temp_var(Type('float'), call_position)
+            s: TempVar = codegen.create_temp_var(Type('float'), call_position)
+            v: TempVar = codegen.create_temp_var(Type('float'), call_position)
+            c: TempVar = codegen.create_temp_var(Type('float'), call_position)
+            x: TempVar = codegen.create_temp_var(Type('float'), call_position)
+            m: TempVar = codegen.create_temp_var(Type('float'), call_position)
+            r1: TempVar = codegen.create_temp_var(Type('float'), call_position)
+            g1: TempVar = codegen.create_temp_var(Type('float'), call_position)
+            b1: TempVar = codegen.create_temp_var(Type('float'), call_position)
+            rgb: TempVar = codegen.create_temp_var(Type('RGB'), call_position)
+            codegen.prepend_code(f"""float {h} = {cls}.h;
 float {s} = {cls}.s;
 float {v} = {cls}.v;
 float {c} = {v} * {s};
@@ -87,5 +82,5 @@ RGB {rgb} = {{
     .b = (unsigned char)(({b1} + {m}) * 255)
 }};
 """)
-        
-        return Object(rgb, Type('RGB'), call_position)
+            
+            return rgb.OBJECT()

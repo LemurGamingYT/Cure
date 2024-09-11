@@ -3,5 +3,6 @@ func main() -> int {
     
     Cure.compile("print('Hello, World!')")
     print(Cure.version)
+    print(Cure.flags)
     return 0
 }

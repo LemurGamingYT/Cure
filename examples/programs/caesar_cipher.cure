@@ -1,6 +1,6 @@
-CAESAR_LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-
 func encrypt(string message, int key) -> string {
+    CAESAR_LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+
     translated = ""
     foreach c in message.upper() {
         if CAESAR_LETTERS.has(c) {
@@ -21,6 +21,8 @@ func encrypt(string message, int key) -> string {
 }
 
 func decrypt(string message, int key) -> string {
+    CAESAR_LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+
     translated = ""
     foreach c in message.upper() {
         if CAESAR_LETTERS.has(c) {

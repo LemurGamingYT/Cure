@@ -19,6 +19,8 @@
         "regex": "c",
         "utility": "c",
         "vector": "c",
-        "xstring": "c"
-    }
+        "xstring": "c",
+        "stdlib.h": "c"
+    },
+    "python.REPL.enableREPLSmartSend": false
 }

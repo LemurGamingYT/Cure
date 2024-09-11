@@ -29,5 +29,29 @@ func main() -> int {
 
     print(Math.min(62, 100)) // Minimum value of 62 and 100
     print(Math.max(Math.pow(6, 6), Math.pow(10, 5))) // Maximum value of 6^6 and 10^5
+
+    frac = Math.fraction(1, 2) // Create a 1/2 fraction
+    frac2 = Math.fraction(5, 20) // Create a 5/20 fraction
+    print(frac, frac2) // Print out the fractions
+    print(frac.simple, frac2.simple) // Simplify the fractions
+    print(frac.recip, frac2.recip) // Reciprocal of the fractions
+    print(frac.numerator, frac2.numerator) // Get the numerators of the fractions
+    print(frac.denominator, frac2.denominator) // Get the denominators of the fractions
+
+    // Perform some operations on the fractions
+    print(frac + frac2)
+    print(frac - frac2)
+    print(frac * frac2)
+    print(frac / frac2)
+
+    // Create some Vector2s (2D Vectors)
+    vec = Math.vec2(80.102, 70.5)
+    vec2 = Math.vec2(200.25, 500.95)
+    print(vec, vec2) // Print out the Vector2s
+    print(vec.length, vec2.length) // Get the length of the vectors
+    print(vec.norm, vec2.norm) // Get the normalised vectors
+    print(vec.dot(vec2)) // Get the dot product of the two vectors
+    print(vec.cross(vec2)) // Get the cross product of the two vectors
+    print(vec.dist(vec2)) // Get the distance between the two vectors
     return 0
 }

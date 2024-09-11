@@ -68,6 +68,8 @@ def compile(file: Path, args: Namespace) -> None:
         compile_file(file, args)
     elif file.is_dir():
         compile_dir(file, args)
+    else:
+        print(f'{Fore.RED}{Style.BRIGHT}{file.as_posix()} does not exist{Style.RESET_ALL}')
 
 def _file_compile(a) -> None:
     file, args = a
