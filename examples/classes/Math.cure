@@ -1,4 +1,6 @@
 func main() -> int {
+    print(Math)
+
     print(Math.pi) // Pi
     print(Math.e) // Euler's number
     print(Math.tau) // 2*Pi
@@ -35,8 +37,8 @@ func main() -> int {
     print(frac, frac2) // Print out the fractions
     print(frac.simple, frac2.simple) // Simplify the fractions
     print(frac.recip, frac2.recip) // Reciprocal of the fractions
-    print(frac.numerator, frac2.numerator) // Get the numerators of the fractions
-    print(frac.denominator, frac2.denominator) // Get the denominators of the fractions
+    print(frac.top, frac2.top) // Get the numerators of the fractions
+    print(frac.bottom, frac2.bottom) // Get the denominators of the fractions
 
     // Perform some operations on the fractions
     print(frac + frac2)

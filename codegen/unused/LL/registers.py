@@ -1,5 +1,5 @@
-from cure.objects import Object, Position, Type
-from cure.c_manager import c_dec
+from codegen.objects import Object, Position, Type
+from codegen.c_manager import c_dec
 
 
 class Registers:

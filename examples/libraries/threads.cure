@@ -8,6 +8,17 @@ func test(int a, int b) {
     print(a + b)
 }
 
+// If you want to have a function that automatically starts a new thread when called, use the
+// Thread function modification
+[Thread()] // optional join parameter too (signifies if the function pauses execution) defaults to true
+func test2(int x) {
+    while x > 0 {
+        x -= 1
+    }
+
+    print("Done decrementing")
+}
+
 func main() -> int {
     // Create a new thread that calls the 'test' function with the arguments 1 and 2
     thread = new Thread(test, 1, 2) // Automatically starts the thread
@@ -21,5 +32,11 @@ func main() -> int {
 
     // Wait for the thread to finish
     thread.join()
+
+    /*Equivalent to:
+    thread = new Thread(test2, ONE_MILLION)
+    thread.join()*/
+
+    test2(ONE_MILLION) // Call the Thread modified function
     return 0
 }

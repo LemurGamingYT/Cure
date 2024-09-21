@@ -1,19 +1,20 @@
-from typing import Callable, Any
+from typing import Any, Iterable
 from pathlib import Path
 
 from codegen.objects import (
-    Scope, Object, Type, Param, EnvItem, Function, Free, validate_args, Arg, TempVar
+    Scope, Object, Type, Param, EnvItem, Function, Free, Arg, TempVar, ID_REGEX, POS_ZERO, call_func
 )
 from codegen.c_manager import CManager, STD_PATH, c_dec
 from codegen.class_manager import ClassManager
 from codegen.array_manager import ArrayManager
 from codegen.dict_manager import DictManager
 from ir.base_visitor import IRVisitor
+from codegen.target import get_target
 from ir import (
     Program, Body, TypeNode, ParamNode, ArgNode, Call, Return, Foreach, While,
     If, Use, VarDecl, Value, Identifier, Array, Dict, Brackets, BinOp, UOp, Attribute, New,
     Ternary, Position, Node, Break, Continue, FuncDecl, Nil, Index, DollarString, IRBuilder,
-    Cast, Enum, Class
+    Cast, Enum, Class, AttrAssign
 )
 
 
@@ -42,17 +43,19 @@ def cure_to_c(cure: Path, output: Path | None = None) -> tuple['CodeGen', str]:
 
 class CodeGen(IRVisitor):
     def __init__(self, scope: Scope | None = None) -> None:
-        self.top_level_code = ''
-        self.main_end_code = ''
+        super().__init__()
+        
+        self.main_end_code, self.main_init_code, self.top_level_code, self.top_code = '', '', '', ''
         self.scope = scope or Scope()
         
         self.valid_types = [
             'int', 'float', 'bool', 'string', 'nil', 'Math', 'System', 'Time', 'Cure', 'Fraction',
-            'Vector2', 'hex'
+            'Vector2', 'hex', 'StringBuilder'
         ]
         
         self.library_classes: list[object] = []
         self.extra_compile_args: list[str] = []
+        self.target = get_target()
         
         self.c_manager = CManager(self)
         self.dict_manager = DictManager(self)
@@ -63,12 +66,12 @@ class CodeGen(IRVisitor):
         
         str_array = self.array_manager.define_array(Type('string'))
         
-        POS_ZERO = Position(0, 0, '')
         code, name = self.c_manager.array_from_c_array(
             self, POS_ZERO, Type('string'), '__argv', '__argc'
         )
         
         self.scope.env['init'] = EnvItem('init', Type('function'), POS_ZERO)
+        self.scope.env['deinit'] = EnvItem('deinit', Type('function'), POS_ZERO)
         self.scope.env['args'] = EnvItem('args', str_array, POS_ZERO)
         self.add_toplevel_code(f'{str_array.c_type} args;')
         self.add_toplevel_code(f"""void init() {{
@@ -76,15 +79,43 @@ class CodeGen(IRVisitor):
 args = {name};
 srand(time(NULL));
 }}
+
+void deinit() {{
+    free(args.elements);
+}}
 """)
 
         self.add_toplevel_code('#define _CURE_INITIALISED\n#endif')
     
     def is_string_literal(self, value: Object | str) -> bool:
+        """Checks whether a value is a string literal, i.e. starts and ends with double quotes.
+
+        Args:
+            value (Object | str): The value to check.
+
+        Returns:
+            bool: Whether the value is a string literal.
+        """
+        
         if isinstance(value, Object):
             return self.is_string_literal(str(value)) and value.type == Type('string')
         
         return value.startswith('"') and value.endswith('"')
+    
+    def is_identifier(self, value: Object | str) -> bool:
+        """Checks against a regex pattern if a string is an identifier (a name).
+
+        Args:
+            value (Object | str): The value.
+
+        Returns:
+            bool: Whether the value is an identifier.
+        """
+        
+        if isinstance(value, Object):
+            return self.is_identifier(str(value))
+
+        return ID_REGEX.fullmatch(value) is not None
     
     def generate(self, program: Program) -> str:
         """Generate C code from IR. Also prepends the `CodeGen.top_level_code` to the output.
@@ -204,20 +235,25 @@ srand(time(NULL));
             TempVar: The temporary variable.
         """
         
+        given_name = name is not None
         if name is None:
             name = self.get_unique_name()
         
         if free is not None and free.object_name == '':
             free.object_name = name
+            free.basic_name = name
         
-        self.scope.env[name] = EnvItem(name, type_, pos, reserved=True, free=free)
+        self.scope.env[name] = EnvItem(name, type_, pos, reserved=given_name, free=free)
         if free is not None:
             self.scope.add_free(free)
         
         return TempVar(name, type_, pos, free=free)
     
-    def add_toplevel_code(self, code: str) -> None:
-        self.top_level_code += code + '\n'
+    def add_toplevel_code(self, code: str, very_top: bool = False) -> None:
+        if very_top:
+            self.top_code += code + '\n'
+        else:
+            self.top_level_code += code + '\n'
     
     def add_toplevel_constant(self, name: str, type: Type, value: str | None = None,
                               add_code: bool = True) -> None:
@@ -271,10 +307,14 @@ srand(time(NULL));
         #         f'Overriding free variable \'{item.free.object_name}\', may cause memory issues'
         #     )
         
-        temp_free = Free(free_name=free.free_name)
-        temp_var = self.create_temp_var(obj.type, pos, free=temp_free)
+        temp_var = self.create_temp_var(obj.type, pos)
+        temp_free = Free(object_name=str(temp_var), basic_name=str(temp_var)).replace(free)
+        self.scope.add_free(temp_free)
         self.prepend_code(f'{obj.type.c_type} {temp_var} = {obj};')
-        return temp_var.OBJECT()
+        
+        obj = temp_var.OBJECT()
+        obj.free = temp_free
+        return obj
     
     def call(self, name: str, args: list[Arg], call_position: Position,
              by_user: bool = False) -> Object:
@@ -293,7 +333,7 @@ srand(time(NULL));
         """
         
         if (item := self.scope.env.get(name)) is not None and (func := item.func) is not None:
-            obj = func(self, call_position, *args)
+            obj = call_func(self, tuple(args), func, call_position)
             if obj is None:
                 call_position.error_here(f'Function \'{name}\' returned absolutely nothing')
             
@@ -302,48 +342,30 @@ srand(time(NULL));
             if not getattr(c_func, 'can_user_call', False) and by_user:
                 call_position.error_here(f'Name \'{name}\' is not defined')
             
-            arg_types: tuple[str, ...] = tuple(
-                arg.value.type.c_type for arg in args
-                if arg.value.type.c_type is not None
-            )
-            
-            call_func: Callable[..., Any] | None = None
-            params: tuple[str, ...] | None = None
-            param_types = getattr(c_func, 'param_types', ())
-            if validate_args(arg_types, param_types):
-                call_func = c_func
-                params = param_types
-            else:
-                for k, v in getattr(c_func, 'overloads', {}).items():
-                    if validate_args(arg_types, k[0]):
-                        if v is None:
-                            v = c_func
-                        
-                        call_func = v
-                        params = k[0]
-                        break
-            
-            if call_func is None or params is None:
-                if len(arg_types) == 0:
-                    call_position.error_here(f'No matching overload for \'{name}\' with no arguments')
-                
-                arg_types_str = ', '.join(type_ for type_ in arg_types)
-                call_position.error_here(
-                    f'No matching overload for \'{name}\' with arguments {arg_types_str}'
-                )
-            
-            has_greedy = '*' in params
-            if len(args) != len(params) and not has_greedy:
-                call_position.error_here(
-                    f'\'{name}\' takes {len(params)} arguments, but {len(args)} were given'
-                )
-            
-            return call_func(self, call_position, *[arg.value for arg in args])
+            return call_func(self, tuple(args), c_func.object, call_position)
         
         if item is None:
             call_position.error_here(f'Name \'{name}\' is not defined')
         
         call_position.error_here(f'Name \'{name}\' is not a function')
+    
+    def call_callee(self, callee: str, args: list[Arg], err_msg: str, pos: Position) -> Object:
+        """Utility function to call a function and if it doesn't exist, print an error.
+
+        Args:
+            callee (str): The callee name.
+            args (list[Arg]): The call arguments.
+            err_msg (str): The error message if the object does not exist.
+            pos (Position): The call position.
+
+        Returns:
+            Object: The output of the function as an `Object`.
+        """
+        
+        if self.c_manager.get_object(callee) is None:
+            pos.error_here(err_msg)
+        
+        return self.call(callee, args, pos)
     
     def condition(self, expr: Node) -> Object:
         """Converts an expression into an `Object`, used in `if` statements.
@@ -417,6 +439,72 @@ extern "C" {{
                 self.c_manager.include(f'"{header.absolute().as_posix()}"', self)
             else:
                 pos.error_here(f'Library \'{full_lib_name}\' not found')
+    
+    def c_enum(self, name: str, fields: Iterable[str], pos: Position) -> Type:
+        """Create a C enum
+
+        Args:
+            name (str): The name of the enum
+            fields (Iterable[str]): The names that the enum should have
+            pos (Position): The position when the enum is/should be created
+        
+        Returns:
+            Type: The `Type` object of the enum
+        """
+
+        enum_type = Type(name)
+        self.valid_types.append(name)
+        self.add_toplevel_code(f'typedef int {name};')
+        self.scope.env[name] = EnvItem(name, enum_type, pos)
+        
+        @c_dec(
+            add_to_class=self.c_manager, func_name_override=f'{enum_type.c_type}_type',
+            is_method=True, is_static=True
+        )
+        def _(_, call_position: Position) -> Object:
+            return Object(f'"{name}"', Type('string'), call_position)
+        
+        @c_dec(
+            param_types=(Param('enum', enum_type),), is_method=True,
+            add_to_class=self.c_manager, func_name_override=f'{enum_type.c_type}_to_string'
+        )
+        def _(_, call_position: Position, _enum: Object) -> Object:
+            return Object(f'"Enum \'{name}\'"', Type('string'), call_position)
+        
+        for value, member in enumerate(fields):
+            callee = f'{enum_type.c_type}_{member}'
+            if self.c_manager.get_object(callee) is not None:
+                pos.error_here(f'Enum member \'{member}\' is already defined')
+            
+            @c_dec(
+                add_to_class=self.c_manager, func_name_override=callee,
+                is_property=True, is_static=True
+            )
+            def _(_, call_position: Position, value=value) -> Object:
+                return Object(f'(({name})({value}))', enum_type, call_position)
+            
+        @c_dec(
+            param_types=(Param('enum', enum_type),), is_method=True,
+            add_to_class=self.c_manager, func_name_override=f'{enum_type.c_type}_to_int'
+        )
+        def _(_, call_position: Position, enum: Object) -> Object:
+            return Object(f'((int)({enum}))', Type('int'), call_position)
+        
+        @c_dec(
+            param_types=(Param('a', enum_type), Param('b', enum_type)), is_method=True,
+            add_to_class=self.c_manager, func_name_override=f'{enum_type.c_type}_eq_{enum_type.c_type}'
+        )
+        def _(_, call_position: Position, a: Object, b: Object) -> Object:
+            return Object(f'(({a}) == ({b}))', Type('bool'), call_position)
+        
+        @c_dec(
+            param_types=(Param('a', enum_type), Param('b', enum_type)),  is_method=True,
+            add_to_class=self.c_manager, func_name_override=f'{enum_type.c_type}_neq_{enum_type.c_type}'
+        )
+        def _(_, call_position: Position, a: Object, b: Object) -> Object:
+            return Object(f'(({a}) != ({b}))', Type('bool'), call_position)
+        
+        return enum_type
     
     
     def visit_Program(self, node: Program) -> str:
@@ -511,7 +599,7 @@ extern "C" {{
             self.scope.remove_free(expr.free)
         
         self.prepend_code(self.get_end_code())
-        return Object(f'return {expr.code}', expr.type, node.pos, free=expr.free)
+        return Object(f'return {expr}', expr.type, node.pos, free=expr.free)
     
     def visit_Break(self, node: Break) -> Object:
         self.prepend_code(self.get_end_code())
@@ -527,9 +615,7 @@ extern "C" {{
         if (ending_code := kwargs.pop('ending_code', None)) is not None:
             self.add_end_code(ending_code)
         
-        code = []
-        free = None
-        code_type = Type('nil')
+        code, free, code_type = [], None, Type('nil')
         for stmt in node.nodes:
             stmt_node = self.visit(stmt)
             if isinstance(stmt, (Return, If, While, Foreach)):
@@ -552,24 +638,22 @@ extern "C" {{
         self.exit_scope()
         return Object('\n'.join(code), code_type, node.pos, free=free)
     
-    def visit_Class(self, node: Class) -> Object:
-        name = node.name
-        if self.name_occupied(name):
-            node.pos.error_here(f'Name \'{name}\' is already in use')
-        
-        code = self.class_manager.create_class(name, node.members)
-        return Object(code, Type('nil'), node.pos)
-    
     def visit_FuncDecl(self, node: FuncDecl) -> Object:
         name = node.name
         return_type = self.visit_TypeNode(node.return_type)\
             if node.return_type is not None else Type('nil')
         params = [self.visit_ParamNode(param) for param in node.params]
+        used_param_names = []
+        for p in params:
+            if p.name in used_param_names:
+                node.pos.error_here('Function parameter names duplicated')
+            else:
+                used_param_names.append(p)
         
         kwargs: dict[str, Any] = {'params': params}
         is_main_function = name == 'main'
         if is_main_function:
-            kwargs['ending_code'] = f'free(args.elements);\n{self.main_end_code}\n'
+            kwargs['ending_code'] = f'{self.main_end_code};\ndeinit();\n'
         
         new_name = None
         original_name = name
@@ -579,10 +663,7 @@ extern "C" {{
             
             new_name = self.get_unique_name(name)
             if (f := self.scope.env[name].func) is not None:
-                f.add_overload(
-                    new_name, return_type,
-                    [param.type.c_type for param in params]
-                )
+                f.add_overload(new_name, return_type, tuple(params))
             else:
                 node.pos.error_here(f'Name \'{name}\' is used as a variable and not a function')
         else:
@@ -604,7 +685,8 @@ extern "C" {{
         
         body = self.visit_Body(node.body, **kwargs)
         self.scope.env[original_name].free = body.free
-                
+        
+        # return types of the `Body` are not reliable enough yet
         # if body.type != return_type:
         #     node.pos.error_here(f'Expected return type \'{return_type}\', got \'{body.type}\'')
         
@@ -614,6 +696,7 @@ extern "C" {{
         
         return Object(f"""{return_type.c_type} {name}({params_str}) {{
 {'init();' if is_main_function else ''}
+{self.main_init_code if is_main_function else ''}
 {body}
 }}
 """, Type('nil'), node.pos)
@@ -633,7 +716,7 @@ extern "C" {{
             name = self.fix_name(name)
         
         if value.free is not None and not self.scope.has_free(value.free):
-            self.scope.local_free_vars.add(value.free)
+            self.scope.add_free(value.free)
         
         if (item := self.scope.env.get(name)) is not None:
             if node.type is not None:
@@ -644,7 +727,7 @@ extern "C" {{
                 node.pos.error_here(f'Cannot redeclare \'{name}\' a constant')
             
             if node.op is not None:
-                callee = f'{item.type}_{op_map[node.op]}_{value.type}'
+                callee = f'{item.type.c_type}_{op_map[node.op]}_{value.type.c_type}'
                 val = Object(item.name, item.type, node.pos)
                 if self.c_manager.get_object(callee) is None:
                     node.pos.error_here(f'Operator \'{node.op}\' is not defined for types '\
@@ -653,7 +736,7 @@ extern "C" {{
                 value = self.call(callee, [Arg(val), Arg(value)], node.pos)
             
             if value.free is not None:
-                self.scope.env[original_name].free = value.free.replace(Free(name))\
+                self.scope.env[original_name].free = value.free.replace(Free(name, basic_name=name))\
                     if item.free is None else value.free.replace(item.free)
                 self.scope.remove_free(value.free)
             
@@ -662,8 +745,14 @@ extern "C" {{
             if node.op is not None:
                 node.pos.error_here(f'\'{name}\' is not defined')
             
+            free = Free(name, basic_name=name) if value.free is not None else None
+            if free is not None and value.free is not None:
+                self.scope.remove_free(value.free)
+                free = free.replace(value.free)
+                self.scope.add_free(free)
+            
             self.scope.env[original_name] = EnvItem(
-                name, type_, node.pos, is_const=node.is_const, free=value.free
+                name, type_, node.pos, is_const=node.is_const, free=free
             )
             
             const = 'const ' if node.is_const else ''
@@ -702,7 +791,7 @@ extern "C" {{
         
         code, buf_free = self.c_manager.fmt_length(self, node.pos, f'"{fmt}"', *fmt_variables)
         self.prepend_code(code)
-        return Object(buf_free.object_name, Type('string'), node.pos, free=buf_free)
+        return Object.STRINGBUF(buf_free, node.pos)
     
     def visit_Identifier(self, node: Identifier) -> Object:
         if (item := self.scope.env.get(node.name)) is not None:
@@ -720,7 +809,7 @@ extern "C" {{
     
     def visit_Brackets(self, node: Brackets) -> Object:
         expr = self.visit(node.expr)
-        return Object(f'({expr.code})', expr.type, node.pos)
+        return Object(f'({expr})', expr.type, node.pos)
     
     def visit_Array(self, node: Array) -> Object:
         elements = [self.visit_ArgNode(arg) for arg in node.elements]
@@ -757,32 +846,32 @@ extern "C" {{
             node.pos.error_here('Ternary true and false types don\'t match')
         
         return Object(
-            f'{self.condition(node.cond)} ? {true.code} : {false.code}',
+            f'{self.condition(node.cond)} ? ({true}) : ({false})',
             true.type, node.pos
         )
     
     def visit_BinOp(self, node: BinOp) -> Object:
         op_name = op_map[node.op]
-        left = self.visit(node.left)
-        right = self.visit(node.right)
-        callee = f'{left.type.c_type}_{op_name}_{right.type.c_type}'
-        if self.c_manager.get_object(callee) is None:
-            node.pos.error_here(f'Operator \'{node.op}\' is not defined for types \'{left.type}\''\
-                f' and \'{right.type}\'')
-        
-        return self.call(callee, [Arg(left), Arg(right)], node.pos)
+        left: Object = self.visit(node.left)
+        right: Object = self.visit(node.right)
+        return self.call_callee(
+            f'{left.type.c_type}_{op_name}_{right.type.c_type}',
+            [Arg(left), Arg(right)],
+            f'Operator \'{node.op}\' is not defined for types \'{left.type}\' and \'{right.type}\'',
+            node.pos
+        )
     
     def visit_UOp(self, node: UOp) -> Object:
         op_name = op_map[node.op]
-        value = self.visit(node.value)
-        callee = f'{op_name}_{value.type.c_type}'
-        if self.c_manager.get_object(callee) is None:
-            node.pos.error_here(f'Operator \'{node.op}\' is not defined for type \'{value.type}\'')
-        
-        return self.call(callee, [Arg(value)], node.pos)
+        value: Object = self.visit(node.value)
+        return self.call_callee(
+            f'{op_name}_{value.type.c_type}', [Arg(value)],
+            f'Operator \'{node.op}\' is not defined for type \'{value.type}\'',
+            node.pos
+        )
     
     def visit_Attribute(self, node: Attribute) -> Object:
-        obj = self.visit(node.obj)
+        obj: Object = self.visit(node.obj)
         callee = f'{obj.type.c_type}_{node.attr}'
         if (func := self.c_manager.get_object(callee)) is not None:
             args: list[Arg] = []
@@ -823,8 +912,8 @@ extern "C" {{
         node.name.pos.error_here(f'Class \'{name}\' is not defined')
     
     def visit_Index(self, node: Index) -> Object:
-        obj = self.visit(node.obj)
-        index = self.visit(node.index)
+        obj: Object = self.visit(node.obj)
+        index: Object = self.visit(node.index)
         callee = f'index_{obj.type.c_type}'
         if self.c_manager.get_object(callee) is None:
             node.pos.error_here(f'Cannot index type \'{obj.type}\'')
@@ -834,69 +923,55 @@ extern "C" {{
     def visit_Cast(self, node: Cast) -> Object:
         obj: Object = self.visit(node.obj)
         type = self.visit_TypeNode(node.type)
-        callee = f'{obj.type.c_type}_to_{type.c_type}'
-        if self.c_manager.get_object(callee) is None:
-            node.pos.error_here(f'Cannot cast type \'{obj.type}\' to \'{type}\'')
-        
-        return self.call(callee, [Arg(obj)], node.pos)
+        return self.call_callee(
+            f'{obj.type.c_type}_to_{type.c_type}', [Arg(obj)],
+            f'Cannot cast type \'{obj.type}\' to \'{type}\'', node.pos
+        )
     
     def visit_Enum(self, node: Enum) -> Object:
         name = node.name.name
         if self.name_occupied(name):
             node.name.pos.error_here(f'Name \'{name}\' is already used')
         
-        self.valid_types.append(name)
-        self.add_toplevel_code(f'typedef int {name};')
-        
-        @c_dec(
-            add_to_class=self.c_manager, func_name_override=f'{name}_type',
-            is_method=True, is_static=True
-        )
-        def _(_, call_position: Position) -> Object:
-            return Object(f'"{name}"', Type('string'), call_position)
-        
-        @c_dec(
-            param_types=(name,),
-            add_to_class=self.c_manager, func_name_override=f'{name}_to_string',
-            is_method=True
-        )
-        def _(_, call_position: Position, _enum: Object) -> Object:
-            return Object(f'"Enum \'{name}\'"', Type('string'), call_position)
-        
-        for value, member in enumerate(node.members):
-            callee = f'{name}_{member.name}'
-            if self.c_manager.get_object(callee) is not None:
-                node.pos.error_here(f'Enum member \'{member.name}\' is already defined')
-            
-            @c_dec(
-                add_to_class=self.c_manager, func_name_override=callee,
-                is_property=True, is_static=True
-            )
-            def _(_, call_position: Position, value=value) -> Object:
-                return Object(f'(({name})({value}))', Type(name), call_position)
-            
-        @c_dec(
-            param_types=(name,), is_method=True,
-            add_to_class=self.c_manager, func_name_override=f'{name}_to_int'
-        )
-        def _(_, call_position: Position, enum: Object) -> Object:
-            return Object(f'((int)({enum}))', Type('int'), call_position)
-        
-        @c_dec(
-            param_types=(name, name),
-            add_to_class=self.c_manager, func_name_override=f'{name}_eq_{name}',
-            is_method=True
-        )
-        def _(_, call_position: Position, enum1: Object, enum2: Object) -> Object:
-            return Object(f'(({enum1}) == ({enum2}))', Type('bool'), call_position)
-        
-        @c_dec(
-            param_types=(name, name),
-            add_to_class=self.c_manager, func_name_override=f'{name}_neq_{name}',
-            is_method=True
-        )
-        def _(_, call_position: Position, enum1: Object, enum2: Object) -> Object:
-            return Object(f'(({enum1}) != ({enum2}))', Type('bool'), call_position)
-        
-        self.scope.env[name] = EnvItem(name, Type(name), node.pos)
+        self.c_enum(name, [field.name for field in node.members], node.pos)
         return Object(f'// Enum \'{name}\'', Type('nil'), node.pos)
+    
+    def visit_AttrAssign(self, node: AttrAssign) -> Object:
+        obj: Object = self.visit(node.obj)
+        value = self.visit(node.value)
+        for attr in node.attr_chain:
+            attr_callee = self.c_manager.get_object(f'{obj.type.c_type}_{attr}')
+            if attr_callee is None:
+                node.pos.error_here(f'Attribute \'{attr}\' is not defined on type \'{obj.type}\'')
+            
+            attr_type = attr_callee.return_type
+            
+            if node.op is not None:
+                o = node.op
+                value = self.call_callee(
+                    f'{attr_type.c_type}_{op_map[o]}_{value.type.c_type}',
+                    [Arg(self.call_callee(
+                        f'{obj.type.c_type}_{attr}', [Arg(obj)],
+                        f'Cannot get attribute \'{attr}\' on type \'{obj.type}\'', node.pos
+                    )), Arg(value)],
+                    f'Cannot perform operation \'{o}\' on types \'{obj.type}\' and \'{value.type}\'',
+                    node.pos
+                )
+            
+            obj = self.call_callee(
+                f'{obj.type.c_type}_set_{attr}', [Arg(obj), Arg(value)],
+                f'Cannot set attribute \'{attr}\' on type \'{obj.type}\'',
+                node.pos
+            )
+        
+        return obj
+    
+    def visit_Class(self, node: Class) -> Object:
+        name = node.name
+        if self.name_occupied(name):
+            node.pos.error_here(f'Name \'{name}\' is already in use')
+        
+        self.scope.is_in_class = True
+        code = self.class_manager.create_class(name, node.members)
+        self.scope.is_in_class = False
+        return Object(code, Type('nil'), node.pos)

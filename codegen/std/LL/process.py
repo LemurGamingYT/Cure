@@ -1,5 +1,6 @@
-from codegen.objects import Object, Position, Type, TempVar
+from codegen.objects import Object, Position, Type, TempVar, Param
 from codegen.c_manager import c_dec
+from codegen.target import Target
 
 
 class Process:
@@ -15,22 +16,28 @@ typedef struct {{
 #endif
 """)
         
+        codegen.c_manager.wrap_struct_properties('proc', Type('Process'), [
+            Param('pid', Type('int'))
+        ])
+        
         @c_dec(is_method=True, is_static=True, add_to_class=self)
         def _Process_type(_, call_position: Position) -> Object:
             return Object('"Process"', Type('string'), call_position)
         
-        @c_dec(is_method=True, is_static=True, add_to_class=self)
-        def _Process_to_string(codegen, call_position: Position, process: Object) -> Object:
-            proc = f'({process})'
+        @c_dec(param_types=(Param('proc', Type('Process')),), is_method=True, add_to_class=self)
+        def _Process_to_string(codegen, call_position: Position, proc: Object) -> Object:
             code, buf_free = codegen.c_manager.fmt_length(
                 codegen, call_position,
-                '"Process(pid=%d)"', f'{proc}.pid'
+                '"Process(pid=%d)"', f'({proc}).pid'
             )
             
             codegen.prepend_code(code)
             return Object.STRINGBUF(buf_free, call_position)
         
         def open_current_process(codegen, call_position: Position) -> Object:
+            if codegen.target != Target.WINDOWS:
+                call_position.warn_here('Processes is only supported on Windows')
+            
             proc: TempVar = codegen.create_temp_var(Type('Process'), call_position)
             codegen.prepend_code(f"""Process {proc} = {{
     .pid = GetCurrentProcessId(), .handle = GetCurrentProcess()
@@ -42,10 +49,14 @@ if ({proc}.handle == NULL) {{
             
             return proc.OBJECT()
         
-        @c_dec(param_types=('int',), is_method=True, is_static=True, add_to_class=self, overloads={
-            ((), 'Process'): open_current_process
-        })
+        @c_dec(
+            param_types=(Param('pid', Type('int')),), is_method=True, is_static=True,
+            add_to_class=self, overloads={((), Type('Process')): open_current_process}
+        )
         def _Process_new(codegen, call_position: Position, pid: Object) -> Object:
+            if codegen.target != Target.WINDOWS:
+                call_position.warn_here('Processes is only supported on Windows')
+            
             proc: TempVar = codegen.create_temp_var(Type('Process'), call_position)
             codegen.prepend_code(f"""Process {proc} = {{
     .pid = {pid}, .handle = OpenProcess(PROCESS_ALL_ACCESS, false, {pid})
@@ -57,29 +68,34 @@ if ({proc}.handle == NULL) {{
             
             return proc.OBJECT()
         
-        @c_dec(param_types=('Process',), is_property=True, add_to_class=self)
-        def _Process_pid(_, call_position: Position, process: Object) -> Object:
-            return Object(f'((int)(({process}).pid))', Type('int'), call_position)
-        
-        @c_dec(param_types=('Process', 'hex', 'any'), is_method=True, add_to_class=self)
-        def _Process_write(codegen, call_position: Position, process: Object, addr: Object,
+        @c_dec(
+            param_types=(
+                Param('proc', Type('Process')), Param('addr', Type('hex')), Param('value', Type('any'))
+            ), is_method=True, add_to_class=self
+        )
+        def _Process_write(codegen, call_position: Position, proc: Object, addr: Object,
                            value: Object) -> Object:
             new_value: TempVar = codegen.create_temp_var(value.type, call_position, free=value.free)
             codegen.prepend_code(f"""{value.type.c_type} {new_value} = {value};
-if (!WriteProcessMemory(({process}).handle, {addr}, &{new_value}, sizeof({value.type.c_type}), NULL)) {{
+if (!WriteProcessMemory(({proc}).handle, {addr}, &{new_value}, sizeof({value.type.c_type}), NULL)) {{
     {codegen.c_manager.err('Failed to write to process memory')}
 }}
 """)
             
             return Object.NULL(call_position)
         
-        @c_dec(param_types=('Process', 'hex', 'type'), is_method=True, add_to_class=self)
-        def _Process_read(codegen, call_position: Position, process: Object, addr: Object,
+        @c_dec(
+            param_types=(
+                Param('proc', Type('Process')), Param('addr', Type('hex')),
+                Param('read_type', Type('type'))
+            ), is_method=True, add_to_class=self
+        )
+        def _Process_read(codegen, call_position: Position, proc: Object, addr: Object,
                           type_: Object) -> Object:
             new_value: TempVar = codegen.create_temp_var(Type(type_.code), call_position)
             codegen.prepend_code(f"""{new_value.type.c_type} {new_value};
 if (!ReadProcessMemory(
-    ({process}).handle, {addr}, &{new_value},
+    ({proc}).handle, {addr}, &{new_value},
     sizeof({new_value.type.c_type}), NULL)
 ) {{
     {codegen.c_manager.err('Failed to read from process memory')}
@@ -88,9 +104,9 @@ if (!ReadProcessMemory(
             
             return new_value.OBJECT()
         
-        @c_dec(param_types=('Process',), is_method=True, add_to_class=self)
-        def _Process_close(codegen, call_position: Position, process: Object) -> Object:
-            codegen.prepend_code(f"""if (!CloseHandle(({process}).handle)) {{
+        @c_dec(param_types=(Param('proc', Type('Process')),), is_method=True, add_to_class=self)
+        def _Process_close(codegen, call_position: Position, proc: Object) -> Object:
+            codegen.prepend_code(f"""if (!CloseHandle(({proc}).handle)) {{
     {codegen.c_manager.err('Failed to close process handle')}
 }}
 """)

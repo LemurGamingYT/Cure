@@ -1,28 +1,170 @@
-from typing import Union, Iterable, Callable
 from dataclasses import dataclass, field
 from re import compile as re_compile
+from typing import Union, Callable
 
 from ir.nodes import Position, Body
 
 
-ID_REGEX = re_compile(r'[a-zA-Z_][a-zA-Z0-9_]*')
+ID_REGEX = re_compile(r'[a-zA-Z_][a-zA-Z_0-9]*')
+POS_ZERO = Position(0, 0, '')
+FunctionType = Union['Function', 'BuiltinFunction']
+OverloadKey = tuple[tuple['Param', ...], 'Type']
+Overloads = dict[OverloadKey, Callable | str | None]
+Callables = list[tuple[Callable | str, tuple['Arg', ...]]]
 kwargs = {'slots': True, 'unsafe_hash': True}
 
-def validate_args(arg_types: tuple[str, ...], param_types: tuple[str, ...]) -> bool:
-    has_greedy = '*' in param_types
-    if len(arg_types) != len(param_types) and not has_greedy:
-        return False
+def has_greedy(params: tuple['Param', ...]) -> bool:
+    return any(p.type.c_type == GREEDY for p in params)
+
+def handle_args(codegen, args: tuple['Arg', ...], params: tuple['Param', ...], pos: Position):
+    variadic_args: list[Arg] = []
+    list_params: list = list(params)
+    new_args: list[Arg | None] = [None] * len(list_params)
+    variadic_param = None
+    if list_params and list_params[-1].name == '*' and list_params[-1].type.c_type == '*':
+        variadic_param = list_params.pop()
     
-    for arg_type, param_type in zip(arg_types, param_types):
-        if param_type == 'any':
+    arg: Arg | None
+    for i, arg in enumerate(args):
+        if i < len(list_params):
+            if arg.name is None:
+                new_args[i] = arg
+            else:
+                param_index = next((i for i, p in enumerate(list_params) if p.name == arg.name), None)
+                if param_index is None:
+                    return f'Unknown keyword argument \'{arg.name}\'', arg.value.position
+                
+                new_args[param_index] = arg
+        else:
+            if variadic_param is None:
+                return 'Too many arguments provided', pos
+                        
+            variadic_args = list(args[len(list_params):])
+    
+    for i, (param, arg) in enumerate(zip(list_params, new_args)):
+        if arg is not None:
             continue
-        elif param_type == '*':
-            return True
+        
+        if param.default is None:
+            return f'Missing required argument \'{param.name}\'', pos
+        
+        obj = param.default
+        if obj.position == POS_ZERO:
+            obj.position = pos
+        
+        new_args[i] = Arg(param.default, param.name)
+    
+    passing_args: list[Arg] = [
+        arg for arg in new_args
+        if arg is not None
+    ] + (variadic_args if variadic_param is not None else [])
+    
+    for param, arg in zip(list_params, passing_args):
+        if not param.ref:
+            continue
+        
+        if not codegen.is_identifier(arg.value):
+            return 'Cannot modify non-variable', pos
+        
+        arg.value.code = f'&({arg.value})'
+    
+    return passing_args, None
 
+def handle_overloads(f: FunctionType, codegen, args: tuple['Arg', ...], pos: Position):
+    for k, v in f.overloads.items():
+        new_args_or_error, _ = handle_args(codegen, args, k[0], pos)
+        if isinstance(new_args_or_error, str):
+            continue
+        
+        success, _, _ = validate_args(args, k[0])
+        if success:
+            return v, k[1], new_args_or_error
+    
+    return None, None, args
+
+def handle_callables(codegen, pos: Position, args: tuple['Arg', ...], f: FunctionType):
+    for modification_callable, modification_args in f.callables:
+        if isinstance(modification_callable, str):
+            continue
+        
+        params = getattr(modification_callable, 'params')
+        err, position = handle_args(codegen, modification_args, params, pos)
+        if isinstance(position, Position):
+            position.error_here(err)
+        else:
+            modification_args = err
+        
+        mod_res = modification_callable(
+            codegen, f, pos, args, *[marg.value for marg in modification_args]
+        )
+        if mod_res is not None and isinstance(mod_res, Object):
+            return mod_res
+
+def verify_params_length(args: tuple['Arg', ...], expected_length: int):
+    if len(args) > expected_length:
+        return False, f'Too many arguments. Expected {expected_length}, got {len(args)}'
+    elif len(args) < expected_length:
+        return False, f'Too few arguments. Expected {expected_length}, got {len(args)}'
+    
+    return True, ''
+
+def call_func(codegen, args: tuple['Arg', ...], f: FunctionType, call_position: Position):
+    # check the arguments
+    callee, params, args = handle_overloads(f, codegen, args, call_position)
+    if callee is None and params is None:
+        # if none of the overloads match, check the normal function params
+        args, position = handle_args(codegen, args, tuple(f.params), call_position)
+        
+        # if nothing works, then the function call is invalid
+        if isinstance(args, str) and isinstance(position, Position):
+            position.error_here(args)
+        
+        params = f.params # if the normal params worked, the correct arguments are the function params
+        
+        # the overloads don't need to be checked since they are guaranteed to be correct
+        # but the parameters are still not guaranteed to be correct
+        success, err, position = validate_args(args, tuple(params))
+        if not success:
+            (position or call_position).error_here(err)
+    
+    if isinstance(f, BuiltinFunction):
+        if isinstance(callee, str):
+            call_position.error_here(callee)
+        
+        return (callee or f.callable)(codegen, call_position, *[arg.value for arg in args])
+    else:
+        if (out := handle_callables(codegen, call_position, args, f)) is not None:
+            return out
+        
+        return_type = f.return_type
+        if f.name != callee:
+            for k, v in f.overloads.items():
+                if v == callee:
+                    return_type = k[1]
+        
+        args_str = ', '.join(str(arg.value) for arg in args)
+        return Object(f'{(callee or f.name)}({args_str})', return_type, call_position)
+
+GREEDY = '*'
+
+def validate_args(args: tuple['Arg', ...], params: tuple['Param', ...]):
+    if not has_greedy(params):
+        success, err = verify_params_length(args, len(params))
+        if not success:
+            return success, err, None
+    
+    for arg, param in zip(args, params):
+        param_type = param.type
+        if param_type.c_type == 'any':
+            continue # if the parameter type can be anything, don't bother to check it
+        elif param.name == GREEDY or param_type.c_type == GREEDY:
+            return True, '', None # no need to continue if there is a variadic 
+
+        arg_type, arg_pos = arg.value.type, arg.value.position
         if arg_type != param_type:
-            return False
+            return False, f'Expected type \'{param_type}\', got \'{arg_type}\'', arg_pos
 
-    return True
+    return True, '', None
 
 @dataclass(**kwargs)
 class Type:
@@ -49,6 +191,8 @@ class Scope:
     local_free_vars: set['Free'] = field(default_factory=set)
     env: dict[str, 'EnvItem'] = field(default_factory=dict)
     is_in_loop: bool = field(default=False)
+    is_in_class: bool = field(default=False)
+    assigning_to_variable: str | None = field(default=None)
     
     @property
     def toplevel(self) -> 'Scope':
@@ -57,6 +201,10 @@ class Scope:
             top = top.parent
         
         return top
+    
+    @property
+    def is_toplevel(self) -> bool:
+        return self.parent is None
     
     def add_free(self, free: 'Free') -> None:
         self.free_vars.add(free)
@@ -90,13 +238,17 @@ class Scope:
 class Free:
     object_name: str = field(default='')
     free_name: str = field(default='free')
+    basic_name: str = field(default='')
     
     @property
     def code(self) -> str:
         return f'{self.free_name}({self.object_name});'
     
     def replace(self, with_free: 'Free') -> 'Free':
-        return Free(with_free.object_name, free_name=self.free_name)
+        return Free(
+            with_free.object_name.replace(with_free.basic_name, self.basic_name),
+            free_name=with_free.free_name, basic_name=self.basic_name
+        )
     
     def __eq__(self, other: object) -> bool:
         if isinstance(other, Free):
@@ -108,7 +260,7 @@ class Free:
 class Object:
     code: str
     type: Type
-    position: Position
+    position: Position = field(default=POS_ZERO)
     free: Free | None = field(default=None)
     
     @staticmethod
@@ -167,105 +319,27 @@ class Param:
         return f'*({self.name})' if self.ref else self.name
 
 @dataclass(**kwargs)
+class BuiltinFunction:
+    callable: Callable
+    params: list[Param] = field(default_factory=list)
+    overloads: Overloads = field(default_factory=Overloads)
+    callables: Callables = field(default_factory=Callables)
+
+@dataclass(**kwargs)
 class Function:
     name: str
-    returns: Type
+    return_type: Type
     params: list[Param] = field(default_factory=list)
     body: Body | None = field(default=None)
-    overloads: dict = field(default_factory=dict)
-    callables: list[tuple[Callable, tuple]] = field(default_factory=list)
-    body_objects: list[Object] = field(default_factory=list)
+    overloads: Overloads = field(default_factory=Overloads)
+    callables: Callables = field(default_factory=Callables)
     
-    def call_code(self, args: list[Arg], callee: str | None = None) -> str:
-        return f'{callee or self.name}({", ".join(str(arg.value) for arg in args)})'
-    
-    def __call__(self, compiler, call_position: Position, *args: Arg) -> Object | None:
-        new_args: list[Arg | None] = [None] * len(self.params)
-        arg: Arg | None
-        for i, arg in enumerate(args):
-            if arg.name is None:
-                new_args[i] = arg
-            else:
-                param_index = next((
-                    i for i, p in enumerate(self.params)
-                    if p.name == arg.name
-                ), None)
-                if param_index is None:
-                    arg.value.position.error_here(f'Unknown keyword argument \'{arg.name}\'')
-                
-                new_args[param_index] = arg
-        
-        for i, (param, arg) in enumerate(zip(self.params, new_args)):
-            if arg is None:
-                if param.default is not None:
-                    new_args[i] = Arg(param.default, param.name)
-                else:
-                    call_position.error_here(f'Missing required argument \'{param.name}\'')
-        
-        for arg, param in zip(new_args, self.params):
-            if param.ref and arg is not None:
-                var_name = str(arg.value)
-                if ID_REGEX.fullmatch(var_name) is None:
-                    arg.value.position.error_here('Cannot modify a non-variable')
-                
-                if (var := compiler.scope.env.get(var_name)) is not None:
-                    if var.func is not None:
-                        arg.value.position.error_here('Cannot modify a function')
-                    elif var.is_const:
-                        arg.value.position.error_here('Cannot modify a constant')
-                    elif var.reserved:
-                        arg.value.position.error_here('Cannot modify a non-variable')
-                
-                arg.value.code = f'&({var_name})'
-        
-        if len(new_args) != len(self.params):
-            call_position.error_here(
-                f'Expected {len(self.params)} arguments, got {len(new_args)}'
-            )
-        
-        if None in new_args:
-            call_position.error_here(f'Missing required argument \'{param.name}\'')
-        
-        # bypassing mypy
-        passing_args: list[Arg] = [arg for arg in new_args if arg is not None]
-        
-        for c, mod_args in self.callables:
-            mod_res = c(
-                compiler, self, call_position,
-                passing_args,
-                [arg.value for arg in mod_args]
-            )
-            if mod_res is not None and isinstance(mod_res, Object):
-                return mod_res
-        
-        callee, return_type = self.get_callee(passing_args, call_position)
-        return Object(
-            self.call_code(passing_args, callee),
-            return_type, call_position
-        )
-    
-    def add_modification(self, name: str, pos: Position, func: Callable,
-                         args: tuple[Arg, ...]) -> None:
+    def add_modification(self, name: str, pos: Position, func: Callable, args: tuple[Arg, ...]) -> None:
         param_types = getattr(func, 'param_types', ())
-        if not validate_args(tuple(arg.value.type.c_type for arg in args), param_types):
+        if not validate_args(tuple(args), param_types):
             pos.error_here(f'No matching overload for modification \'{name}\'')
         
         self.callables.append((func, args))
     
-    def add_overload(self, name: str, returns: Type, param_types: Iterable[str]) -> None:
+    def add_overload(self, name: str, returns: Type, param_types: tuple[Param, ...]) -> None:
         self.overloads[(tuple(param_types), returns)] = name
-    
-    def get_callee(self, args: list[Arg], pos: Position) -> tuple[str, Type]:
-        param_types = tuple(param.type.c_type for param in self.params)
-        arg_types = tuple(arg.value.type.c_type for arg in args)
-        fname = self.name
-        
-        if validate_args(arg_types, param_types):
-            return fname, self.returns
-        
-        for info, func in self.overloads.items():
-            if validate_args(arg_types, info[0]):
-                return func, info[1]
-        
-        arg_types_str = ', '.join(arg_types)
-        pos.error_here(f'No matching overload for \'{fname}\' with arguments {arg_types_str}')

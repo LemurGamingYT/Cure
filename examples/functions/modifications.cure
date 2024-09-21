@@ -22,8 +22,7 @@ func test_speed() {
 }
 
 // Use the 'Cache' modification to the 'fib' function
-// This will IMMENSELY speed up your functions by caching the results of each function call
-// This is very effective if you have a recursive function
+// Works best when you have a recursive function or function that gets called many many times
 [Benchmark()]
 [Cache()]
 func fib(int n) -> int {
@@ -33,6 +32,21 @@ func fib(int n) -> int {
         return fib(n - 1) + fib(n - 2)
     }
 }
+
+
+// Create a transformer function to pass to the Transform() modification
+// transformer functions will be given the result of the function and be expected to return the same
+// as the original function type
+func transformer(int result) -> int {
+    return result * 2 // Multiply the original result by two
+}
+
+// Create the Transformed function, the result of this function will be multiplied by two
+[Transform(transformer)]
+func transformed(int x, int y) -> int {
+    return x + y
+}
+
 
 func main() -> int {
     print(test())
@@ -44,5 +58,8 @@ func main() -> int {
     // Call the 'fib' function which will cache the function call result
     // This executes in ~27.5 seconds in my testing without caching, with caching it takes 0.001 seconds
     print(fib(45))
+
+    // Call the transformed function, the result is passed to the transformer function
+    print(transformed(1, 2)) // should produce 6. (1 + 2) * 2
     return 0
 }

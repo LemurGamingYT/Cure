@@ -1,4 +1,4 @@
-from codegen.objects import Object, Position, Free, Type, Arg, TempVar
+from codegen.objects import Object, Position, Free, Type, Arg, TempVar, Param
 from codegen.c_manager import c_dec
 
 
@@ -22,7 +22,7 @@ static char* decoding_table = NULL;
 static int mod_table[] = {0, 2, 1};
 """)
     
-        @c_dec(param_types=('string',), can_user_call=True, add_to_class=self)
+        @c_dec(param_types=(Param('data', Type('string')),), can_user_call=True, add_to_class=self)
         def _base64_encode(codegen, call_position: Position, data: Object) -> Object:
             codegen.c_manager.include('<string.h>', codegen)
             codegen.c_manager.include('<stdint.h>', codegen)
@@ -65,7 +65,7 @@ for (int {i} = 0; {i} < mod_table[{input_length} % 3]; {i}++)
             
             return buf.OBJECT()
         
-        @c_dec(param_types=('string',), can_user_call=True, add_to_class=self)
+        @c_dec(param_types=(Param('encoded', Type('string')),), can_user_call=True, add_to_class=self)
         def _base64_decode(codegen, call_position: Position, enc: Object) -> Object:
             codegen.c_manager.include('<string.h>', codegen)
             codegen.c_manager.include('<stdint.h>', codegen)

@@ -1,4 +1,4 @@
-from codegen.objects import Object, Position, Type, TempVar
+from codegen.objects import Object, Position, Type, TempVar, Param
 from codegen.c_manager import c_dec
 
 
@@ -12,12 +12,16 @@ typedef struct {
 } HSV;
 #endif
 """)
+        
+        codegen.c_manager.wrap_struct_properties('hsv', Type('HSV'), [
+            Param('h', Type('float')), Param('s', Type('float')), Param('v', Type('float'))
+        ])
     
         @c_dec(is_method=True, is_static=True, add_to_class=self)
         def _HSV_type(_, call_position: Position) -> Object:
             return Object('"HSV"', Type('string'), call_position)
         
-        @c_dec(param_types=('int', 'int', 'int'), is_method=True, add_to_class=self)
+        @c_dec(param_types=(Param('hsv', Type('HSV')),), is_method=True, add_to_class=self)
         def _HSV_to_string(codegen, call_position: Position, hsv: Object) -> Object:
             cls = f'({hsv})'
             code, buf_free = codegen.c_manager.fmt_length(
@@ -27,20 +31,7 @@ typedef struct {
             codegen.prepend_code(code)
             return Object.STRINGBUF(buf_free, call_position)
         
-        
-        @c_dec(param_types=('HSV',), is_property=True, add_to_class=self)
-        def _HSV_h(_, call_position: Position, hsv: Object) -> Object:
-            return Object(f'(({hsv}).h)', Type('float'), call_position)
-        
-        @c_dec(param_types=('HSV',), is_property=True, add_to_class=self)
-        def _HSV_s(_, call_position: Position, hsv: Object) -> Object:
-            return Object(f'(({hsv}).s)', Type('float'), call_position)
-        
-        @c_dec(param_types=('HSV',), is_property=True, add_to_class=self)
-        def _HSV_v(_, call_position: Position, hsv: Object) -> Object:
-            return Object(f'(({hsv}).v)', Type('float'), call_position)
-        
-        @c_dec(param_types=('HSV',), is_property=True, add_to_class=self)
+        @c_dec(param_types=(Param('hsv', Type('HSV')),), is_property=True, add_to_class=self)
         def _HSV_to_rgb(codegen, call_position: Position, hsv: Object) -> Object:
             codegen.c_manager.include('<math.h>', codegen)
             

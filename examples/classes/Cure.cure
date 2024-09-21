@@ -1,8 +1,8 @@
 func main() -> int {
     print(Cure)
     
-    Cure.compile("print('Hello, World!')")
-    print(Cure.version)
-    print(Cure.flags)
+    Cure.compile('print("Hello, World!")') // Compile some Cure code (at compile-time)
+    print(Cure.version) // Get the Cure compiler version
+    print(Cure.flags) // Get the Cure compiler flags that this file will be compiled with
     return 0
 }

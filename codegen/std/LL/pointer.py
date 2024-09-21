@@ -1,4 +1,4 @@
-from codegen.objects import Object, Position, Type, TempVar
+from codegen.objects import Object, Position, Type, TempVar, Param
 from codegen.c_manager import c_dec
 
 
@@ -17,29 +17,34 @@ typedef struct {
         def _Pointer_type(_, call_position: Position) -> Object:
             return Object('"Pointer"', Type('string'), call_position)
         
-        @c_dec(param_types=('Pointer',), is_method=True, add_to_class=self)
-        def _Pointer_to_string(codegen, call_position: Position, pointer: Object) -> Object:
-            ptr = f'({pointer})'
+        @c_dec(param_types=(Param('ptr', Type('Pointer')),), is_method=True, add_to_class=self)
+        def _Pointer_to_string(codegen, call_position: Position, ptr: Object) -> Object:
             code, buf_free = codegen.c_manager.fmt_length(
                 codegen, call_position,
-                '"0x%p"', ptr
+                '"0x%p"', f'({ptr}).data'
             )
             
             codegen.prepend_code(code)
             return Object.STRINGBUF(buf_free, call_position)
         
-        @c_dec(param_types=('int',), can_user_call=True, add_to_class=self)
+        @c_dec(param_types=(Param('size', Type('int')),), can_user_call=True, add_to_class=self)
         def _allocate(codegen, call_position: Position, size: Object) -> Object:
             ptr: TempVar = codegen.create_temp_var(Type('Pointer'), call_position)
             codegen.prepend_code(f'Pointer {ptr} = {{ .data = malloc({size}) }};')
             return ptr.OBJECT()
         
         
-        @c_dec(param_types=('int',), is_method=True, is_static=True, add_to_class=self)
+        @c_dec(
+            param_types=(Param('size', Type('int')),), is_method=True, is_static=True,
+            add_to_class=self
+        )
         def _Pointer_new(codegen, call_position: Position, size: Object) -> Object:
             return _allocate(codegen, call_position, size)
         
-        @c_dec(param_types=('Pointer', 'int'), is_method=True, add_to_class=self)
+        @c_dec(
+            param_types=(Param('ptr', Type('Pointer')), Param('size', Type('int'))),
+            is_method=True, add_to_class=self
+        )
         def _Pointer_reallocate(codegen, _: Position,
                                 pointer: Object, size: Object) -> Object:
             ptr = f'({pointer})'
@@ -49,21 +54,26 @@ typedef struct {
             
             return pointer
         
-        @c_dec(param_types=('Pointer',), is_method=True, add_to_class=self)
-        def _Pointer_free(codegen, call_position: Position, pointer: Object) -> Object:
-            codegen.prepend_code(f'free(({pointer}).data);')
+        @c_dec(param_types=(Param('ptr', Type('Pointer')),), is_method=True, add_to_class=self)
+        def _Pointer_free(codegen, call_position: Position, ptr: Object) -> Object:
+            codegen.prepend_code(f'free(({ptr}).data);')
             return Object.NULL(call_position)
         
-        @c_dec(param_types=('Pointer', 'any'), is_method=True, add_to_class=self)
-        def _Pointer_write(codegen, call_position: Position,
-                        pointer: Object, data: Object) -> Object:
+        @c_dec(
+            param_types=(Param('ptr', Type('Pointer')), Param('data', Type('any'))),
+            is_method=True, add_to_class=self
+        )
+        def _Pointer_write(codegen, call_position: Position, pointer: Object, data: Object) -> Object:
             data_var = codegen.create_temp_var('string', call_position)
             codegen.prepend_code(f"""{data.type.c_type} {data_var} = {data};
 memcpy(({pointer}).data, (void*)(&{data_var}), sizeof({data_var}));
 """)
             return Object.NULL(call_position)
         
-        @c_dec(param_types=('Pointer', 'type'), is_method=True, add_to_class=self)
+        @c_dec(
+            param_types=(Param('ptr', Type('Pointer')), Param('read_type', Type('type'))),
+            is_method=True, add_to_class=self
+        )
         def _Pointer_read(_, call_position: Position,
                         pointer: Object, as_type: Object) -> Object:
             return Object(

@@ -64,6 +64,11 @@ class CureVisitor(ParseTreeVisitor):
         return self.visitChildren(ctx)
 
 
+    # Visit a parse tree produced by CureParser#classProperty.
+    def visitClassProperty(self, ctx:CureParser.ClassPropertyContext):
+        return self.visitChildren(ctx)
+
+
     # Visit a parse tree produced by CureParser#classDeclarations.
     def visitClassDeclarations(self, ctx:CureParser.ClassDeclarationsContext):
         return self.visitChildren(ctx)

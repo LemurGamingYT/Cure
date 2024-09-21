@@ -1,0 +1,25 @@
+// TODO: Fix this file, currently it crashes trying to free the wrong builder variable
+
+[Benchmark()]
+func test_string(int n) {
+    s = ""
+    foreach _ in range(n) {
+        s += "ABC"
+    }
+}
+
+[Benchmark()]
+func test_builder(int n) {
+    builder = new StringBuilder()
+    foreach _ in range(n) {
+        builder.add("ABC")
+    }
+}
+
+
+func main() -> int {
+    n = 5000
+    test_string(n)
+    test_builder(n)
+    return 0
+}

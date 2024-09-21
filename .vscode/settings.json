@@ -20,7 +20,12 @@
         "utility": "c",
         "vector": "c",
         "xstring": "c",
-        "stdlib.h": "c"
+        "stdlib.h": "c",
+        "cc_queue.h": "c",
+        "cc_array_sized.h": "c",
+        "string.h": "c",
+        "winsock2.h": "c",
+        "ws2tcpip.h": "c"
     },
     "python.REPL.enableREPLSmartSend": false
 }

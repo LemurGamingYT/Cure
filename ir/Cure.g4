@@ -24,14 +24,18 @@ whileStmt: WHILE expr body;
 foreachStmt: FOREACH ID IN expr body;
 useStmt: USE STRING;
 
+classProperty: type ID (ASSIGN expr)?;
 classDeclarations
-    : funcAssign+
+    : (funcAssign | classProperty)+
     ;
 classAssign: CLASS ID LBRACE classDeclarations? RBRACE;
 enumAssign: ENUM ID LBRACE (ID (COMMA ID)*)? RBRACE;
 funcModifications: LBRACK ID LPAREN args? RPAREN RBRACK;
 funcAssign: funcModifications* FUNC ID LPAREN params? RPAREN (RETURNS type)? body;
-varAssign: CONST? type? ID op=(ADD | SUB | MUL | DIV | MOD)? ASSIGN expr;
+varAssign
+    : CONST? type? ID op=(ADD | SUB | MUL | DIV | MOD)? ASSIGN expr
+    | ID DOT ID op=(ADD | SUB | MUL | DIV | MOD)? ASSIGN expr
+    ;
 
 arg: (ID COLON)? expr;
 args: arg (COMMA arg)*;
@@ -56,12 +60,12 @@ atom
 
 expr
     : call
-    | atom
-    | expr DOT ID (LPAREN args? RPAREN)?
-    // | LBRACE expr COLON ID IN expr RBRACE
-    | expr IF expr ELSE expr
-    | NEW ID LPAREN args? RPAREN
     | LPAREN type RPAREN expr
+    | expr DOT ID (LPAREN args? RPAREN)?
+    | expr IF expr ELSE expr
+    // | LBRACE expr COLON ID IN expr RBRACE
+    | NEW ID LPAREN args? RPAREN
+    | atom
     | expr LBRACK expr RBRACK
     | expr op=(MUL | DIV | MOD) expr
     | expr op=(ADD | SUB) expr
@@ -82,6 +86,7 @@ WHILE: 'while';
 BREAK: 'break';
 CONST: 'const';
 CLASS: 'class';
+STRUCT: 'struct';
 RETURN: 'return';
 FOREACH: 'foreach';
 CONTINUE: 'continue';
@@ -90,7 +95,7 @@ APOSTROPHE: '\'';
 
 INT: '-'? [0-9]+;
 FLOAT: '-'? [0-9]* '.' [0-9]+;
-STRING: DOLLAR? '"' .*? '"' | APOSTROPHE .*? APOSTROPHE;
+STRING: DOLLAR? ('"' .*? '"' | APOSTROPHE .*? APOSTROPHE);
 BOOL: 'true' | 'false';
 NIL: 'nil';
 ID: [a-zA-Z_][a-zA-Z_0-9]*;
@@ -128,3 +133,4 @@ ARROWASSIGN: '=>';
 COMMENT: '//' .*? '\n' -> skip;
 MULTILINE_COMMENT: '/*' .*? '*/' -> skip;
 WHITESPACE: [\t\r\n ]+ -> skip;
+OTHER: .;

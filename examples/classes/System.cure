@@ -8,6 +8,12 @@ func main() -> int {
     cur_pos = System.cursor_pos // Get the current mouse position (returns a Vector2)
     System.set_cursor_pos(cur_pos + Math.vec2(100.0, 100.0)) // Move the mouse 100 pixels on both axes
 
+    // Set the terminal color to red
+    print($"{System.COLOR_RED}This will be red!{System.TERMINAL_RESET}")
+
+    // Set the terminal color to blue and also make it bold
+    print($"{System.COLOR_BLUE}{System.TERMINAL_BOLD}This is bold blue.{System.TERMINAL_RESET}")
+
     current_time = System.time // Get the current time according to the os
     print(current_time)
     print(current_time.year)

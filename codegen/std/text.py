@@ -1,10 +1,10 @@
-from codegen.objects import Object, Position, Free, Type, TempVar
+from codegen.objects import Object, Position, Free, Type, TempVar, Param
 from codegen.c_manager import c_dec
 
 
 class text:
     def __init__(self, codegen) -> None:
-        codegen.RESERVED_NAMES.extend(('setlocale', 'localeconv', 'lconv'))
+        codegen.c_manager.RESERVED_NAMES.extend(('setlocale', Type('localeconv'), 'lconv'))
         codegen.valid_types.append('LocaleConv')
         codegen.add_toplevel_code("""#ifndef CURE_TEXT_H
 #include <locale.h>
@@ -28,21 +28,24 @@ typedef struct {
         def _LocaleConv_type(_, call_position: Position) -> Object:
             return Object('"LocaleConv"', Type('string'), call_position)
         
-        @c_dec(param_types=('LocaleConv',), is_method=True, add_to_class=self)
+        @c_dec(param_types=(Param('conv', Type('LocaleConv')),), is_method=True, add_to_class=self)
         def _LocaleConv_to_string(_, call_position: Position, _localeconv: Object) -> Object:
             return Object('"class \'LocaleConv\'"', Type('string'), call_position)
         
         def _set_locale_category(codegen, call_position: Position, category: Object) -> Object:
             return _set_locale(codegen, call_position, category, None)
         
-        @c_dec(param_types=('int', 'string'), can_user_call=True, overloads={
-            (('int',), 'nil'): _set_locale_category
-        }, add_to_class=self)
-        def _set_locale(codegen, call_position: Position, category: Object,
-                        locale: Object | None) -> Object:
-            codegen.prepend_code(
-                f'setlocale({category}, {str(locale) if locale is not None else "NULL"});'
-            )
+        @c_dec(
+            param_types=(
+                Param('category', Type('int')),
+                Param('locale', Type('string'), default=Object('"NULL"', Type('string')))
+            ),
+            can_user_call=True, add_to_class=self, overloads={
+                ((Param('category', Type('int')),), Type('nil')): _set_locale_category
+            }
+        )
+        def _set_locale(codegen, call_position: Position, category: Object, locale: Object) -> Object:
+            codegen.prepend_code(f'setlocale({category}, {locale});')
             return Object.NULL(call_position)
         
         @c_dec(can_user_call=True, add_to_class=self)
@@ -51,14 +54,17 @@ typedef struct {
             codegen.prepend_code(f'LocaleConv {conv} = {{ .conv = localeconv() }};')
             return conv.OBJECT()
         
-        @c_dec(param_types=(), is_method=True, is_static=True, add_to_class=self)
+        @c_dec(is_method=True, is_static=True, add_to_class=self)
         def _LocaleConv_new(codegen, call_position: Position) -> Object:
             return _localeconv(codegen, call_position)
         
-        @c_dec(param_types=('string', 'int'), can_user_call=True, add_to_class=self)
+        @c_dec(
+            param_types=(Param('s', Type('string')), Param('width', Type('int'))),
+            can_user_call=True, add_to_class=self
+        )
         def _word_wrap(codegen, call_position: Position, string: Object, width: Object) -> Object:
-            codegen.c_manager.include('string.h')
-            codegen.c_manager.include('ctype.h')
+            codegen.c_manager.include('<string.h>', codegen)
+            codegen.c_manager.include('<ctype.h>', codegen)
             
             slen: TempVar = codegen.create_temp_var(Type('int'), call_position)
             start: TempVar = codegen.create_temp_var(Type('int'), call_position)
@@ -68,8 +74,8 @@ typedef struct {
             temp: TempVar = codegen.create_temp_var(Type('int'), call_position)
             i: TempVar = codegen.create_temp_var(Type('int'), call_position)
             s: TempVar = codegen.create_temp_var(Type('string'), call_position)
-            codegen.prepend_code(f"""int {slen} = {codegen.c_manager._string_length(
-    codegen, [string], call_position
+            codegen.prepend_code(f"""size_t {slen} = {codegen.c_manager._string_length(
+    codegen, call_position, string
 )};
 string {s} = {string};
 size_t {start} = 0;
@@ -103,66 +109,66 @@ while ({start} < {slen}) {{
             return buf.OBJECT()
         
         
-        @c_dec(param_types=('LocaleConv',), is_property=True, add_to_class=self)
+        @c_dec(param_types=(Param('conv', Type('LocaleConv')),), is_property=True, add_to_class=self)
         def _LocaleConv_decimal_point(_, call_position: Position, localeconv: Object) -> Object:
-            return Object(f'(({localeconv}).decimal_point)', Type('string'), call_position)
+            return Object(f'(({localeconv}).conv->decimal_point)', Type('string'), call_position)
         
-        @c_dec(param_types=('LocaleConv',), is_property=True, add_to_class=self)
+        @c_dec(param_types=(Param('conv', Type('LocaleConv')),), is_property=True, add_to_class=self)
         def _LocaleConv_thousands_sep(_, call_position: Position, localeconv: Object) -> Object:
-            return Object(f'(({localeconv}).thousands_sep)', Type('string'), call_position)
+            return Object(f'(({localeconv}).conv->thousands_sep)', Type('string'), call_position)
         
-        @c_dec(param_types=('LocaleConv',), is_property=True, add_to_class=self)
+        @c_dec(param_types=(Param('conv', Type('LocaleConv')),), is_property=True, add_to_class=self)
         def _LocaleConv_grouping(_, call_position: Position, localeconv: Object) -> Object:
-            return Object(f'(({localeconv}).grouping)', Type('string'), call_position)
+            return Object(f'(({localeconv}).conv->grouping)', Type('string'), call_position)
 
-        @c_dec(param_types=('LocaleConv',), is_property=True, add_to_class=self)
+        @c_dec(param_types=(Param('conv', Type('LocaleConv')),), is_property=True, add_to_class=self)
         def _LocaleConv_int_curr_symbol(_, call_position: Position, localeconv: Object) -> Object:
-            return Object(f'(({localeconv}).int_curr_symbol)', Type('string'), call_position)
+            return Object(f'(({localeconv}).conv->int_curr_symbol)', Type('string'), call_position)
 
-        @c_dec(param_types=('LocaleConv',), is_property=True, add_to_class=self)
+        @c_dec(param_types=(Param('conv', Type('LocaleConv')),), is_property=True, add_to_class=self)
         def _LocaleConv_currency_symbol(_, call_position: Position, localeconv: Object) -> Object:
-            return Object(f'(({localeconv}).currency_symbol)', Type('string'), call_position)
+            return Object(f'(({localeconv}).conv->currency_symbol)', Type('string'), call_position)
         
-        @c_dec(param_types=('LocaleConv',), is_property=True, add_to_class=self)
+        @c_dec(param_types=(Param('conv', Type('LocaleConv')),), is_property=True, add_to_class=self)
         def _LocaleConv_mon_decimal_point(_, call_position: Position, localeconv: Object) -> Object:
-            return Object(f'(({localeconv}).mon_decimal_point)', Type('string'), call_position)
+            return Object(f'(({localeconv}).conv->mon_decimal_point)', Type('string'), call_position)
         
-        @c_dec(param_types=('LocaleConv',), is_property=True, add_to_class=self)
+        @c_dec(param_types=(Param('conv', Type('LocaleConv')),), is_property=True, add_to_class=self)
         def _LocaleConv_mon_thousands_sep(_, call_position: Position, localeconv: Object) -> Object:
-            return Object(f'(({localeconv}).mon_thousands_sep)', Type('string'), call_position)
+            return Object(f'(({localeconv}).conv->mon_thousands_sep)', Type('string'), call_position)
         
-        @c_dec(param_types=('LocaleConv',), is_property=True, add_to_class=self)
+        @c_dec(param_types=(Param('conv', Type('LocaleConv')),), is_property=True, add_to_class=self)
         def _LocaleConv_mon_grouping(_, call_position: Position, localeconv: Object) -> Object:
-            return Object(f'(({localeconv}).mon_grouping)', Type('string'), call_position)
+            return Object(f'(({localeconv}).conv->mon_grouping)', Type('string'), call_position)
         
-        @c_dec(param_types=('LocaleConv',), is_property=True, add_to_class=self)
+        @c_dec(param_types=(Param('conv', Type('LocaleConv')),), is_property=True, add_to_class=self)
         def _LocaleConv_positive_sign(_, call_position: Position, localeconv: Object) -> Object:
-            return Object(f'(({localeconv}).positive_sign)', Type('string'), call_position)
+            return Object(f'(({localeconv}).conv->positive_sign)', Type('string'), call_position)
         
-        @c_dec(param_types=('LocaleConv',), is_property=True, add_to_class=self)
+        @c_dec(param_types=(Param('conv', Type('LocaleConv')),), is_property=True, add_to_class=self)
         def _LocaleConv_negative_sign(_, call_position: Position, localeconv: Object) -> Object:
-            return Object(f'(({localeconv}).negative_sign)', Type('string'), call_position)
+            return Object(f'(({localeconv}).conv->negative_sign)', Type('string'), call_position)
         
-        @c_dec(param_types=('LocaleConv',), is_property=True, add_to_class=self)
+        @c_dec(param_types=(Param('conv', Type('LocaleConv')),), is_property=True, add_to_class=self)
         def _LocaleConv_int_frac_digits(_, call_position: Position, localeconv: Object) -> Object:
-            return Object(f'(({localeconv}).int_frac_digits)', Type('int'), call_position)
+            return Object(f'(({localeconv}).conv->int_frac_digits)', Type('int'), call_position)
         
-        @c_dec(param_types=('LocaleConv',), is_property=True, add_to_class=self)
+        @c_dec(param_types=(Param('conv', Type('LocaleConv')),), is_property=True, add_to_class=self)
         def _LocaleConv_frac_digits(_, call_position: Position, localeconv: Object) -> Object:
-            return Object(f'(({localeconv}).frac_digits)', Type('int'), call_position)
+            return Object(f'(({localeconv}).conv->frac_digits)', Type('int'), call_position)
         
-        @c_dec(param_types=('LocaleConv',), is_property=True, add_to_class=self)
+        @c_dec(param_types=(Param('conv', Type('LocaleConv')),), is_property=True, add_to_class=self)
         def _LocaleConv_p_cs_precedes(_, call_position: Position, localeconv: Object) -> Object:
-            return Object(f'(({localeconv}).p_cs_precedes)', Type('int'), call_position)
+            return Object(f'(({localeconv}).conv->p_cs_precedes)', Type('int'), call_position)
         
-        @c_dec(param_types=('LocaleConv',), is_property=True, add_to_class=self)
+        @c_dec(param_types=(Param('conv', Type('LocaleConv')),), is_property=True, add_to_class=self)
         def _LocaleConv_p_sep_by_space(_, call_position: Position, localeconv: Object) -> Object:
-            return Object(f'(({localeconv}).p_sep_by_space)', Type('int'), call_position)
+            return Object(f'(({localeconv}).conv->p_sep_by_space)', Type('int'), call_position)
         
-        @c_dec(param_types=('LocaleConv',), is_property=True, add_to_class=self)
+        @c_dec(param_types=(Param('conv', Type('LocaleConv')),), is_property=True, add_to_class=self)
         def _LocaleConv_p_sign_posn(_, call_position: Position, localeconv: Object) -> Object:
-            return Object(f'(({localeconv}).p_sign_posn)', Type('int'), call_position)
+            return Object(f'(({localeconv}).conv->p_sign_posn)', Type('int'), call_position)
         
-        @c_dec(param_types=('LocaleConv',), is_property=True, add_to_class=self)
+        @c_dec(param_types=(Param('conv', Type('LocaleConv')),), is_property=True, add_to_class=self)
         def _LocaleConv_n_sign_posn(_, call_position: Position, localeconv: Object) -> Object:
-            return Object(f'(({localeconv}).n_sign_posn)', Type('int'), call_position)
+            return Object(f'(({localeconv}).conv->n_sign_posn)', Type('int'), call_position)

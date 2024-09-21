@@ -9,7 +9,7 @@ from ir.nodes import (
     Program, Body, TypeNode, ParamNode, ArgNode, Call, Return, Foreach, While,
     If, Use, VarDecl, Value, Identifier, Array, Dict, Brackets, BinOp, UOp, Attribute, New,
     Ternary, Position, Node, Break, Continue, FuncDecl, Nil, Index, DollarString, Cast, Enum,
-    ClassProperty, ClassMethod, Class
+    ClassProperty, ClassMethod, Class, AttrAssign
 )
 
 
@@ -112,10 +112,17 @@ class IRBuilder(CureVisitor):
             [Identifier(to_pos(i), i.getText()) for i in ctx.ID()[1:]]
         )
     
-    def visitVarAssign(self, ctx: CureParser.VarAssignContext) -> VarDecl:
+    def visitVarAssign(self, ctx: CureParser.VarAssignContext) -> VarDecl | AttrAssign:
         op: CommonToken | None = ctx.op
+        pos = to_pos(ctx)
+        if ctx.DOT() is not None:
+            return AttrAssign(
+                pos, Identifier(pos, ctx.ID(0).getText()), [ctx.ID(1).getText()],
+                self.visitExpr(ctx.expr()), op.text if op is not None else None
+            )
+        
         return VarDecl(
-            to_pos(ctx), ctx.ID().getText(), self.visitExpr(ctx.expr()),
+            pos, ctx.ID(0).getText(), self.visitExpr(ctx.expr()),
             op.text if op is not None else None,
             self.visitType(ctx.type_()) if ctx.type_() is not None else None,
             ctx.CONST() is not None
@@ -132,17 +139,25 @@ class IRBuilder(CureVisitor):
             [self.visitFuncModifications(mod) for mod in ctx.funcModifications()]
         )
     
+    def visitClassProperty(self, ctx: CureParser.ClassPropertyContext) -> ClassProperty:
+        return ClassProperty(
+            to_pos(ctx), ctx.ID().getText(),
+            self.visitType(ctx.type_()),
+            self.visitExpr(ctx.expr()) if ctx.expr() is not None else None
+        )
+    
     def visitClassDeclarations(self, ctx: CureParser.ClassDeclarationsContext | None)\
         -> list[ClassMethod | ClassProperty]:
         if ctx is None:
             return []
         
         functions = [self.visitFuncAssign(func) for func in ctx.funcAssign()]
+        properties = [self.visitClassProperty(prop) for prop in ctx.classProperty()]
         return [
             ClassMethod(func.pos, func.name, func.body, func.params, func.return_type,
                         func.modifications)
             for func in functions
-        ]
+        ] + properties
     
     def visitClassAssign(self, ctx: CureParser.ClassAssignContext) -> Class:
         return Class(

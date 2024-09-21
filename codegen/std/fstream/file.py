@@ -1,8 +1,12 @@
-from codegen.objects import Object, Position, Free, Type, Arg, TempVar
+from codegen.objects import Object, Position, Free, Type, Arg, TempVar, Param
 from codegen.c_manager import c_dec
+from codegen.target import Target
 
 
 def stat(codegen, call_position: Position, file: Object) -> Object:
+    if codegen.target != Target.WINDOWS:
+        call_position.warn_here('stat() is only supported on Windows')
+    
     codegen.c_manager.include('<sys/stat.h>', codegen)
     
     st: TempVar = codegen.create_temp_var(Type('Stat', 'struct stat'), call_position)
@@ -29,12 +33,16 @@ typedef struct {
 } File;
 #endif
 """)
+        
+        codegen.c_manager.wrap_struct_properties('file', Type('File'), [
+            Param('path', Type('string')), Param('mode', Type('string'))
+        ])
     
         @c_dec(is_method=True, is_static=True, add_to_class=self)
         def _File_type(_, call_position: Position) -> Object:
             return Object('"File"', Type('string'), call_position)
         
-        @c_dec(param_types=('File',), is_method=True, add_to_class=self)
+        @c_dec(param_types=(Param('file', Type('File')),), is_method=True, add_to_class=self)
         def _File_to_string(codegen, call_position: Position, file: Object) -> Object:
             f = f'({file})'
             code, buf_free = codegen.c_manager.fmt_length(
@@ -43,17 +51,9 @@ typedef struct {
             )
             
             codegen.prepend_code(code)
-            return Object(buf_free.object_name, Type('string'), call_position, free=buf_free)
+            return Object.STRINGBUF(buf_free, call_position)
         
-        @c_dec(param_types=('File',), is_property=True, add_to_class=self)
-        def _File_path(_, call_position: Position, file: Object) -> Object:
-            return Object(f'(({file}).path)', Type('string'), call_position)
-        
-        @c_dec(param_types=('File',), is_property=True, add_to_class=self)
-        def _File_mode(_, call_position: Position, file: Object) -> Object:
-            return Object(f'(({file}).mode)', Type('string'), call_position)
-        
-        @c_dec(param_types=('File',), is_property=True, add_to_class=self)
+        @c_dec(param_types=(Param('file', Type('File')),), is_property=True, add_to_class=self)
         def _File_contents(codegen, call_position: Position, file: Object) -> Object:
             reader_free = Free(free_name='fclose')
             reader: TempVar = codegen.create_temp_var(Type('FilePointer', 'FILE*'), call_position,
@@ -95,7 +95,7 @@ if ({read_size} != {size}) {{
             
             return buf.OBJECT()
         
-        @c_dec(param_types=('File',), is_property=True, add_to_class=self)
+        @c_dec(param_types=(Param('file', Type('File')),), is_property=True, add_to_class=self)
         def _File_extension(codegen, call_position: Position, file: Object) -> Object:
             extension: TempVar = codegen.create_temp_var(Type('string'), call_position)
             f = f'({file})'
@@ -107,40 +107,46 @@ if ({extension} == NULL) {{
             
             return extension.OBJECT()
         
-        @c_dec(param_types=('File',), is_property=True, add_to_class=self)
+        @c_dec(param_types=(Param('file', Type('File')),), is_property=True, add_to_class=self)
         def _File_is_file(codegen, call_position: Position, file: Object) -> Object:
             st = stat(codegen, call_position, file)
             return Object(f'({st}.st_mode & S_IFREG != 0)', Type('bool'), call_position)
         
-        @c_dec(param_types=('File',), is_property=True, add_to_class=self)
+        @c_dec(param_types=(Param('file', Type('File')),), is_property=True, add_to_class=self)
         def _File_is_dir(codegen, call_position: Position, file: Object) -> Object:
             st = stat(codegen, call_position, file)
             return Object(f'({st}.st_mode & S_IFDIR != 0)', Type('bool'), call_position)
         
-        @c_dec(param_types=('File',), is_property=True, add_to_class=self)
+        @c_dec(param_types=(Param('file', Type('File')),), is_property=True, add_to_class=self)
         def _File_size(codegen, call_position: Position, file: Object) -> Object:
             st = stat(codegen, call_position, file)
             return Object(f'((int){st}.st_size)', Type('int'), call_position)
         
-        @c_dec(param_types=('File', 'string'), is_method=True, add_to_class=self)
+        @c_dec(
+            param_types=(Param('file', Type('File')), Param('content', Type('string'))),
+            is_method=True, add_to_class=self
+        )
         def _File_write(codegen, call_position: Position, file: Object, content: Object)\
             -> Object:
             codegen.prepend_code(f'fprintf(({file}).fp, "%s", {content});')
             return Object.NULL(call_position)
         
-        @c_dec(param_types=('File', 'string'), is_method=True, add_to_class=self)
+        @c_dec(param_types=(Param('file', Type('File')),), is_method=True, add_to_class=self)
         def _File_flush(codegen, call_position: Position, file: Object) -> Object:
             codegen.prepend_code(f'fflush(({file}).fp);')
             return Object.NULL(call_position)
         
-        @c_dec(param_types=('File', 'string'), is_method=True, add_to_class=self)
+        @c_dec(param_types=(Param('file', Type('File')),), is_method=True, add_to_class=self)
         def _File_remove(codegen, call_position: Position, file: Object) -> Object:
             return codegen.call(
                 'remove_file', [Arg(Object(f'({file}).path', Type('string'), call_position))],
                 call_position
             )
         
-        @c_dec(param_types=('File', 'string'), is_method=True, add_to_class=self)
+        @c_dec(
+            param_types=(Param('file', Type('File')), Param('new_name', Type('string'))),
+            is_method=True, add_to_class=self
+        )
         def _File_rename(codegen, call_position: Position, file: Object, new_name: Object)\
             -> Object:
             return codegen.call(
@@ -149,7 +155,7 @@ if ({extension} == NULL) {{
                 ], call_position
             )
         
-        @c_dec(param_types=('File',), is_method=True, add_to_class=self)
+        @c_dec(param_types=(Param('file', Type('File')),), is_method=True, add_to_class=self)
         def _File_close(codegen, call_position: Position, file: Object) -> Object:
             codegen.prepend_code(f'fclose(({file}).fp);')
             return Object.NULL(call_position)

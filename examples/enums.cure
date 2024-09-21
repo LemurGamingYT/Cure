@@ -8,6 +8,8 @@ func color_to_int(Color color) -> int {
         return 1
     } else if color == Color.BLUE { // BLUE
         return 2
+    } else {
+        return -1
     }
 }
 

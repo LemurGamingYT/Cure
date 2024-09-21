@@ -1,4 +1,4 @@
-from codegen.objects import Object, Position, Type, Free, Arg, TempVar
+from codegen.objects import Object, Position, Type, Free, Arg, TempVar, Param
 from codegen.c_manager import c_dec, INCLUDES
 
 
@@ -21,16 +21,19 @@ typedef struct {
         def _JSONParser_type(_, call_position: Position) -> Object:
             return Object('"JSONParser"', Type('string'), call_position)
         
-        @c_dec(param_types=('JSONParser',), add_to_class=self, is_method=True)
+        @c_dec(param_types=(Param('json', Type('JSONParser')),), add_to_class=self, is_method=True)
         def _JSONParser_to_string(_, call_position: Position, jp: Object) -> Object:
             return Object(f'(cJSON_Print(({jp}).json))', Type('string'), call_position)
 
         
-        @c_dec(param_types=('JSONParser',), is_property=True, add_to_class=self)
+        @c_dec(param_types=(Param('json', Type('JSONParser')),), is_property=True, add_to_class=self)
         def _JSONParser_get_string(_, call_position: Position, jp: Object) -> Object:
             return Object(f'(cJSON_Print(({jp}).json))', Type('string'), call_position)
         
-        @c_dec(param_types=('JSONParser', 'string'), is_method=True, add_to_class=self)
+        @c_dec(
+            param_types=(Param('json', Type('JSONParser')), Param('key', Type('string'))),
+            is_method=True, add_to_class=self
+        )
         def _JSONParser_read_string(codegen, call_position: Position, jp: Object,
                                     key: Object) -> Object:
             value: TempVar = codegen.create_temp_var(Type('JsonObject', 'cJSON*'), call_position)
@@ -44,9 +47,11 @@ if (!cJSON_IsString({value}) || {value}->valuestring == NULL) {{
             
             return Object(f'({value}->valuestring)', Type('string'), call_position)
         
-        @c_dec(param_types=('JSONParser', 'string'), is_method=True, add_to_class=self)
-        def _JSONParser_read_int(codegen, call_position: Position, jp: Object,
-                                 key: Object) -> Object:
+        @c_dec(
+            param_types=(Param('json', Type('JSONParser')), Param('key', Type('string'))),
+            is_method=True, add_to_class=self
+        )
+        def _JSONParser_read_int(codegen, call_position: Position, jp: Object, key: Object) -> Object:
             value: TempVar = codegen.create_temp_var(Type('int'), call_position)
             codegen.prepend_code(f"""cJSON* {value} = cJSON_GetObjectItemCaseSensitive(
     ({jp}).json, {key}
@@ -58,9 +63,11 @@ if (!cJSON_IsNumber({value})) {{
 
             return Object(f'({value}->valueint)', Type('int'), call_position)
         
-        @c_dec(param_types=('JSONParser', 'string'), is_method=True, add_to_class=self)
-        def _JSONParser_read_bool(codegen, call_position: Position, jp: Object,
-                                  key: Object) -> Object:
+        @c_dec(
+            param_types=(Param('json', Type('JSONParser')), Param('key', Type('string'))),
+            is_method=True, add_to_class=self
+        )
+        def _JSONParser_read_bool(codegen, call_position: Position, jp: Object, key: Object) -> Object:
             value: TempVar = codegen.create_temp_var(Type('bool'), call_position)
             codegen.prepend_code(f"""cJSON* {value} = cJSON_GetObjectItemCaseSensitive(
     ({jp}).json, {key}
@@ -72,31 +79,54 @@ if (!cJSON_IsBool({value})) {{
 
             return Object(f'({value}->valuebool)', Type('bool'), call_position)
         
-        @c_dec(param_types=('JSONParser', 'string', 'string'), is_method=True, add_to_class=self)
+        @c_dec(
+            param_types=(
+                Param('json', Type('JSONParser')), Param('key', Type('string')),
+                Param('value', Type('string'))
+            ), is_method=True, add_to_class=self
+        )
         def _JSONParser_write_string(codegen, call_position: Position, jp: Object,
                                      key: Object, value: Object) -> Object:
             codegen.prepend_code(f'cJSON_AddStringToObject(({jp}).json, {key}, {value});')
             return Object.NULL(call_position)
         
-        @c_dec(param_types=('JSONParser', 'string', 'int'), is_method=True, add_to_class=self)
+        @c_dec(
+            param_types=(
+                Param('json', Type('JSONParser')), Param('key', Type('string')),
+                Param('value', Type('int'))
+            ), is_method=True, add_to_class=self
+        )
         def _JSONParser_write_int(codegen, call_position: Position, jp: Object,
                                   key: Object, value: Object) -> Object:
             codegen.prepend_code(f'cJSON_AddNumberToObject(({jp}).json, {key}, {value});')
             return Object.NULL(call_position)
         
-        @c_dec(param_types=('JSONParser', 'string', 'float'), is_method=True, add_to_class=self)
+        @c_dec(
+            param_types=(
+                Param('json', Type('JSONParser')), Param('key', Type('string')),
+                Param('value', Type('float'))
+            ), is_method=True, add_to_class=self
+        )
         def _JSONParser_write_float(codegen, call_position: Position, jp: Object,
                                      key: Object, value: Object) -> Object:
             codegen.prepend_code(f'cJSON_AddNumberToObject(({jp}).json, {key}, {value});')
             return Object.NULL(call_position)
         
-        @c_dec(param_types=('JSONParser', 'string', 'bool'), is_method=True, add_to_class=self)
+        @c_dec(
+            param_types=(
+                Param('json', Type('JSONParser')), Param('key', Type('string')),
+                Param('value', Type('bool'))
+            ), is_method=True, add_to_class=self
+        )
         def _JSONParser_write_bool(codegen, call_position: Position, jp: Object,
                                    key: Object, value: Object) -> Object:
             codegen.prepend_code(f'cJSON_AddBoolToObject(({jp}).json, {key}, {value});')
             return Object.NULL(call_position)
         
-        @c_dec(param_types=('JSONParser', 'string'), is_method=True, add_to_class=self)
+        @c_dec(
+            param_types=(Param('json', Type('JSONParser')), Param('filename', Type('string'))),
+            is_method=True, add_to_class=self
+        )
         def _JSONParser_to_file(codegen, call_position: Position, jp: Object,
                                 filename: Object) -> Object:
             fp: TempVar = codegen.create_temp_var(Type('FILE*'), call_position)
@@ -125,10 +155,10 @@ fprintf({fp}, "%s", cJSON_Print(({jp}).json));
             )
         
         @c_dec(
-            param_types=('string',), is_method=True, is_static=True,
+            param_types=(Param('code', Type('string')),), is_method=True, is_static=True,
             add_to_class=self, overloads={
-                (('File',), 'JSONParser'): _JSONParser_new2,
-                ((), 'JSONParser'): _JSONParser_new3
+                ((Param('file', Type('File')),), Type('JSONParser')): _JSONParser_new2,
+                ((), Type('JSONParser')): _JSONParser_new3
             }
         )
         def _JSONParser_new(codegen, call_position: Position, code: Object) -> Object:

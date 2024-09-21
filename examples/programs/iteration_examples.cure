@@ -1,0 +1,83 @@
+func sum(array[int] arr) -> int {
+    s = 0
+    foreach i in arr {
+        s += i
+    }
+
+    return s
+}
+
+func sum(array[float] arr) -> float {
+    s = 0.0
+    foreach f in arr {
+        s += f
+    }
+
+    return s
+}
+
+func cycle(array[string] arr, int length) -> string {
+    s = ""
+    i = 0
+    while s.length < length {
+        if i >= arr.length {
+            i = 0
+        }
+
+        s += arr[i]
+        i += 1
+    }
+
+    return s
+}
+
+func batch(string s, int n) -> array[string] {
+    res = string{}
+    current = ""
+    i = 0
+    while i < s.length {
+        if i % n == 0 && i != 0 {
+            res.add(current)
+            current = ""
+        }
+
+        current += s[i]
+        i += 1
+    }
+
+    if current != "" {
+        res.add(current)
+    }
+
+    return res
+}
+
+func repeat(string s, int n) -> string {
+    if n == 0 { return "" }
+    if n == 1 { return s }
+
+    res = ""
+    foreach i in range(n) {
+        res += s
+    }
+
+    return res
+}
+
+
+func main() -> int {
+    int_arr = int{12, 89, 50, 102, 38, 71}
+    float_arr = float{8.1, 90.02, 76.8102, 62.9, 121.98}
+    print(sum(int_arr))
+    print(sum(float_arr))
+
+    partial_alphabet = string{"A", "B", "C", "D", "E", "F", "G", "H", "I", "J"}
+    print(cycle(partial_alphabet, 18))
+    
+    alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    print(batch(alphabet, 3))
+    print(batch(alphabet, 4))
+
+    print(repeat(alphabet, 2))
+    return 0
+}

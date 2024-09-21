@@ -1,4 +1,4 @@
-from codegen.objects import Object, Position, Free, Type, Arg, TempVar
+from codegen.objects import Object, Position, Free, Type, Arg, TempVar, Param
 from codegen.c_manager import c_dec
 
 
@@ -7,6 +7,14 @@ class Stack:
         self.codegen = codegen
         
         self.defined_types: list[str] = []
+        
+        @c_dec(
+            param_types=(Param('type', Type('type')), Param('size', Type('int'))),
+            can_user_call=True, add_to_class=self
+        )
+        def _create_stack(codegen, call_position: Position, type: Object, size: Object) -> Object:
+            stack_type = self.define_stack_type(Type(str(type)))
+            return codegen.call(f'{stack_type.c_type}_create', [Arg(size)], call_position)
     
     def define_stack_type(self, type: Type) -> Type:
         stack_type = Type(f'stack[{type}]', f'{type.c_type}Stack')
@@ -16,16 +24,19 @@ class Stack:
         self.codegen.add_toplevel_code(f"""typedef struct {{
     {type.c_type}* data;
     size_t size;
-    {type.c_type} top;
+    size_t length;
 }} {stack_type.c_type};
 """)
         
         c_manager = self.codegen.c_manager
         
+        c_manager.wrap_struct_properties('stack', stack_type, [
+            Param('size', Type('int')), Param('length', Type('int'))
+        ])
+        
         @c_dec(
-            param_types=('int',),
-            add_to_class=c_manager,
-            func_name_override=f'{stack_type.c_type}_create'
+            param_types=(Param('size', Type('int')),),
+            add_to_class=c_manager, func_name_override=f'{stack_type.c_type}_create'
         )
         def stack_create(codegen, call_position: Position, size: Object) -> Object:
             stack_free = Free()
@@ -34,7 +45,7 @@ class Stack:
             codegen.prepend_code(f"""{stack_type.c_type} {stack} = {{
     .data = ({type.c_type}*)malloc({size} * sizeof({type.c_type})),
     .size = {size},
-    .top = -1
+    .length = 0
 }};
 """)
             
@@ -45,125 +56,92 @@ class Stack:
             is_method=True, is_static=True
         )
         def stack_type_(_, call_position: Position) -> Object:
-            return Object(f'"{stack_type}"', Type('string'), call_position)
+            return Object(f'"Stack[{stack_type}]"', Type('string'), call_position)
         
         @c_dec(
-            param_types=(stack_type.c_type,),
-            add_to_class=c_manager,
-            func_name_override=f'{stack_type.c_type}_to_string',
-            is_method=True
+            param_types=(Param('stack', stack_type),), is_method=True,
+            add_to_class=c_manager, func_name_override=f'{stack_type.c_type}_to_string',
         )
         def stack_to_string(codegen, call_position: Position, stack: Object) -> Object:
-            buf_free = Free()
-            buf: TempVar = codegen.create_temp_var(Type('string'), call_position, free=buf_free)
-            elem_buf: TempVar = codegen.create_temp_var(Type('string'), call_position)
+            builder: Object = codegen.c_manager._StringBuilder_new(codegen, call_position)
             i: TempVar = codegen.create_temp_var(Type('int'), call_position)
-            length: TempVar = codegen.create_temp_var(Type('int'), call_position)
-            codegen.prepend_code(f"""string {buf} = NULL;
-if ({stack_is_empty(
-    codegen, call_position, stack
-)}) {{
-    {buf} = (string)malloc(3 * sizeof(char));
-    {codegen.c_manager.buf_check(buf)}
-    strcpy({buf}, "[]");
-}} else {{
-    int {length} = 0;
-    for (int {i} = 0; {i} <= ({stack}.top); {i}++) {{
-""")
-            codegen.prepend_code(f"""{length} += sizeof({c_manager._to_string(
-    codegen, call_position,
-    Object(f'({stack}).data[{i}]', type, call_position)
-)});
-    }}
-    
-    {buf} = malloc((({length} * 2) + 3) * sizeof(char));
-    {codegen.c_manager.buf_check(buf)}
-    {buf}[0] = '\\0';
-    strcat({buf}, "[");
-    for (int {i} = 0; {i} <= ({stack}.top); {i}++) {{
-""")
-            codegen.prepend_code(f"""string {elem_buf} = {c_manager._to_string(
-    codegen, call_position,
-    Object(f'({stack}).data[{i}]', type, call_position)
+            codegen.prepend_code(f"""{codegen.c_manager._StringBuilder_add(
+    codegen, call_position, builder, Object('"Stack("', Type('string'), call_position)
 )};
-        strcat({buf}, {elem_buf});
-        if ({i} < {stack}.top) strcat({buf}, ", ");
-    }}
-    
-    strcat({buf}, "]");
+for (size_t {i} = 0; {i} < ({stack}).length; {i}++) {{
+""")
+            codegen.prepend_code(f"""{codegen.c_manager._StringBuilder_add(
+    codegen, call_position, builder, codegen.c_manager._to_string(
+        codegen, call_position, Object(f'({stack}).data[{i}]', type, call_position)
+    )
+)};
+
+if ({i} < ({stack}).length - 1) {{
+""")
+            codegen.prepend_code(f"""{codegen.c_manager._StringBuilder_add(
+    codegen, call_position, builder, Object('", "', Type('string'), call_position)
+)};
+}}
 }}
 """)
+            codegen.prepend_code(f"""{codegen.c_manager._StringBuilder_add(
+    codegen, call_position, builder, Object('")"', Type('string'), call_position)
+)};
+""")
             
-            return buf.OBJECT()
+            return codegen.c_manager._StringBuilder_str(codegen, call_position, builder)
         
         @c_dec(
-            param_types=(stack_type.c_type,),
+            param_types=(Param('stack', stack_type),), is_property=True,
             add_to_class=c_manager, func_name_override=f'{stack_type.c_type}_is_empty',
-            is_property=True
         )
         def stack_is_empty(_, call_position: Position, stack: Object) -> Object:
-            return Object(f'(({stack}).top == -1)', Type('bool'), call_position)
+            return Object(f'(({stack}).length == 0)', Type('bool'), call_position)
         
         @c_dec(
-            param_types=(stack_type.c_type,),
+            param_types=(Param('stack', stack_type),), is_property=True,
             add_to_class=c_manager, func_name_override=f'{stack_type.c_type}_is_full',
-            is_property=True
         )
         def stack_is_full(_, call_position: Position, stack: Object) -> Object:
-            return Object(f'(({stack}).top == ({stack}).size - 1)', Type('bool'),
-                          call_position)
+            return Object(f'(({stack}).length == ({stack}).size)', Type('bool'), call_position)
         
         @c_dec(
-            param_types=(stack_type.c_type, type.c_type),
+            param_types=(Param('stack', stack_type), Param('element', type)), is_method=True,
             add_to_class=c_manager, func_name_override=f'{stack_type.c_type}_push',
-            is_method=True
         )
-        def stack_push(codegen, call_position: Position, stack: Object,
-                       element: Object) -> Object:
-            codegen.prepend_code(f"""if ({stack_is_full(
-    codegen, call_position, stack
-)}) {{
+        def stack_push(codegen, call_position: Position, stack: Object, element: Object) -> Object:
+            codegen.prepend_code(f"""if ({stack_is_full(codegen, call_position, stack)}) {{
     {c_manager.err("Stack overflow")}
 }}
 
-({stack}).data[++({stack}).top] = {element};
+({stack}).data[({stack}).length++] = {element};
 """)
             
             return Object.NULL(call_position)
         
         @c_dec(
-            param_types=(stack_type.c_type,),
+            param_types=(Param('stack', stack_type),), is_method=True,
             add_to_class=c_manager, func_name_override=f'{stack_type.c_type}_pop',
-            is_method=True
         )
         def stack_pop(codegen, call_position: Position, stack: Object) -> Object:
-            codegen.prepend_code(f"""if ({stack_is_empty(
-    codegen, call_position, stack
-)}) {{
+            codegen.prepend_code(f"""if ({stack_is_empty(codegen, call_position, stack)}) {{
     {c_manager.err("Stack underflow")}
 }}
 """)
             
-            return Object(f'(({stack}).data[({stack}).top--])', type, call_position)
+            return Object(f'(({stack}).data[({stack}).length--])', type, call_position)
         
         @c_dec(
-            param_types=(stack_type.c_type,),
+            param_types=(Param('stack', stack_type),), is_method=True,
             add_to_class=c_manager, func_name_override=f'{stack_type.c_type}_peek',
-            is_method=True
         )
         def stack_peek(codegen, call_position: Position, stack: Object) -> Object:
-            codegen.prepend_code(f"""if ({stack_is_empty(
-    codegen, call_position, stack
-)}) {{
+            codegen.prepend_code(f"""if ({stack_is_empty(codegen, call_position, stack)}) {{
     {c_manager.err("Stack underflow")}
 }}
 """)
 
-            return Object(f'(({stack}).data[({stack}).top])', type, call_position)
+            return Object(f'(({stack}).data[({stack}).length])', type, call_position)
         
         self.defined_types.append(type.type)
         return stack_type
-    
-    def create_stack(self, codegen, call_position: Position, type: Object, size: Object) -> Object:
-        stack_type = self.define_stack_type(Type(str(type)))
-        return codegen.call(f'{stack_type.c_type}_create', [Arg(size)], call_position)

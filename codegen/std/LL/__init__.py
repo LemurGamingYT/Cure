@@ -1,4 +1,4 @@
-from codegen.objects import Object, Position
+from codegen.objects import Object, Position, Type, Param
 from codegen.std.LL.pointer import Pointer
 from codegen.std.LL.process import Process
 from codegen.c_manager import c_dec
@@ -16,10 +16,10 @@ class LL:
         codegen.c_manager.add_objects(self.ptr, self)
         codegen.c_manager.add_objects(self.process, self)
     
-    @c_dec(param_types=('string',), can_user_call=True)
-    def _asm(self, codegen, call_position: Position, string: Object) -> Object:
-        if not codegen.is_string_literal(string):
-            call_position.error_here('string literal expected for inlining assembly')
-        
-        codegen.prepend_code(f'__asm__({string});')
-        return Object.NULL(call_position)
+        @c_dec(param_types=(Param('code', Type('string')),), can_user_call=True, add_to_class=self)
+        def _asm(codegen, call_position: Position, code: Object) -> Object:
+            if not codegen.is_string_literal(code):
+                call_position.error_here('string literal expected for inlining assembly')
+            
+            codegen.prepend_code(f'__asm__({code});')
+            return Object.NULL(call_position)

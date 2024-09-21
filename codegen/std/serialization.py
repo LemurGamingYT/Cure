@@ -1,4 +1,4 @@
-from codegen.objects import Object, Position, Free, Type, TempVar
+from codegen.objects import Object, Position, Free, Type, TempVar, Param
 from codegen.c_manager import c_dec, INCLUDES
 
 
@@ -16,19 +16,15 @@ typedef struct {
 #endif
 """)
         
-        def Serialization_from_file(codegen, call_position: Position,
+        def Serialization_from_string_file(codegen, call_position: Position,
                                     filename: Object) -> Object:
             size: TempVar = codegen.create_temp_var(Type('int64', 'long'), call_position)
             buf_free = Free()
             buffer: TempVar = codegen.create_temp_var(Type('any', 'void*'), call_position,
                                                       free=buf_free)
             f: TempVar = codegen.create_temp_var(Type('FilePointer', 'FILE*'), call_position)
-            obj_free = Free(free_name='binn_free')
-            obj: TempVar = codegen.create_temp_var(Type('Serialization'), call_position, free=obj_free)
-            obj_free.object_name = f'({obj}).b'
-            codegen.prepend_code(f"""Serialization {obj} = {{ .b = NULL }};
-void* {buffer} = NULL;
-
+            serializer = _Serialization_new(codegen, call_position)
+            codegen.prepend_code(f"""void* {buffer} = NULL;
 FILE* {f} = fopen({filename}, "rb");
 if ({f} == NULL) {{
     {codegen.c_manager.err('Failed to open file for reading')}
@@ -40,14 +36,14 @@ fseek({f}, 0, SEEK_SET);
 {buffer} = malloc({size});
 {codegen.c_manager.buf_check(buffer)}
 fread({buffer}, 1, {size}, {f});
-{obj}.b = binn_open({buffer});
+{serializer}.b = binn_open({buffer});
 fclose({f});
 """)
             
-            return obj.OBJECT()
+            return serializer.OBJECT()
         
-        @c_dec(param_types=(), is_method=True, is_static=True, overloads={
-            (('string',), 'Serialization'): Serialization_from_file
+        @c_dec(is_method=True, is_static=True, overloads={
+            ((Param('file', Type('string')),), Type('Serialization')): Serialization_from_string_file
         }, add_to_class=self)
         def _Serialization_new(codegen, call_position: Position) -> Object:
             obj_free = Free(free_name='binn_free')
@@ -61,11 +57,14 @@ fclose({f});
         def _Serialization_type(_, call_position: Position) -> Object:
             return Object('"Serialization"', Type('string'), call_position)
 
-        @c_dec(param_types=('Serialization',), is_method=True, add_to_class=self)
+        @c_dec(param_types=(Param('sz', Type('Serialization')),), is_method=True, add_to_class=self)
         def _Serialization_to_string(_, call_position: Position, _obj: Object) -> Object:
             return Object('"class \'Serialization\'"', Type('string'), call_position)
         
-        @c_dec(param_types=('Serialization', 'string'), is_method=True, add_to_class=self)
+        @c_dec(
+            param_types=(Param('sz', Type('Serialization')), Param('filename', Type('string'))),
+            is_method=True, add_to_class=self
+        )
         def _Serialization_to_file(codegen, call_position: Position, obj: Object,
                                 filename: Object) -> Object:
             buffer: TempVar = codegen.create_temp_var(Type('any', 'void*'), call_position)
@@ -85,7 +84,12 @@ fclose({f});
             return Object.NULL(call_position)
         
         
-        @c_dec(param_types=('Serialization', 'string', 'int'), is_method=True, add_to_class=self)
+        @c_dec(
+            param_types=(
+                Param('sz', Type('Serialization')), Param('key', Type('string')),
+                Param('value', Type('int'))
+            ), is_method=True, add_to_class=self
+        )
         def _Serialization_write_int(_, call_position: Position, obj: Object, key: Object,
                                     value: Object) -> Object:
             return Object(
@@ -93,7 +97,10 @@ fclose({f});
                 Type('bool'), call_position
             )
         
-        @c_dec(param_types=('Serialization', 'string'), is_method=True, add_to_class=self)
+        @c_dec(
+            param_types=(Param('sz', Type('Serialization')), Param('key', Type('string'))),
+            is_method=True, add_to_class=self
+        )
         def _Serialization_read_int(codegen, call_position: Position, obj: Object,
                                     key: Object) -> Object:
             value: TempVar = codegen.create_temp_var(Type('int'), call_position)
@@ -102,7 +109,12 @@ binn_object_get_int32(({obj}).b, {key}, &{value});
 """)
             return value.OBJECT()
         
-        @c_dec(param_types=('Serialization', 'string', 'float'), is_method=True, add_to_class=self)
+        @c_dec(
+            param_types=(
+                Param('sz', Type('Serialization')), Param('key', Type('string')),
+                Param('value', Type('float'))
+            ), is_method=True, add_to_class=self
+        )
         def _Serialization_write_float(_, call_position: Position, obj: Object, key: Object,
                                         value: Object) -> Object:
             return Object(
@@ -110,7 +122,10 @@ binn_object_get_int32(({obj}).b, {key}, &{value});
                 Type('bool'), call_position
             )
         
-        @c_dec(param_types=('Serialization', 'string'), is_method=True, add_to_class=self)
+        @c_dec(
+            param_types=(Param('sz', Type('Serialization')), Param('key', Type('string'))),
+            is_method=True, add_to_class=self
+        )
         def _Serialization_read_float(codegen, call_position: Position, obj: Object,
                                     key: Object) -> Object:
             value: TempVar = codegen.create_temp_var(Type('float'), call_position)
@@ -119,7 +134,12 @@ binn_object_get_float(({obj}).b, {key}, &{value});
 """)
             return value.OBJECT()
         
-        @c_dec(param_types=('Serialization', 'string', 'string'), is_method=True, add_to_class=self)
+        @c_dec(
+            param_types=(
+                Param('sz', Type('Serialization')), Param('key', Type('string')),
+                Param('value', Type('string'))
+            ), is_method=True, add_to_class=self
+        )
         def _Serialization_write_string(_, call_position: Position, obj: Object, key: Object,
                                         value: Object) -> Object:
             return Object(
@@ -127,7 +147,10 @@ binn_object_get_float(({obj}).b, {key}, &{value});
                 Type('bool'), call_position
             )
         
-        @c_dec(param_types=('Serialization', 'string'), is_method=True, add_to_class=self)
+        @c_dec(
+            param_types=(Param('sz', Type('Serialization')), Param('key', Type('string'))),
+            is_method=True, add_to_class=self
+        )
         def _Serialization_read_string(codegen, call_position: Position, obj: Object,
                                         key: Object) -> Object:
             value: TempVar = codegen.create_temp_var(Type('string'), call_position)
@@ -136,7 +159,12 @@ binn_object_get_str(({obj}).b, {key}, &{value});
 """)
             return value.OBJECT()
         
-        @c_dec(param_types=('Serialization', 'string', 'bool'), is_method=True, add_to_class=self)
+        @c_dec(
+            param_types=(
+                Param('sz', Type('Serialization')), Param('key', Type('string')),
+                Param('value', Type('bool'))
+            ), is_method=True, add_to_class=self
+        )
         def _Serialization_write_bool(_, call_position: Position, obj: Object, key: Object,
                                         value: Object) -> Object:
             return Object(
@@ -144,7 +172,10 @@ binn_object_get_str(({obj}).b, {key}, &{value});
                 Type('bool'), call_position
             )
         
-        @c_dec(param_types=('Serialization', 'string'), is_method=True, add_to_class=self)
+        @c_dec(
+            param_types=(Param('sz', Type('Serialization')), Param('key', Type('string'))),
+            is_method=True, add_to_class=self
+        )
         def _Serialization_read_bool(codegen, call_position: Position, obj: Object,
                                         key: Object) -> Object:
             value: TempVar = codegen.create_temp_var(Type('bool'), call_position)
@@ -153,7 +184,10 @@ binn_object_get_bool(({obj}).b, {key}, &{value});
 """)
             return value.OBJECT()
         
-        @c_dec(param_types=('Serialization', 'string'), is_method=True, add_to_class=self)
+        @c_dec(
+            param_types=(Param('sz', Type('Serialization')), Param('key', Type('string'))),
+            is_method=True, add_to_class=self
+        )
         def _Serialization_write_nil(_, call_position: Position, obj: Object,
                                         key: Object) -> Object:
             return Object(
@@ -161,7 +195,10 @@ binn_object_get_bool(({obj}).b, {key}, &{value});
                 Type('bool'), call_position
             )
         
-        @c_dec(param_types=('Serialization', 'string'), is_method=True, add_to_class=self)
+        @c_dec(
+            param_types=(Param('sz', Type('Serialization')), Param('key', Type('string'))),
+            is_method=True, add_to_class=self
+        )
         def _Serialization_read_nil(_, call_position: Position, obj: Object,
                                     key: Object) -> Object:
             return Object(

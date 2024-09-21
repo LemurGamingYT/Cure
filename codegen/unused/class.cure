@@ -1,29 +1,35 @@
-use "regex"
+// Create a class called 'Cat'. Classes are basically a collection of related functions and variables
+class Cat {
+    // Define 3 properties of the Cat
+    string name // It's name
+    string breed // It's breed
+    int age // It's age
 
+    // Define a function (in classes they are actually methods) which times the age by 4
+    func get_human_age() -> int {
+        return this.age * 4
+    }
 
-class Car {
-    func init(string model, string numberplate, float fuel) {}
-
+    // Override the base functionality of converting a class to a string
+    // which returns "class 'class name'"
     func to_string() -> string {
-        return $"Car({self.numberplate})"
+        return $"Cat(age={this.age}, human_age={this.get_human_age()})"
     }
 
-    func is_valid_numberplate() -> bool {
-        NUMBERPLATE_REGEX = new Regex("^[A-Z][A-Z][0-9][0-9][A-Z][A-Z][A-Z]$")
-        match = NUMBERPLATE_REGEX.fullmatch(self.numberplate)
-        return match.is_match
-    }
-
-    func drive(string destination) {
-        print($"Driving to {destination}")
-        self.set_fuel(self.fuel - destination.length * 5)
+    // Define the initialiser, __init__ or constructor method that runs when the class is first created
+    func Cat(string name, string breed, int age) {
+        this.name = name
+        this.breed = breed
+        this.age = age
     }
 }
 
 
 func main() -> int {
-    my_car = new Car("Toyota", "BP68ZGGC", 100.0)
-    print(my_car)
-    print(my_car.is_valid_numberplate())
+    // Create a new Cat class
+    // name = Newton, breed = Tuxedo and age = 8
+    newton = new Cat("Newton", "Tuxedo", 8)
+    print(newton) // Use the to_string() method
+    print(newton.get_human_age()) // You can also use the other methods on the class from here
     return 0
 }

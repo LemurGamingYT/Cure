@@ -1,8 +1,7 @@
 # TODOs
  TODOs for the Cure programming language
 
-*as of v0.0.31*
-- [ ] Fill in the `return_type` and convert each `param_types` string to a `Type()` class in every `c_dec` call.
+*as of v0.0.4*
 - [ ] Fix nested arrays
 - [ ] Support toplevel/global variables
 - [ ] Support overloaded function modifications
@@ -52,6 +51,7 @@ print(func(5.7, 9)) // Generates add(float, int) -> float`
     - [ ] Language building library: Provides a way to build a language within the Cure language. Provides a configurable lexer, parser and visitor.
         - [ ] Regular Expressions: Regular expressions for pattern matching.
             - [x] Match
+            - [x] Full match
             - [ ] Replace
             - [ ] Split
             - [ ] Find
@@ -71,10 +71,11 @@ if pattern.match("123-4567") {
         - [ ] Slab Allocator: A slab allocator for allocating memory, https://en.wikipedia.org/wiki/Slab_allocation
     - [ ] Windows API: Wrapper around the C `Windows.h` header
     - [ ] Http library: GET or POST requests and TCP/IP, UDP, sockets, etc
-    - [x] Text library: Text wrapping and locale
+    - [ ] Text library: Text wrapping and locale
+        - TODO: Fix
     - [ ] Compression library: RLE and other compression techniques
     - [x] Threading library: Thread code in different threads on the CPU
-    - [ ] Cross programming language bindings
+    - [ ] Language Interopability
         - [ ] Lua: Lua programming language bindings
         - [ ] Python: Python programming language bindings
     - [ ] Parsing library: Parsing of different kinds of information files
@@ -84,7 +85,7 @@ if pattern.match("123-4567") {
         - [ ] HTML
         - [ ] YAML
     - [ ] UI library: A library for creating user interfaces
-        - [x] Window, Button, Label and Frame
+        - [ ] Window, Button, Label and Frame
         - [ ] Textbox/Textarea, Slider, Checkbox, Radio buttons, Scrolling Frames, etc
         - [ ] Linux and Mac support
     - [ ] Testing functionality/framework: A library for testing code
@@ -94,11 +95,12 @@ if pattern.match("123-4567") {
     - [x] Serialization library: Serialize objects
     - [ ] Machine learning library
         - [ ] Neural networks: Neural Network support for Cure
+    - [ ] Sockets
 - [ ] Classes defined by the programmer (not built-in)
-    - [ ] Class methods: Functions inside a class
-    - [ ] Class properties: Similar to variables but inside a class
+    - [x] Class methods: Functions inside a class
+    - [x] Class properties: Similar to variables but inside a class
     - [ ] Special class methods: Methods like to_string(), init(), type(), etc. Giving the programmer the ability to define how the compiler handles certain things to do with the custom class
-    - [ ] Operator overloading: Define how operators work for a class
+        - [ ] Operator overloading: Define how operators work for a class
     - [ ] Inheritance: Classes inherit attributes, methods, etc from a parent class
 
 

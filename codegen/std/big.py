@@ -1,4 +1,4 @@
-from codegen.objects import Object, Position, Free, Type, Arg, TempVar
+from codegen.objects import Object, Position, Free, Type, Arg, TempVar, Param
 from codegen.c_manager import c_dec
 
 
@@ -26,7 +26,7 @@ typedef struct {{
         def _BigFloat_type(_, call_position: Position) -> Object:
             return Object('"BigFloat"', Type('string'), call_position)
         
-        @c_dec(param_types=('BigFloat',), is_method=True, add_to_class=self)
+        @c_dec(param_types=(Param('bf', Type('BigFloat')),), is_method=True, add_to_class=self)
         def _BigFloat_to_string(codegen, call_position: Position, bf: Object) -> Object:
             codegen.c_manager.include('<string.h>', codegen)
             
@@ -57,7 +57,10 @@ free({frac_part});
             
             return buf.OBJECT()
         
-        @c_dec(param_types=('BigFloat', 'BigFloat'), add_to_class=self)
+        @c_dec(
+            param_types=(Param('bf', Type('BigFloat')), Param('bf', Type('BigFloat'))),
+            add_to_class=self
+        )
         def _BigFloat_add_BigFloat(codegen, call_position: Position, a: Object,
                                 b: Object) -> Object:
             res: TempVar = codegen.create_temp_var(Type('BigFloat'), call_position)
@@ -83,7 +86,10 @@ while ({res}.fractional_part.length > 0 && {res}.fractional_part.digits[
             
             return res.OBJECT()
         
-        @c_dec(param_types=('BigFloat', 'BigFloat'), add_to_class=self)
+        @c_dec(
+            param_types=(Param('bf', Type('BigFloat')), Param('bf', Type('BigFloat'))),
+            add_to_class=self
+        )
         def _BigFloat_sub_BigFloat(codegen, call_position: Position, a: Object,
                                 b: Object) -> Object:
             res: TempVar = codegen.create_temp_var(Type('BigFloat'), call_position)
@@ -110,13 +116,19 @@ while ({res}.fractional_part.length > 0 && {res}.fractional_part.digits[
             
             return res.OBJECT()
         
-        @c_dec(param_types=('BigFloat', 'float'), add_to_class=self)
+        @c_dec(
+            param_types=(Param('bf', Type('BigFloat')), Param('f', Type('float'))),
+            add_to_class=self
+        )
         def _BigFloat_add_float(codegen, call_position: Position, bf: Object, f: Object) -> Object:
             float_str: Object = codegen.call('float_to_string', [Arg(f)], call_position)
             float_as_bf = _BigFloat_new(codegen, call_position, float_str)
             return _BigFloat_add_BigFloat(codegen, call_position, bf, float_as_bf)
         
-        @c_dec(param_types=('string',), is_method=True, is_static=True, add_to_class=self)
+        @c_dec(
+            param_types=(Param('num', Type('string')),),
+            is_method=True, is_static=True, add_to_class=self
+        )
         def _BigFloat_new(codegen, call_position: Position, num: Object) -> Object:
             temp: TempVar = codegen.create_temp_var(Type('BigFloat'), call_position)
             string: TempVar = codegen.create_temp_var(Type('string'), call_position)
@@ -145,7 +157,7 @@ string {exp_part} = strtok(NULL, "");
         def _BigInt_type(_, call_position: Position) -> Object:
             return Object('"BigInt"', Type('string'), call_position)
         
-        @c_dec(param_types=('BigInt',), add_to_class=self)
+        @c_dec(param_types=(Param('bi', Type('BigInt')),), add_to_class=self)
         def _BigInt_to_string(codegen, call_position: Position, bint: Object) -> Object:
             buf_free = Free()
             buf: TempVar = codegen.create_temp_var(Type('string'), call_position, free=buf_free)
@@ -174,9 +186,11 @@ for (int {i} = ({bint}).length - 1; {i} >= 0; {i}--) {{
             
             return buf.OBJECT()
         
-        @c_dec(param_types=('BigInt', 'BigInt'), add_to_class=self)
-        def _BigInt_add_BigInt(codegen, call_position: Position,
-                                a: Object, b: Object) -> Object:
+        @c_dec(
+            param_types=(Param('bi', Type('BigInt')), Param('bi', Type('BigInt'))),
+            add_to_class=self
+        )
+        def _BigInt_add_BigInt(codegen, call_position: Position, a: Object, b: Object) -> Object:
             res: TempVar = codegen.create_temp_var(Type('BigInt'), call_position)
             carry: TempVar = codegen.create_temp_var(Type('int'), call_position)
             i: TempVar = codegen.create_temp_var(Type('int'), call_position)
@@ -194,7 +208,10 @@ for (int {i} = 0; {i} < ({a}).length || {i} < ({b}).length || {carry}; {i}++) {{
             
             return res.OBJECT()
         
-        @c_dec(param_types=('BigInt', 'BigInt'), add_to_class=self)
+        @c_dec(
+            param_types=(Param('bi', Type('BigInt')), Param('bi', Type('BigInt'))),
+            add_to_class=self
+        )
         def _BigInt_sub_BigInt(codegen, call_position: Position,
                                 a: Object, b: Object) -> Object:
             res: TempVar = codegen.create_temp_var(Type('BigInt'), call_position)
@@ -223,7 +240,10 @@ while ({res}.length > 1 && {res}.digits[{res}.length - 1] == 0) {{
             
             return res.OBJECT()
         
-        @c_dec(param_types=('string',), is_method=True, is_static=True, add_to_class=self)
+        @c_dec(
+            param_types=(Param('num', Type('string')),),
+            is_method=True, is_static=True, add_to_class=self
+        )
         def _BigInt_new(codegen, call_position: Position, num: Object) -> Object:
             temp: TempVar = codegen.create_temp_var(Type('BigInt'), call_position)
             i: TempVar = codegen.create_temp_var(Type('int'), call_position)

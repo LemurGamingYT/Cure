@@ -1,5 +1,5 @@
 func get_bot_choice() -> string {
-    choice = Math.random(2)
+    choice = Math.random(max: 2)
     if choice == 0 {
         return "r"
     } else if choice == 1 {

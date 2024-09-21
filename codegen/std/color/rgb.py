@@ -1,4 +1,4 @@
-from codegen.objects import Object, Position, Type, TempVar
+from codegen.objects import Object, Position, Type, TempVar, Param
 from codegen.c_manager import c_dec
 
 
@@ -12,12 +12,16 @@ typedef struct {
 } RGB;
 #endif
 """)
+        
+        codegen.c_manager.wrap_struct_properties('rgb', Type('RGB'), [
+            Param('r', Type('int')), Param('g', Type('int')), Param('g', Type('int'))
+        ])
     
         @c_dec(is_method=True, is_static=True, add_to_class=self)
         def _RGB_type(_, call_position: Position) -> Object:
             return Object('"RGB"', Type('string'), call_position)
         
-        @c_dec(param_types=('RGB',), is_method=True, add_to_class=self)
+        @c_dec(param_types=(Param('rgb', Type('RGB')),), is_method=True, add_to_class=self)
         def _RGB_to_string(codegen, call_position: Position, rgb: Object) -> Object:
             cls = f'({rgb})'
             code, buf_free = codegen.c_manager.fmt_length(
@@ -28,20 +32,7 @@ typedef struct {
             codegen.prepend_code(code)
             return Object.STRINGBUF(buf_free, call_position)
         
-        
-        @c_dec(param_types=('RGB',), is_property=True, add_to_class=self)
-        def _RGB_r(_, call_position: Position, rgb: Object) -> Object:
-            return Object(f'(({rgb}).r)', Type('int'), call_position)
-        
-        @c_dec(param_types=('RGB',), is_property=True, add_to_class=self)
-        def _RGB_g(_, call_position: Position, rgb: Object) -> Object:
-            return Object(f'(({rgb}).g)', Type('int'), call_position)
-        
-        @c_dec(param_types=('RGB',), is_property=True, add_to_class=self)
-        def _RGB_b(_, call_position: Position, rgb: Object) -> Object:
-            return Object(f'(({rgb}).b)', Type('int'), call_position)
-        
-        @c_dec(param_types=('RGB',), is_property=True, add_to_class=self)
+        @c_dec(param_types=(Param('rgb', Type('RGB')),), is_property=True, add_to_class=self)
         def _RGB_to_hsv(codegen, call_position: Position, rgb: Object) -> Object:
             codegen.c_manager.include('<math.h>', codegen)
             

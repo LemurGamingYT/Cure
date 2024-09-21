@@ -1,186 +1,171 @@
-from ir.nodes import ClassMembers, ClassMethod, Position, TypeNode
-from codegen.objects import Object, Type, Param, Function, Arg
+from dataclasses import dataclass, field
+from typing import Any
+
+from ir.nodes import ClassMembers, ClassMethod, ClassProperty, Position, Return, Identifier
+from codegen.objects import Object, Type, Param, kwargs, TempVar
 from codegen.c_manager import c_dec
+
+
+@dataclass(**kwargs)
+class Field:
+    name: str
+    type: Type
+    default: Object | None = field(default=None)
 
 
 class ClassManager:
     def __init__(self, codegen) -> None:
         self.codegen = codegen
     
-    def method_to_function(self, method: ClassMethod) -> Function:
-        """Convert a `ClassMethod` to a `Function` for easier class code generation.
-
-        Args:
-            method (ClassMethod): The `ClassMethod` to convert.
-
-        Returns:
-            Function: The output `Function` class.
-        """
-        
-        params: list[Param] = [self.codegen.visit_ParamNode(p) for p in method.params]
-        if any(p.default is not None for p in params):
-            method.pos.error_here('Class methods to do not support default arguments')
-        
-        return Function(
-            method.name,
-            self.codegen.visit_TypeNode(method.return_type)\
-                if method.return_type is not None else Type('nil'),
-            params,
-            self.codegen.visit_Body(method.body, params=params)
-        )
+    def get_type(self, class_name: str) -> Type:
+        return Type(class_name)
     
-    def define_default_attributes(self, class_name: str) -> None:
-        """Define the default `type` and `to_string` attributes on the class.
-
-        Args:
-            class_name (str): The class name.
-        """
-        
-        @c_dec(
-            add_to_class=self.codegen.c_manager, func_name_override=f'{class_name}_type',
-            is_method=True, is_static=True
-        )
-        def _(_, call_position: Position) -> Object:
-            return Object(f'"{class_name}"', Type('string'), call_position)
-        
-        @c_dec(
-            add_to_class=self.codegen.c_manager, func_name_override=f'{class_name}_to_string',
-            param_types=(class_name,), is_method=True
-        )
-        def _(_, call_position: Position, _obj: Object) -> Object:
-            return Object(f'"class \'{class_name}\'"', Type('string'), call_position)
+    def replace_this(self, name: str) -> str:
+        return 'this' if self.is_this(name) else name
     
-    def struct_code(self, class_name: str, members: ClassMembers) -> str:
-        """Get the base struct C code.
+    def is_this(self, obj: Object | str) -> bool:
+        if isinstance(obj, Object):
+            return self.is_this(obj.code)
         
-        Args:
-            class_name (str): The name of the class.
-            members (ClassMembers): The members of the class.
-        
-        Returns:
-            str: The C struct code.
-        """
-        
-        struct_fields: list[Param] = []
-        code = ''
-        init_idx = -1
-        for i, member in enumerate(members):
-            if member.name == 'init' and isinstance(member, ClassMethod):
-                member.return_type = TypeNode(member.pos, class_name)
-                member.name = (callee := f'{class_name}_new')
-                func = self.method_to_function(member)
-                struct_fields.extend(func.params)
-                init_idx = i
-                
-                for p in func.params:
-                    @c_dec(
-                        param_types=(class_name,),
-                        add_to_class=self.codegen.c_manager,
-                        func_name_override=f'{class_name}_{p.name}',
-                        is_property=True
-                    )
-                    def _(_, call_position: Position, obj: Object,
-                            typ=p.type, name=p.name) -> Object:
-                        return Object(f'(({obj}).{name})', typ, call_position)
-                    
-                    @c_dec(
-                        param_types=(class_name, p.type.c_type),
-                        add_to_class=self.codegen.c_manager,
-                        func_name_override=f'{class_name}_set_{p.name}',
-                        is_method=True
-                    )
-                    def _(codegen, call_position: Position, obj: Object, value: Object,
-                          name=p.name) -> Object:
-                        codegen.prepend_code(f'({obj}).{name} = {value};')
-                        return Object.NULL(call_position)
-                
-                params_str = ', '.join(str(p) for p in func.params)
-                code += f"""{class_name} {callee}({params_str}) {{
-{self.codegen.visit_Body(member.body, params=func.params)}
-return ({class_name}){{ {", ".join(f'.{p.name} = {p.name}' for p in func.params)} }};
-}}
-"""
-                
-                @c_dec(
-                    param_types=tuple(p.type.c_type for p in func.params),
-                    is_static=True, is_method=True,
-                    add_to_class=self.codegen.c_manager, func_name_override=callee
-                )
-                def _(_, call_position: Position, *args) -> Object:
-                    return Object(
-                        func.call_code([Arg(arg) for arg in args]),
-                        func.returns, call_position
-                    )
-                
-                break
-        
-        if init_idx != -1:
-            members.pop(init_idx)
-        
+        return obj == '*(this)' or obj == 'this' or obj == '(*(this))'
+    
+    def initialiser(self, class_name: str, fields: list[Field]) -> str:
         return f"""typedef struct {{
+    {'\n'.join(f'{field.type.c_type} {field.name};' for field in fields)}
+}} {class_name};
+""" if len(fields) > 0 else f"""typedef struct {{
     unsigned char _;
 }} {class_name};
-{code}
-""" if init_idx == -1 else f"""typedef struct {{
-    {'\n'.join(str(field) + ';' for field in struct_fields)}
-}} {class_name};
-{code}
 """
 
-    def define_method(self, class_name: str, method: ClassMethod) -> str:
-        """Define the class' members based on the `members` parameter.
-
-        Args:
-            class_name (str): The name of the class.
-            method (ClassMethod): The ClassMethod that represents the method of `class_name`.
-        
-        Returns:
-            str: The C code for the method.
-        """
-        
-        method.name = (callee := f'{class_name}_{method.name}')
-        func = self.method_to_function(method)
-        all_params = [Param('self', Type(class_name), True)] + func.params
-        params_str = ', '.join(str(p) for p in all_params)
-        body = self.codegen.visit_Body(method.body, params=all_params)
+    def property_to_code(self, property: ClassProperty, class_name: str, fields: list[Field]) -> None:
+        cls_type = self.get_type(class_name)
+        typ: Type = self.codegen.visit_TypeNode(property.type)
+        default = self.codegen.visit(property.value) if property.value is not None else None
+        fields.append(Field(property.name, typ, default))
         
         @c_dec(
-            param_types=tuple(p.type.c_type for p in func.params),
-            add_to_class=self.codegen.c_manager, func_name_override=callee,
-            is_method=True
+            param_types=(Param('obj', cls_type),), is_property=True,
+            func_name_override=f'{class_name}_{property.name}', add_to_class=self.codegen.c_manager,
+            return_type=typ
         )
-        def _(codegen, call_position: Position, *args, body=body) -> Object:
-            obj = func(codegen, call_position, *[Arg(arg) for arg in args])
-            if obj is None:
-                call_position.error_here(f'Method \'{callee}\' returned absolutely nothing')
-            
-            return codegen.handle_free(body.free, obj, call_position)
+        def _(_, call_position: Position, obj: Object,
+                name=property.name, t=typ) -> Object:
+            return Object(f'(({obj}).{name})', t, call_position)
         
-        return f"""{func.returns.c_type} {callee}({params_str}) {{
+        @c_dec(
+            param_types=(Param('obj', cls_type), Param('value', typ)), is_method=True,
+            func_name_override=f'{class_name}_set_{property.name}', add_to_class=self.codegen.c_manager
+        )
+        def _(codegen, call_position: Position, obj: Object, value: Object,
+                name=property.name) -> Object:
+            codegen.prepend_code(f"""({obj}).{name} = {value};
+""")
+            return Object.NULL(call_position)
+
+    def method_to_code(self, method: ClassMethod, class_name: str, fields: list[Field]) -> str:
+        def eval_body():
+            return self.codegen.visit_Body(method.body, params=params)
+            
+        cls_type = self.get_type(class_name)
+
+        params: list[Param] = [Param('this', cls_type, True)] + [
+            self.codegen.visit_ParamNode(param) for param in method.params
+        ]
+        return_type = self.codegen.visit_TypeNode(
+            method.return_type) if method.return_type is not None else Type('nil')
+
+        name = f'{class_name}_{method.name}'
+        kwargs: dict[str, Any] = {}
+        body: Object = eval_body()
+        if method.name == class_name:
+            name = f'{class_name}_new'
+            return_type = cls_type
+            kwargs = {'is_static': True}
+            method.body.nodes.append(Return(method.body.pos, Identifier(method.body.pos, 'this')))
+            body = eval_body()
+            params = params[1:]
+
+        @c_dec(
+            param_types=tuple(params), is_method=True, return_type=return_type,
+            func_name_override=name, add_to_class=self.codegen.c_manager,
+            **kwargs
+        )
+        def _(codegen, call_position: Position, *args: Object) -> Object:
+            new_args = list(args)
+
+            if not codegen.scope.is_in_class:
+                cls: str | TempVar
+                if method.name == class_name:
+                    instantiate_args = [
+                        f'.{f.name} = {f.default}' for f in fields
+                        if f.default is not None
+                    ]
+                    instantiate_expr = ''
+                    if len(instantiate_args) > 0:
+                        instantiate_expr = f' = {{{", ".join(instantiate_args)}}}'
+                    
+                    cls = codegen.create_temp_var(cls_type, call_position)
+                    codegen.prepend_code(f"""{class_name} {cls}{instantiate_expr};
+""")
+                    new_args.insert(0, Object(f'&{cls}', cls_type, call_position))
+                else:
+                    cls = args[0].code
+                    if not codegen.is_identifier(args[0].code) and not self.is_this(new_args[0]):
+                        cls = codegen.create_temp_var(cls_type, call_position)
+                        codegen.prepend_code(f"""{class_name} {cls};
+""")
+                        new_args[0].code = str(cls)
+                    
+                    if self.is_this(new_args[0]):
+                        new_args[0].code = 'this'
+                    else:
+                        new_args[0].code = f'&{cls}'
+            else:
+                new_args[0].code = self.replace_this(new_args[0].code)
+            
+            args_str = ', '.join(arg.code for arg in new_args)
+            return codegen.handle_free(
+                body.free,
+                Object(f'{name}({args_str})', return_type, call_position),
+                call_position
+            )
+        
+        params_str = ', '.join(str(p) for p in params)
+        return f"""{return_type.c_type} {name}({params_str}) {{
 {body}
 }}
 """
     
     def create_class(self, class_name: str, members: ClassMembers) -> str:
-        """Define a class.
-
-        Args:
-            class_name (str): The name of the class.
-            members (ClassMembers): The members of the class.
-
-        Returns:
-            str: The C code to make the class and it's members
-        """
-        
+        cls_type = self.get_type(class_name)
+        code: list[str] = []
         self.codegen.valid_types.append(class_name)
         
-        self.define_default_attributes(class_name)
-        code = self.struct_code(class_name, members)
+        @c_dec(
+            is_method=True, is_static=True,
+            func_name_override=f'{class_name}_type', add_to_class=self.codegen.c_manager
+        )
+        def _(_, call_position: Position) -> Object:
+            return Object(f'"{class_name}"', Type('string'), call_position)
         
+        @c_dec(
+            param_types=(Param('obj', cls_type),), is_method=True,
+            func_name_override=f'{class_name}_to_string', add_to_class=self.codegen.c_manager
+        )
+        def _(_, call_position: Position, _obj: Object) -> Object:
+            return Object(f'"class \'{class_name}\'"', Type('string'), call_position)
+        
+        fields: list[Field] = []
+        without_properties = []
         for member in members:
-            if isinstance(member, ClassMethod):
-                code += f"""
-{self.define_method(class_name, member)}
-"""
+            if isinstance(member, ClassProperty):
+                self.property_to_code(member, class_name, fields)
+            else:
+                without_properties.append(member)
         
-        return code
+        for member in without_properties:
+            code.append(self.method_to_code(member, class_name, fields))
+        
+        code.insert(0, self.initialiser(class_name, fields))
+        return '\n'.join(code)

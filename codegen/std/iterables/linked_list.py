@@ -1,4 +1,4 @@
-from codegen.objects import Object, Position, Free, Type, TempVar
+from codegen.objects import Object, Position, Type, TempVar, Param
 from codegen.c_manager import c_dec
 
 
@@ -7,10 +7,18 @@ class LinkedList:
         self.codegen = codegen
         
         self.defined_types: list[str] = []
+        
+        @c_dec(
+            param_types=(Param('type', Type('type')),),
+            can_user_call=True, add_to_class=self
+        )
+        def _create_linked_list(codegen, call_position: Position, type: Object) -> Object:
+            ll_type = self.define_linked_list_type(Type(str(type)))
+            return codegen.call(f'{ll_type.c_type}_make', [], call_position)
     
     def define_linked_list_type(self, type: Type) -> Type:
-        node_type = Type(f'LinkedList[{type}]', f'{str(type).title()}LinkedListNode')
-        list_type = Type(f'LinkedList[{type}]', f'{str(type).title()}LinkedList')
+        node_type = Type(f'LinkedList[{type}]', f'{type.c_type}LinkedListNode')
+        list_type = Type(f'LinkedList[{type}]', f'{type.c_type}LinkedList')
         
         if type.type in self.defined_types:
             return list_type
@@ -29,10 +37,7 @@ typedef struct {{
         
         @c_dec(add_to_class=c_manager, func_name_override=f'{list_type.c_type}_make')
         def make_ll(codegen, call_position: Position) -> Object:
-            ll_free = Free(free_name=f'{list_type.c_type}_free')
-            ll: TempVar = codegen.create_temp_var(list_type, call_position, free=ll_free)
-            free(codegen, call_position, str(ll))
-
+            ll: TempVar = codegen.create_temp_var(list_type, call_position)
             codegen.prepend_code(f'{list_type.c_type} {ll} = {{ .head = NULL }};')
             return ll.OBJECT()
         
@@ -44,25 +49,21 @@ typedef struct {{
             return Object(f'"{list_type}"', Type('string'), call_position)
         
         @c_dec(
-            add_to_class=c_manager,
-            func_name_override=f'{list_type.c_type}_to_string',
-            param_types=(list_type.c_type,),
-            is_method=True
+            param_types=(Param('ll', list_type),), is_method=True,
+            func_name_override=f'{list_type.c_type}_to_string', add_to_class=c_manager,
         )
         def to_string(codegen, call_position: Position, ll: Object) -> Object:
-            ll_code = f'({ll})'
             code, buf_free = codegen.c_manager.fmt_length(
                 codegen, call_position, '"LinkedList(head=%p)"',
-                f'{ll_code}.head'
+                f'({ll}).head'
             )
             
             codegen.prepend_code(code)
             return Object.STRINGBUF(buf_free, call_position)
         
         @c_dec(
-            param_types=(list_type.c_type,),
+            param_types=(Param('ll', list_type),), is_property=True,
             add_to_class=c_manager, func_name_override=f'{list_type.c_type}_count',
-            is_property=True
         )
         def count(codegen, call_position: Position, ll: Object) -> Object:
             i: TempVar = codegen.create_temp_var(Type('int'), call_position)
@@ -79,7 +80,7 @@ while ({node} != NULL) {{
             return i.OBJECT()
         
         @c_dec(
-            param_types=(list_type.c_type,),
+            param_types=(Param('ll', list_type),),
             add_to_class=c_manager, func_name_override=f'{list_type.c_type}_first',
             is_property=True
         )
@@ -93,7 +94,7 @@ while ({node} != NULL) {{
             return Object(f'({list_}.head)', type, call_position)
         
         @c_dec(
-            param_types=(list_type.c_type,),
+            param_types=(Param('ll', list_type),),
             add_to_class=c_manager, func_name_override=f'{list_type.c_type}_last',
             is_property=True
         )
@@ -109,12 +110,11 @@ while ({node}->next != NULL) {{
             return node.OBJECT()
         
         @c_dec(
-            param_types=(list_type.c_type, type.c_type),
+            param_types=(Param('ll', list_type), Param('value', type)),
             add_to_class=c_manager, func_name_override=f'{list_type.c_type}_insert_begin',
             is_method=True
         )
-        def insert_begin(codegen, call_position: Position,
-                            ll: Object, value: Object) -> Object:
+        def insert_begin(codegen, call_position: Position, ll: Object, value: Object) -> Object:
             new_node: TempVar = codegen.create_temp_var(node_type, call_position)
             list_ = f'({ll})'
             codegen.prepend_code(f"""{node_type.c_type} {new_node} = {{
@@ -126,12 +126,12 @@ while ({node}->next != NULL) {{
             return Object.NULL(call_position)
         
         @c_dec(
-            param_types=(list_type.c_type, 'int', type.c_type),
+            param_types=(Param('ll', list_type), Param('i', Type('int')), Param('value', type)),
             add_to_class=c_manager, func_name_override=f'{list_type.c_type}_insert_at_index',
             is_method=True
         )
-        def insert_at_index(codegen, call_position: Position,
-                          ll: Object, index: Object, value: Object) -> Object:
+        def insert_at_index(codegen, call_position: Position, ll: Object, index: Object,
+                            value: Object) -> Object:
             new_node: TempVar = codegen.create_temp_var(node_type, call_position)
             current: TempVar = codegen.create_temp_var(node_type, call_position)
             i = codegen.create_temp_var(Type('int'), call_position)
@@ -155,9 +155,8 @@ if (({index}) == 0 || {list_}.head == NULL) {{
             return Object.NULL(call_position)
         
         @c_dec(
-            param_types=(list_type.c_type, type.c_type),
+            param_types=(Param('ll', list_type), Param('value', type)), is_method=True,
             add_to_class=c_manager, func_name_override=f'{list_type.c_type}_insert_end',
-            is_method=True
         )
         def insert_end(codegen, call_position: Position, ll: Object, value: Object) -> Object:
             new_node: TempVar = codegen.create_temp_var(node_type, call_position)
@@ -181,9 +180,8 @@ if ({list_}.head == NULL) {{
             return Object.NULL(call_position)
         
         @c_dec(
-            param_types=(list_type.c_type, type.c_type),
-            add_to_class=c_manager, func_name_override=f'{list_type.c_type}_remove',
-            is_method=True
+            param_types=(Param('ll', list_type), Param('value', type)), is_method=True,
+            add_to_class=c_manager, func_name_override=f'{list_type.c_type}_remove'
         )
         def remove(codegen, call_position: Position, ll: Object, value: Object) -> Object:
             current: TempVar = codegen.create_temp_var(node_type, call_position)
@@ -207,27 +205,25 @@ if ({current} != NULL) {{
             
             return Object.NULL(call_position)
         
-        def free(codegen, call_position: Position, ll: str) -> Object:
+        def free(codegen, call_position: Position, ll: str) -> None:
             node: TempVar = codegen.create_temp_var(node_type, call_position)
             temp: TempVar = codegen.create_temp_var(node_type, call_position)
             list_ = f'({ll})'
             codegen.c_manager.RESERVED_NAMES.append(f'{list_type.c_type}_free')
-            codegen.add_toplevel_code(f"""void {list_type.c_type}_free({list_type.c_type} {ll}) {{
-    {node_type.c_type}* {node} = {list_}.head;
+            codegen.add_toplevel_code(f"""void {list_type.c_type}_free({list_type.c_type}* {ll}) {{
+    if ({list_} == NULL || {list_}->head == NULL) {{ return; }}
+    
+    {node_type.c_type}* {node} = {list_}->head;
     while ({node} != NULL) {{
         {node_type.c_type}* {temp} = ({node_type.c_type}*){node}->next;
         free({node});
         {node} = {temp};
     }}
+    
+    {list_}->head = NULL;
 }}
 """)
-            
-            return Object.NULL(call_position)
         
         self.defined_types.append(type.type)
         
         return list_type
-    
-    def create_linked_list(self, codegen, call_position: Position, type: Object) -> Object:
-        ll_type = self.define_linked_list_type(Type(str(type)))
-        return codegen.call(f'{ll_type.c_type}_make', [], call_position)

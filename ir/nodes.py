@@ -208,8 +208,8 @@ class Enum(Node):
 @dataclass(**kwargs)
 class ClassProperty(Node):
     name: str
-    value: Node
     type: TypeNode
+    value: Node | None = field(default=None)
 
 @dataclass(**kwargs)
 class ClassMethod(FuncDecl):
@@ -221,3 +221,15 @@ ClassMembers = list[ClassProperty | ClassMethod]
 class Class(Node):
     name: str
     members: ClassMembers = field(default_factory=ClassMembers)
+
+@dataclass(**kwargs)
+class AttrAssign(Node):
+    obj: Node
+    attr_chain: list[str]
+    value: Node
+    op: str | None = field(default=None)
+
+@dataclass(**kwargs)
+class LiteralCode(Node):
+    code: str
+    type: TypeNode

@@ -174,6 +174,20 @@ Widget* create_widget(Window* parent, WidgetType type, const char* text,
     return widget;
 }
 
+Widget* create_label(Window* parent, const char* text, int x, int y, int width, int height,
+                     Font* font) {
+    return create_widget(parent, WIDGET_LABEL, text, x, y, width, height, NULL, font);
+}
+
+Widget* create_button(Window* parent, const char* text, int x, int y, int width, int height,
+                      void (*on_click)(Window*), Font* font) {
+    return create_widget(parent, WIDGET_BUTTON, text, x, y, width, height, on_click, font);
+}
+
+Widget* create_frame(Window* parent, int x, int y, int width, int height) {
+    return create_widget(parent, WIDGET_FRAME, NULL, 10, 10, 765, 535, NULL, NULL);
+}
+
 void close_window(Window* window) {
     if (window != NULL && window->widgets != NULL) {
         Widget* current = (Widget*)window->widgets;
@@ -199,15 +213,11 @@ void test_on_click(Window* window) {
 
 int main() {
     Window* window = create_window("Cure UI", 800, 600);
-    Widget* label = create_widget(
-        window, WIDGET_LABEL, "Cure UI", 400, 50, 75, 25, NULL, create_font("Segoe UI", 24)
+    Widget* label = create_label(window, "Cure UI", 400, 50, 75, 25, NULL, create_font("Segoe UI", 24));
+    Widget* btn = create_button(
+        window, "Test Button", 350, 250, 150, 30, test_on_click, create_font("Segoe UI", 24)
     );
-    Widget* btn = create_widget(
-        window, WIDGET_BUTTON, "Test Button", 350, 250, 150, 30, test_on_click,
-        create_font("Segoe UI", 24)
-    );
-
-    Widget* frame = create_widget(window, WIDGET_FRAME, NULL, 10, 10, 765, 535, NULL, NULL);
+    Widget* frame = create_frame(window, 10, 10, 765, 535);
 
     ShowWindow(window->hwnd, SW_SHOW);
 

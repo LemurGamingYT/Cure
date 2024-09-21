@@ -18,7 +18,7 @@ func main() -> int {
     insert_c_code('printf("Hello World!\n")')
 
     x = 10
-    print(addr_of(x)) // addr_of returns the address of a variable as a string
+    print(addr_of(x)) // addr_of returns the address of a variable
 
     assert(x == 10) // If the test fails, the default error message is "Assertion failed"
     assert(x != 10, "x should not be 10") // This will fail and print the error message

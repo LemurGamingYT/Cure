@@ -12,6 +12,9 @@ extern "C" {
 #if defined(_WIN32) || defined(_WIN64)
 #define OS_WINDOWS 1
 #define NOMINMAX
+#define WIN32_LEAN_AND_MEAN
+#include <winsock2.h>
+#include <ws2tcpip.h>
 #include <windows.h>
 #include <shlobj.h>
 #include <io.h>
@@ -47,6 +50,11 @@ extern "C" {
 #error "Unsupported architecture"
 #endif
 
+
+typedef void* hex;
+typedef char* string;
+typedef void* nil;
+
 typedef struct {
   unsigned char _;
 } Math;
@@ -74,15 +82,18 @@ typedef struct {
   unsigned char _;
 } Cure;
 
-typedef void* hex;
-typedef char* string;
-typedef void* nil;
+typedef struct {
+  string buf;
+  size_t length;
+  size_t capacity;
+} StringBuilder;
+
 const int MIN_INT = -2147483648;
 const int MAX_INT = 2147483647;
 const string DIGITS = "0123456789";
 const string PUNCTUATION = "!@#$%^&*()_+-=[]{};:'\"\\|,.<>/?";
 const string LETTERS = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
-const string VERSION = "0.0.31";
+const string VERSION = "0.0.32";
 const float MIN_FLOAT = -1.701411733192644277e+38;
 const float MAX_FLOAT = 1.701411733192644277e+38;
 const int ONE_BILLION = 1000000000;

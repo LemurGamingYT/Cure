@@ -1,10 +1,10 @@
-from codegen.objects import Object, Position, Free, Type, TempVar
+from codegen.objects import Object, Position, Free, Type, TempVar, Param
 from codegen.c_manager import c_dec
 
 
 class RLE:
     def __init__(self) -> None:
-        @c_dec(param_types=('string',), can_user_call=True, add_to_class=self)
+        @c_dec(param_types=(Param('s', Type('string')),), can_user_call=True, add_to_class=self)
         def _rle_compress(codegen, call_position: Position, string: Object) -> Object:
             codegen.c_manager.include('<string.h>', codegen)
             
@@ -42,7 +42,7 @@ if ({s} == NULL || *{s} == '\\0') {{
             
             return encoded.OBJECT()
 
-        @c_dec(param_types=('string',), can_user_call=True, add_to_class=self)
+        @c_dec(param_types=(Param('s', Type('string')),), can_user_call=True, add_to_class=self)
         def _rle_decompress(codegen, call_position: Position, string: Object) -> Object:
             codegen.c_manager.include('<string.h>', codegen)
             
