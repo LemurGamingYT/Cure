@@ -1,7 +1,7 @@
 # TODOs
  TODOs for the Cure programming language
 
-*as of v0.0.4*
+*as of v0.0.32*
 - [ ] Fix nested arrays
 - [ ] Support toplevel/global variables
 - [ ] Support overloaded function modifications
