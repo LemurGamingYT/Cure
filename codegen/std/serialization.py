@@ -40,7 +40,7 @@ fread({buffer}, 1, {size}, {f});
 fclose({f});
 """)
             
-            return serializer.OBJECT()
+            return serializer
         
         @c_dec(is_method=True, is_static=True, overloads={
             ((Param('file', Type('string')),), Type('Serialization')): Serialization_from_string_file

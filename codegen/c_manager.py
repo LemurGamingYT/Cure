@@ -2611,7 +2611,7 @@ if (!{has_cached}) {{
             
             res: TempVar = codegen.create_temp_var(func_obj.return_type, call_position)
             codegen.prepend_code(f"""{func_obj.return_type.c_type} {res} = {func_obj.name}({
-    ', '.join(str(arg) for arg in args)
+    ', '.join(str(arg.value) for arg in args)
 });
 """)
             
