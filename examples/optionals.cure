@@ -1,0 +1,19 @@
+// Make a function to pass in the optional integer. They can also be passed by reference
+func make_not_nil(int? &a) {
+    // Check if a is nil and if it is, default it's value to 0
+    if a.is_nil { a.value = 0 }
+}
+
+func main() -> int {
+    // Create an optional integer with a value of 0
+    optional_int = optional[int](0)
+
+    // Set the optional's value to 0, if optional_int.value is retrieved, the program will error
+    optional_int.value = nil
+    // print(optional_int.value) // error: optional is nil
+
+    // Pass the optional_int optional and make it not nil
+    make_not_nil(optional_int)
+    print(optional_int.value) // This is now safe to call
+    return 0
+}

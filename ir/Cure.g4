@@ -2,16 +2,12 @@ grammar Cure;
 
 parse: stmt* EOF;
 
-type: ID (LBRACK type (COLON type)? RBRACK)?;
+type: ID (LBRACK type (COLON type)? RBRACK)? QUESTION?;
 
 stmt
-    : funcAssign
-    | foreachStmt | whileStmt | ifStmt
-    | varAssign
+    : varAssign | funcAssign | classAssign | enumAssign
+    | foreachStmt | whileStmt | ifStmt | useStmt
     | expr
-    // | classAssign
-    | enumAssign
-    | useStmt
     ;
 
 bodyStmts: stmt | RETURN expr | CONTINUE | BREAK;
@@ -24,14 +20,19 @@ whileStmt: WHILE expr body;
 foreachStmt: FOREACH ID IN expr body;
 useStmt: USE STRING;
 
-classProperty: type ID (ASSIGN expr)?;
+classProperty: (PUBLIC | PRIVATE)? type ID (ASSIGN expr)?;
+classMethod: (PUBLIC | PRIVATE)? STATIC? FUNC OVERRIDE? ID LPAREN params? RPAREN (RETURNS type)? body;
 classDeclarations
-    : (funcAssign | classProperty)+
+    : (classMethod | classProperty)+
     ;
-classAssign: CLASS ID LBRACE classDeclarations? RBRACE;
+classAssign
+    : CLASS ID (RARROW ID)? LBRACE classDeclarations? RBRACE
+    ;
 enumAssign: ENUM ID LBRACE (ID (COMMA ID)*)? RBRACE;
 funcModifications: LBRACK ID LPAREN args? RPAREN RBRACK;
-funcAssign: funcModifications* FUNC ID LPAREN params? RPAREN (RETURNS type)? body;
+funcAssign
+    : funcModifications* FUNC (type DOT)? ID (LBRACK ID (COMMA ID)* RBRACK)? LPAREN params? RPAREN (RETURNS type)? body
+    ;
 varAssign
     : CONST? type? ID op=(ADD | SUB | MUL | DIV | MOD)? ASSIGN expr
     | ID DOT ID op=(ADD | SUB | MUL | DIV | MOD)? ASSIGN expr
@@ -45,10 +46,11 @@ params: param (COMMA param)*;
 
 dict_element: expr COLON expr;
 
-call: ID LPAREN args? RPAREN;
+genericArgs: LBRACK type (COMMA type)* RBRACK;
+call: ID genericArgs? LPAREN args? RPAREN;
 atom
-    : type LBRACE args? RBRACE
-    | LBRACK type COLON type RBRACK LBRACE (dict_element (COMMA dict_element)*)? RBRACE
+    : type? LBRACE args? RBRACE
+    | (LBRACK type COLON type RBRACK)? LBRACE (dict_element (COMMA dict_element)*)? RBRACE
     | INT
     | FLOAT
     | STRING
@@ -60,12 +62,13 @@ atom
 
 expr
     : call
+    // | FUNC LPAREN params? RPAREN (RETURNS type)? body
+    | atom
     | LPAREN type RPAREN expr
-    | expr DOT ID (LPAREN args? RPAREN)?
+    | expr DOT ID genericArgs? (LPAREN args? RPAREN)?
     | expr IF expr ELSE expr
     // | LBRACE expr COLON ID IN expr RBRACE
     | NEW ID LPAREN args? RPAREN
-    | atom
     | expr LBRACK expr RBRACK
     | expr op=(MUL | DIV | MOD) expr
     | expr op=(ADD | SUB) expr
@@ -75,6 +78,7 @@ expr
     ;
 
 
+// Basic keywords
 IF: 'if';
 IN: 'in';
 NEW: 'new';
@@ -85,11 +89,16 @@ FUNC: 'func';
 WHILE: 'while';
 BREAK: 'break';
 CONST: 'const';
-CLASS: 'class';
-STRUCT: 'struct';
 RETURN: 'return';
 FOREACH: 'foreach';
 CONTINUE: 'continue';
+
+// Class keywords
+CLASS: 'class';
+STATIC: 'static';
+PUBLIC: 'public';
+PRIVATE: 'private';
+OVERRIDE: 'override';
 
 APOSTROPHE: '\'';
 
@@ -126,6 +135,8 @@ RBRACE: '}';
 LBRACK: '[';
 RBRACK: ']';
 DOLLAR: '$';
+RARROW: '<-';
+QUESTION: '?';
 RETURNS: '->';
 AMPERSAND: '&';
 ARROWASSIGN: '=>';

@@ -12,5 +12,3 @@ class IRVisitor:
         if method is not None:
             self.pos = node.pos
             return method(node)
-        
-        raise NotImplementedError(f'Unknown node type \'{node.__class__.__name__}\'')

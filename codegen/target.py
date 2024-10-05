@@ -1,3 +1,4 @@
+from sys import exit as sys_exit
 from platform import system
 from enum import Enum
 
@@ -8,9 +9,14 @@ class Target(Enum):
     MACOS = 'Darwin'
 
 
-def get_target() -> Enum:
-    target = Target[system().upper()]
-    if target is None:
-        raise NotImplementedError('Os not supported')
+def get_target(name: str) -> Enum:
+    return Target[name.upper()]
+
+def get_current_target() -> Enum:
+    try:
+        target = Target[system().upper()]
+    except KeyError:
+        print(f'Unknown target: {system()}')
+        sys_exit(1)
 
     return target

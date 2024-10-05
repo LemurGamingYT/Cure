@@ -10,7 +10,7 @@ func main() -> int {
 
     // Write the integer value '5' to the allocated memory
     ptr.write(5)
-    print(ptr.read(int)) // Read an 'int' type from the allocated memory
+    print(ptr.read[int]()) // Read an 'int' type from the allocated memory
 
     // Make sure to free the allocated memory
     ptr.free()
@@ -27,11 +27,20 @@ func main() -> int {
 
     // Read the original value of the 'a' variable, make sure you put in the correct type or this will
     // lead to undefined behaviour and will break your program
-    original_value = process.read(a_pointer, int)
+    original_value = process.read[int](a_pointer)
     process.write(a_pointer, 10) // Write a new value of '10' into the 'a' variable
 
     process.close() // Make sure to close the process like you free memory
 
     print(a) // The variable has been changed now
+
+    // Create a new bit field of 32 bits
+    field = new BitField(32)
+    // Set every bit to either true or false
+    foreach i in range(field.num_of_bits) {
+        field.set(i, Math.random(1) == 0)
+    }
+
+    print(field) // Prints the bit field
     return 0
 }

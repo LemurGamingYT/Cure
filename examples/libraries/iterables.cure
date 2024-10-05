@@ -2,9 +2,23 @@
 use "iterables"
 
 
+func buffer_test() {
+    // Buffers are a type of iterable that is a fixed-sized list of items
+    buf = create_buffer[int](10)
+
+    // Add 10 items to the buffer
+    foreach i in range(10) {
+        buf.add(i) // You will get a buffer overflow error if you add more items than the buffer size
+    }
+
+    print(buf) // Print out the buffer
+    print(buf.get(0)) // Print out the first item
+    print(buf.get(9)) // Print out the last item
+}
+
 func queue_test() {
     // Queue follows the FIFO (first in first out) principle
-    queue = create_queue(int, 20)
+    queue = create_queue[int](20)
 
     // Add 1 and 2 at the start of the queue
     queue.enqueue(1)
@@ -18,7 +32,7 @@ func queue_test() {
 
 func stack_test() {
     // Stack follows the LIFO (last in first out) principle
-    stack = create_stack(int, 10)
+    stack = create_stack[int](10)
 
     // LIFO means that you can push and pop items on the stack
     stack.push(1)
@@ -40,7 +54,7 @@ func stack_test() {
 
 func linked_list_test() {
     // Linked Lists are many nodes connected via pointers (or references in higher level languages)
-    ll = create_linked_list(int)
+    ll = create_linked_list[int]()
     print($"Empty: {ll}")
 
     // Insert a bunch of elements at the end of the list
@@ -58,5 +72,6 @@ func main() -> int {
     stack_test()
     linked_list_test()
     queue_test()
+    buffer_test()
     return 0
 }

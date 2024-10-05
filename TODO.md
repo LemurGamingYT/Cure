@@ -1,14 +1,13 @@
 # TODOs
  TODOs for the Cure programming language
 
-*as of v0.0.32*
+*as of v0.0.4*
+- [ ] Add TypeChecker class to the Codegen
 - [ ] Fix nested arrays
-- [ ] Support toplevel/global variables
+- [x] Support toplevel/global variables
 - [ ] Support overloaded function modifications
 - [ ] Functions
-    - [ ] Anonymous functions: For example `print(func(int a) {
-    print(a)
-}(2))`
+    - [ ] Anonymous functions: Functions that are not named
     - [x] Overloading
     - [x] Default Arguments
     - [ ] Variadic Functions
@@ -23,7 +22,7 @@
 - [x] Time functions
 - [x] More math functions
 - [x] More string attributes
-- [ ] Import aliasing (use "abc" as abc): Alias the used library into an object that can be used like a class in the program.
+- [ ] Import aliasing (`use "abc" as abc`): Alias the used library into an object that can be used like a class in the program.
 - [ ] REPL (Read Eval Print Loop): For quick experimentation.
 - [ ] Dependency Manager: Allow programmers to have a built-in dependency manager to manage bringing in packages.
     - [x] Use local files: Use not only libraries but other .cure files
@@ -37,30 +36,32 @@ value = double(5) // Expands to 5*2`
 - [x] Enums: A simple way to define a set of named constants
 - [ ] First class functions: Gives the ability to have functions as types
 - [ ] 'extern' keyword: Allows the use of external functions from C
-- [ ] Generic parameters: Every time a function with generic parameters is called, the compiler will define a new function for the new generic type. For example `func add[T](T a, T b) -> T {
+- [ ] Generic functions: Every time a function with generic parameters is called, the compiler will define a new function for the new generic type. For example `func add[T](T a, T b) -> T {
     return a + b
 }
 
 print(func(8, 10)) // Generates add(int, int) -> int
 print(func(5.7, 9)) // Generates add(float, int) -> float`
+    - [ ] Allow the use of the generic type in the function body
+- [x] Optionals: A type that can be either a value or nil. This is implemented as another type (needs more testing)
 - [x] Casting: Convert a type to another type
 - [ ] Libraries
     - [x] More File I/O functions
-    - [ ] Buffer library: Fixed size arrays
     - [x] Big integers and floats
     - [ ] Language building library: Provides a way to build a language within the Cure language. Provides a configurable lexer, parser and visitor.
         - [ ] Regular Expressions: Regular expressions for pattern matching.
             - [x] Match
             - [x] Full match
+            - [ ] Search
             - [ ] Replace
             - [ ] Split
             - [ ] Find
             - [ ] Find All
             - [ ] Sub
-            - [ ] RegexBuilder class: An interface for building regular expressions easier. Each attribute returns a new RegexBuilder object. For example: `pattern = RegexBuilder().start_of_line().digit().repeat(3).literal("-").digit().repeat(4).build()
+            - [ ] RegexBuilder class: An interface for building regular expressions easier. Each attribute returns a new RegexBuilder object. For example: ```pattern = RegexBuilder().start_of_line().digit().repeat(3).literal("-").digit().repeat(4).build()
 if pattern.match("123-4567") {
     print("Valid")
-}`
+}```
     - [ ] Command line parsing library: Parses command line arguments
     - [ ] Crypto library: Encryption, hashing, etc
     - [ ] LL library: Low level library for Cure
@@ -70,9 +71,9 @@ if pattern.match("123-4567") {
         - [ ] Memory Pool: Memory pool class for allocating chunks of memory efficiently, https://en.wikipedia.org/wiki/Memory_pool
         - [ ] Slab Allocator: A slab allocator for allocating memory, https://en.wikipedia.org/wiki/Slab_allocation
     - [ ] Windows API: Wrapper around the C `Windows.h` header
-    - [ ] Http library: GET or POST requests and TCP/IP, UDP, sockets, etc
-    - [ ] Text library: Text wrapping and locale
-        - TODO: Fix
+    - [ ] Http library: GET or POST requests and TCP/IP, UDP, etc
+        - [x] Sockets
+    - [x] Text library: Text wrapping and locale
     - [ ] Compression library: RLE and other compression techniques
     - [x] Threading library: Thread code in different threads on the CPU
     - [ ] Language Interopability
@@ -84,24 +85,36 @@ if pattern.match("123-4567") {
         - [ ] TOML
         - [ ] HTML
         - [ ] YAML
+        - [ ] INI
+        - [ ] Markdown
     - [ ] UI library: A library for creating user interfaces
         - [ ] Window, Button, Label and Frame
         - [ ] Textbox/Textarea, Slider, Checkbox, Radio buttons, Scrolling Frames, etc
         - [ ] Linux and Mac support
     - [ ] Testing functionality/framework: A library for testing code
     - [x] Iterables library: includes Stack and Linked List implementations
+        - [x] Buffer library: Fixed size arrays
     - [x] Color library: RGB, HSV, etc with conversions between them
     - [x] Sound library: Low and high level sound control, gives control over low level things like sample rate or number of channels of a .wav file but also has high level functions like play
     - [x] Serialization library: Serialize objects
-    - [ ] Machine learning library
+    - [ ] Machine learning library: Machine learning for Cure
         - [ ] Neural networks: Neural Network support for Cure
-    - [ ] Sockets
+- [x] Type extensions: Add new methods to existing types
+```
+func int.hello() -> string {
+    return "Hello"
+}
+
+x = 10
+print(x.hello()) // Prints "Hello"
+```
 - [ ] Classes defined by the programmer (not built-in)
     - [x] Class methods: Functions inside a class
     - [x] Class properties: Similar to variables but inside a class
-    - [ ] Special class methods: Methods like to_string(), init(), type(), etc. Giving the programmer the ability to define how the compiler handles certain things to do with the custom class
-        - [ ] Operator overloading: Define how operators work for a class
-    - [ ] Inheritance: Classes inherit attributes, methods, etc from a parent class
+    - [x] Special class methods: Methods like to_string(), init(), type(), etc. Giving the programmer the ability to define how the compiler handles certain things to do with the custom class
+        - [x] Operator overloading: Define how operators work for a class
+    - [x] Inheritance: Classes inherit attributes, methods, etc from a parent class (needs more testing)
+    - [ ] Generic classes: Classes that can be used with any type
 
 
 Here are some places to get library, class and function ideas from:
@@ -118,3 +131,7 @@ General: http://attractivechaos.github.io/klib/#About
 Deep Learning: https://pjreddie.com/darknet/
 Neural Networks: https://github.com/codeplea/genann
 Advanced Maths: https://github.com/ferreiradaselva/mathc
+Calling other languages into C: https://github.com/metacall/core
+General: https://github.com/tboox/tbox/tree/master
+GPU Rendering: https://github.com/recp/gpu
+HTTP GET and POST: https://github.com/recp/http/tree/master

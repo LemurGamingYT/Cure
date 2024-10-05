@@ -1,10 +1,12 @@
-#define WIN32_LEAN_AND_MEAN
+#include "utils.h"
+
+#if OS_WINDOWS
 #include <windows.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <time.h>
+#endif
 
 
 int main() {
+    -4294967295U;
+
     return 0;
 }

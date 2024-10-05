@@ -69,6 +69,11 @@ class CureVisitor(ParseTreeVisitor):
         return self.visitChildren(ctx)
 
 
+    # Visit a parse tree produced by CureParser#classMethod.
+    def visitClassMethod(self, ctx:CureParser.ClassMethodContext):
+        return self.visitChildren(ctx)
+
+
     # Visit a parse tree produced by CureParser#classDeclarations.
     def visitClassDeclarations(self, ctx:CureParser.ClassDeclarationsContext):
         return self.visitChildren(ctx)
@@ -121,6 +126,11 @@ class CureVisitor(ParseTreeVisitor):
 
     # Visit a parse tree produced by CureParser#dict_element.
     def visitDict_element(self, ctx:CureParser.Dict_elementContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by CureParser#genericArgs.
+    def visitGenericArgs(self, ctx:CureParser.GenericArgsContext):
         return self.visitChildren(ctx)
 
 

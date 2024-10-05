@@ -1,11 +1,11 @@
 from codegen.objects import Object, Position, Type, TempVar, Param
+from codegen.function_manager import OverloadKey, OverloadValue
 from codegen.c_manager import c_dec
 from codegen.target import Target
 
 
 class Process:
     def __init__(self, codegen) -> None:
-        codegen.valid_types.append('Process')
         codegen.add_toplevel_code(f"""#ifdef OS_WINDOWS
 typedef struct {{
     DWORD pid;
@@ -51,7 +51,9 @@ if ({proc}.handle == NULL) {{
         
         @c_dec(
             param_types=(Param('pid', Type('int')),), is_method=True, is_static=True,
-            add_to_class=self, overloads={((), Type('Process')): open_current_process}
+            add_to_class=self, overloads={
+                OverloadKey(Type('Process'), ()): OverloadValue(open_current_process)
+            }
         )
         def _Process_new(codegen, call_position: Position, pid: Object) -> Object:
             if codegen.target != Target.WINDOWS:
@@ -86,17 +88,16 @@ if (!WriteProcessMemory(({proc}).handle, {addr}, &{new_value}, sizeof({value.typ
         
         @c_dec(
             param_types=(
-                Param('proc', Type('Process')), Param('addr', Type('hex')),
-                Param('read_type', Type('type'))
-            ), is_method=True, add_to_class=self
+                Param('proc', Type('Process')), Param('addr', Type('hex'))
+            ), is_method=True, add_to_class=self, generic_params=('T',), return_type=Type('{T}')
         )
         def _Process_read(codegen, call_position: Position, proc: Object, addr: Object,
-                          type_: Object) -> Object:
-            new_value: TempVar = codegen.create_temp_var(Type(type_.code), call_position)
+                          *, T: Type) -> Object:
+            new_value: TempVar = codegen.create_temp_var(T, call_position)
             codegen.prepend_code(f"""{new_value.type.c_type} {new_value};
 if (!ReadProcessMemory(
     ({proc}).handle, {addr}, &{new_value},
-    sizeof({new_value.type.c_type}), NULL)
+    sizeof({T.c_type}), NULL)
 ) {{
     {codegen.c_manager.err('Failed to read from process memory')}
 }}

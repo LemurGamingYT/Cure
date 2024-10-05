@@ -1,11 +1,13 @@
-from typing import Callable, Any
+from typing import Callable, Any, Iterable
 from functools import wraps
 from pathlib import Path
 
-from codegen.objects import (
-    Object, Position, EnvItem, Free, Type, Function, Arg, TempVar, Param, Overloads, BuiltinFunction,
-    POS_ZERO
+from colorama import Fore
+
+from codegen.function_manager import (
+    Overloads, BuiltinFunction, UserFunction, OverloadKey, OverloadValue
 )
+from codegen.objects import Object, Position, EnvItem, Free, Type, TempVar, POS_ZERO, Arg, Param
 
 
 CURRENT_FILE = Path(__file__).absolute()
@@ -13,9 +15,6 @@ STD_PATH = CURRENT_FILE.parent / 'std'
 INCLUDES = CURRENT_FILE.parent.parent / 'include'
 LIBS = CURRENT_FILE.parent.parent / 'libs'
 HEADER = (INCLUDES / 'header.h').as_posix()
-
-
-STRINGBUILDER_CAPACITY = 50
 
 
 def func_modification(
@@ -63,7 +62,8 @@ def c_dec(
     can_user_call: bool = False,
     return_type: Type | None = None,
     func_name_override: str | None = None,
-    add_to_class: Any = None
+    add_to_class: Any = None,
+    generic_params: tuple[str, ...] | None = None
 ) -> Callable:
     """Make a function able to be used as a C function.
 
@@ -86,6 +86,8 @@ def c_dec(
         func_name_override (str | None, optional): Override the function name. Defaults to None.
         add_to_class (type | None, optional): The class to add the function to. Useful for adding
             the function to, for example, the `CManager` class. Defaults to None.
+        generic_params (tuple[str, ...] | None, optional): The generic parameters. Defaults to
+            an empty tuple.
 
     Returns:
         Callable: The decorator callable.
@@ -102,16 +104,15 @@ def c_dec(
         cname = name if name.startswith('_') else f'_{name}'
         
         setattr(func, 'name', cname)
-        setattr(func, 'param_types', param_types)
-        setattr(func, 'overloads', overloads)
         setattr(func, 'is_method', is_method)
         setattr(func, 'is_static', is_static)
         setattr(func, 'is_property', is_property)
         setattr(func, 'return_type', return_type)
         setattr(func, 'can_user_call', can_user_call)
-        setattr(func, 'func_name_override', func_name_override)
-        setattr(func, 'added_to_class', add_to_class)
-        setattr(func, 'object', BuiltinFunction(func, list(param_types), overloads))
+        setattr(func, 'object', BuiltinFunction(
+            func, return_type, list(param_types), overloads,
+            generic_params=list(generic_params) if generic_params is not None else []
+        ))
         
         if add_to_class is not None:
             if isinstance(add_to_class, CManager):
@@ -130,7 +131,7 @@ def c_dec(
 
 class CManager:
     # reserved names mostly from standard library headers https://en.cppreference.com/w/c/header
-    RESERVED_NAMES = [
+    RESERVED_NAMES = {
         'string', 'int', 'float', 'bool', 'nil', 'static', 'typedef', 'const', 'char', 'struct',
         'enum', 'if', 'else', 'for', 'extern', 'return', 'while', 'break', 'continue', 'switch',
         'case', 'default', 'do', 'double', 'long', 'short', 'register', 'union', 'volatile',
@@ -203,9 +204,16 @@ class CManager:
         'S_ISGID', 'S_ISVTX', 'S_ISBLK', 'S_ISCHR', 'S_ISDIR', 'S_ISFIFO', 'S_ISREG', 'S_ISLNK',
         'S_TYPEISMQ', 'S_TYPEISSEM', 'S_TYPEISSHM', 'chmod', 'fchmod', 'fstat', 'lstat', 'mkdir',
         'mkfifo', 'mknod', 'stat', 'umask', 'IS_ADMIN', 'default', 'rand', 'OS', 'ARCH', 'Fraction',
-        'Vector2', 'StringBuilder'
-    ]
+        'Vector2', 'StringBuilder', '__cplusplus'
+    }
     
+    
+    def reserve(self, name_or_names: str | Iterable[str]) -> None:
+        if isinstance(name_or_names, str):
+            self.RESERVED_NAMES.add(name_or_names)
+        elif isinstance(name_or_names, Iterable):
+            for name in name_or_names:
+                self.reserve(name)
     
     def include(self, file: str, codegen) -> None:
         """Add a C include to the compiled C code.
@@ -294,9 +302,13 @@ class CManager:
             str: The error C code.
         """
         
+        def fix(s: str) -> str:
+            return s.replace('"', '\\"').replace('\n', '\\n')
+        
         vars_str = ', '.join(variables)
-        return f"""printf("error: {fmt}\\n"{", " + vars_str if vars_str != "" else ""});
-{self.codegen.get_end_code()}
+        vars_str = '' if vars_str == '' else ', ' + vars_str
+        content = fix(fr'{self.codegen.pos.get_print_content(Fore.RED, f'{fmt}\\n')}')
+        return f"""printf("{content}"{vars_str});
 exit(1);
 """
     
@@ -361,7 +373,7 @@ snprintf({buf}, {length} + 1, {fmt}{''.join(', ' + s for s in format_vars)});
             pos (Position): The position.
             type (str): The type of the C array.
             value (str): The variable or object of the C array.
-            size_expr: str | None: The size expression of the C array. If None, the size will be
+            size_expr: (str, optional): The size expression of the C array. If None, the size will be
             calculated as the size of the C array divided by the size of the type of the C array.
 
         Returns:
@@ -369,27 +381,21 @@ snprintf({buf}, {length} + 1, {fmt}{''.join(', ' + s for s in format_vars)});
             created array.
         """
         
-        from codegen.array_manager import DEFAULT_CAPACITY
-        
         array_type: Type = codegen.array_manager.define_array(type)
         
         arr: TempVar = codegen.create_temp_var(array_type, pos)
         i: TempVar = codegen.create_temp_var(Type('int'), pos)
         length: TempVar = codegen.create_temp_var(Type('int'), pos)
-        return f"""{array_type.c_type} {arr} = {{
-    .length = 0, .capacity = {DEFAULT_CAPACITY},
-    .elements = ({type.c_type}*)malloc(sizeof({type.c_type}) * {DEFAULT_CAPACITY})
-}};
-int {length} = {f"sizeof({value}) / sizeof({value}[0])" if size_expr is None else size_expr};
-if ({length} > 0) {{
-    for (int {i} = 0; {i} <= {length}; {i}++) {{
-        if ({arr}.length == {arr}.capacity) {{
-            {arr}.capacity *= 2;
-            {arr}.elements = ({type.c_type}*)realloc(
-                {arr}.elements, sizeof({type.c_type}) * {arr}.capacity
-            );
-        }}
-        
+        expr = f'sizeof({value}) / sizeof({value}[0])' if size_expr is None else size_expr
+        return f"""int {length} = {expr};
+{array_type.c_type} {arr} = {{ .length = 0, .capacity = 0, .elements = NULL }};
+if ({length} > 1) {{
+    {arr} = ({array_type.c_type}){{
+        .length = 0, .capacity = {length},
+        .elements = ({type.c_type}*)malloc(sizeof({type.c_type}) * {length})
+    }};
+    {self.buf_check(f'{arr}.elements')}
+    for (int {i} = 0; {i} < {length}; {i}++) {{
         {arr}.elements[{i}] = {value}[{i}];
         {arr}.length++;
     }}
@@ -432,7 +438,7 @@ if ({length} > 0) {{
                 func_name_override=f'{struct.c_type}_{name.name}'
             )
             def _(_, call_position: Position, obj: Object, n=name) -> Object:
-                return Object(f'(({n.type})(({obj}).{n.name}))', n.type, call_position)
+                return Object(f'(({n.type.c_type})(({obj}).{n.name}))', n.type, call_position)
     
     
     def __init__(self, codegen) -> None:
@@ -452,6 +458,19 @@ if ({length} > 0) {{
         self.init(codegen)
     
     def init(self, codegen) -> None:
+        from codegen.StringBuilder import StringBuilder
+        from codegen.strings import strings
+        from codegen.System import System
+        from codegen.Logger import Logger
+        from codegen.Math import Math
+        from codegen.Cure import Cure
+        self.add_objects(Math(self), self)
+        self.add_objects(Cure(self), self)
+        self.add_objects(Logger(self), self)
+        self.add_objects(System(self), self)
+        self.add_objects(strings(self), self)
+        self.add_objects(StringBuilder(self), self)
+        
         codegen.scope.env['Math'] = EnvItem('Math', Type('Math'), POS_ZERO)
         codegen.scope.env['System'] = EnvItem('System', Type('System'), POS_ZERO)
         codegen.scope.env['Time'] = EnvItem('Time', Type('Time'), POS_ZERO)
@@ -467,6 +486,7 @@ if ({length} > 0) {{
         codegen.scope.env['ONE_MILLION'] = EnvItem('ONE_MILLION', Type('int'), POS_ZERO)
         codegen.scope.env['ONE_THOUSAND'] = EnvItem('ONE_THOUSAND', Type('int'), POS_ZERO)
         codegen.scope.env['Cure'] = EnvItem('Cure', Type('Cure'), POS_ZERO)
+        codegen.scope.env['Timer'] = EnvItem('Timer', Type('Timer'), POS_ZERO)
         
         @c_dec(param_types=(Param('*', Type('*')),), can_user_call=True, add_to_class=self)
         def _print(codegen, call_position: Position, *args: Object) -> Object:
@@ -587,10 +607,10 @@ static char {char}[2];
             return char.OBJECT()
         
         @c_dec(param_types=(Param('value', Type('string')),), can_user_call=True, overloads={
-            ((Param('value', Type('int')),), Type('string')): char_int
+            OverloadKey(Type('string'), (Param('value', Type('int')),)): OverloadValue(char_int)
         }, add_to_class=self)
         def _get_char(codegen, call_position: Position, value: Object) -> Object:
-            slen = _string_length(codegen, call_position, value)
+            slen = codegen.c_manager._string_length(codegen, call_position, value)
             codegen.prepend_code(f"""if ({slen} > 1) {{
 {self.err('String is not a single character')}
 }}
@@ -606,7 +626,9 @@ static char {char}[2];
             return Object.NULL(call_position)
         
         @c_dec(param_types=(Param('condition', Type('bool')),), can_user_call=True, overloads={
-            ((Param('condition', Type('bool')), Param('err', Type('string'))), Type('nil')): assert_err
+            OverloadKey(
+                Type('nil'), (Param('condition', Type('bool')), Param('err', Type('string')))
+            ): OverloadValue(assert_err)
         }, add_to_class=self)
         def _assert(codegen, call_position: Position, value: Object) -> Object:
             codegen.prepend_code(f'if (!{value}) {{ {self.err("Assertion failed")} }}')
@@ -631,11 +653,13 @@ static char {char}[2];
                 Param('end', Type('int')),
                 Param('step', Type('int'), default=Object('1', Type('int'), POS_ZERO))
             ), can_user_call=True, add_to_class=self, overloads={
-                ((
+                OverloadKey(Type('array[int]', 'int_array'), (
                     Param('start', Type('int')),
-                    Param('end', Type('int'))), Type('array[int]', 'int_array')
-                ): _range_no_step,
-                ((Param('start', Type('int')),), Type('array[int]', 'int_array')): _range_no_start
+                    Param('end', Type('int')))
+                ): OverloadValue(_range_no_step),
+                OverloadKey(
+                    Type('array[int]', 'int_array'), (Param('start', Type('int')),)
+                ): OverloadValue(_range_no_start)
             }
         )
         def _range(codegen, call_position: Position, start: Object, end: Object,
@@ -652,6 +676,27 @@ static char {char}[2];
 """)
             
             return make_call
+        
+        @c_dec(
+            param_types=(Param('value', Type('string')),), can_user_call=True, add_to_class=self
+        )
+        def _print_literal(_, call_position: Position, value: Object) -> Object:
+            return Object(f'(printf({value}))', Type('int'), call_position)
+        
+        @c_dec(
+            param_types=(Param('value', Type('any')),), can_user_call=True, add_to_class=self,
+            generic_params=('T',), return_type=Type('optional_{T}')
+        )
+        def _optional(codegen, call_position: Position, value: Object, *, T: Type) -> Object:
+            if value.type != T and value.type != Type('nil'):
+                call_position.error_here('Invalid optional')
+            
+            if T == Type('nil'):
+                call_position.warn_here('Optional type of nil will always be nil')
+            
+            opt_t: Type = codegen.optional_manager.define_optional(T)
+            return codegen.call(f'{opt_t.c_type}_new', [Arg(value)], call_position)
+        
         
         @c_dec(is_method=True, is_static=True, add_to_class=self)
         def _int_type(_, call_position: Position) -> Object:
@@ -700,6 +745,10 @@ static char {char}[2];
         @c_dec(is_method=True, is_static=True, add_to_class=self)
         def _StringBuilder_type(_, call_position: Position) -> Object:
             return Object('"StringBuilder"', Type('string'), call_position)
+        
+        @c_dec(is_method=True, is_static=True, add_to_class=self)
+        def _Timer_type(_, call_position: Position) -> Object:
+            return Object('"Timer"', Type('string'), call_position)
         
         
         @c_dec(param_types=(Param('value', Type('int')),), is_method=True, add_to_class=self)
@@ -814,6 +863,16 @@ snprintf({temp_var}, 47, "%f", ({value}));
             codegen.prepend_code(code)
             return Object.STRINGBUF(buf_free, call_position)
         
+        @c_dec(param_types=(Param('value', Type('Timer')),), is_method=True, add_to_class=self)
+        def _Timer_to_string(codegen, call_position: Position, value: Object) -> Object:
+            code, buf_free = self.fmt_length(
+                codegen, call_position, '"Timer(is_running=%s)"',
+                f'({value}).is_running'
+            )
+            
+            codegen.prepend_code(code)
+            return Object.STRINGBUF(buf_free, call_position)
+        
         
         @c_dec(param_types=(Param('value', Type('int')),), is_method=True, add_to_class=self)
         def _int_to_float(_, call_position: Position, value: Object) -> Object:
@@ -877,33 +936,6 @@ strcat({buf_var}, {b});
             
             return Object.STRINGBUF(buf_free, call_position)
         
-        @c_dec(
-            param_types=(Param('a', Type('Fraction')), Param('b', Type('Fraction'))),
-            add_to_class=self
-        )
-        def _Fraction_add_Fraction(codegen, call_position: Position, a: Object, b: Object) -> Object:
-            f: TempVar = codegen.create_temp_var(Type('Fraction'), call_position)
-            codegen.prepend_code(f"""Fraction {f} = {{
-    .top = ({a}).top * ({b}).bottom + ({b}).top * ({a}).bottom,
-    .bottom = ({a}).bottom * ({b}).bottom
-}};
-""")
-            
-            return f.OBJECT()
-        
-        @c_dec(
-            param_types=(Param('a', Type('Vector2')), Param('b', Type('Vector2'))),
-            add_to_class=self
-        )
-        def _Vector2_add_Vector2(codegen, call_position: Position, a: Object, b: Object) -> Object:
-            vec: TempVar = codegen.create_temp_var(Type('Vector2'), call_position)
-            codegen.prepend_code(f"""Vector2 {vec} = {{
-    .x = ({a}).x + ({b}).x, .y = ({a}).y + ({b}).y
-}};
-""")
-            
-            return vec.OBJECT()
-        
         @c_dec(param_types=(Param('a', Type('int')), Param('b', Type('int'))), add_to_class=self)
         def _int_sub_int(_, call_position: Position, a: Object, b: Object) -> Object:
             return Object(f'(({a}) - ({b}))', Type('int'), call_position)
@@ -919,33 +951,6 @@ strcat({buf_var}, {b});
         @c_dec(param_types=(Param('a', Type('float')), Param('b', Type('float'))), add_to_class=self)
         def _float_sub_float(_, call_position: Position, a: Object, b: Object) -> Object:
             return Object(f'(({a}) - ({b}))', Type('float'), call_position)
-        
-        @c_dec(
-            param_types=(Param('a', Type('Fraction')), Param('b', Type('Fraction'))),
-            add_to_class=self
-        )
-        def _Fraction_sub_Fraction(codegen, call_position: Position, a: Object, b: Object) -> Object:
-            f: TempVar = codegen.create_temp_var(Type('Fraction'), call_position)
-            codegen.prepend_code(f"""Fraction {f} = {{
-    .top = ({a}).top * ({b}).bottom - ({a}).bottom * ({b}).top,
-    .bottom = ({b}).bottom * ({b}).bottom
-}};
-""")
-            
-            return f.OBJECT()
-        
-        @c_dec(
-            param_types=(Param('a', Type('Vector2')), Param('b', Type('Vector2'))),
-            add_to_class=self
-        )
-        def _Vector2_sub_Vector2(codegen, call_position: Position, a: Object, b: Object) -> Object:
-            vec: TempVar = codegen.create_temp_var(Type('Vector2'), call_position)
-            codegen.prepend_code(f"""Vector2 {vec} = {{
-    .x = ({a}).x - ({b}).x, .y = ({a}).y - ({b}).y
-}};
-""")
-            
-            return vec.OBJECT()
         
         @c_dec(param_types=(Param('a', Type('int')), Param('b', Type('int'))), add_to_class=self)
         def _int_mul_int(_, call_position: Position, a: Object, b: Object) -> Object:
@@ -963,32 +968,6 @@ strcat({buf_var}, {b});
         def _float_mul_float(_, call_position: Position, a: Object, b: Object) -> Object:
             return Object(f'(({a}) * ({b}))', Type('float'), call_position)
         
-        @c_dec(
-            param_types=(Param('a', Type('Fraction')), Param('b', Type('Fraction'))),
-            add_to_class=self
-        )
-        def _Fraction_mul_Fraction(codegen, call_position: Position, a: Object, b: Object) -> Object:
-            f: TempVar = codegen.create_temp_var(Type('Fraction'), call_position)
-            codegen.prepend_code(f"""Fraction {f} = {{
-    .top = ({a}).top * ({b}).top, .bottom = ({b}).bottom * ({a}).bottom
-}};
-""")
-            
-            return f.OBJECT()
-        
-        @c_dec(
-            param_types=(Param('a', Type('Vector2')), Param('b', Type('Vector2'))),
-            add_to_class=self
-        )
-        def _Vector2_mul_Vector2(codegen, call_position: Position, a: Object, b: Object) -> Object:
-            vec: TempVar = codegen.create_temp_var(Type('Vector2'), call_position)
-            codegen.prepend_code(f"""Vector2 {vec} = {{
-    .x = ({a}).x * ({b}).x, .y = ({b}).y * ({b}).y
-}};
-""")
-            
-            return vec.OBJECT()
-        
         @c_dec(param_types=(Param('a', Type('int')), Param('b', Type('int'))), add_to_class=self)
         def _int_div_int( _, call_position: Position, a: Object, b: Object) -> Object:
             return Object(f'((float)(({a}) / ({b})))', Type('float'), call_position)
@@ -1004,32 +983,6 @@ strcat({buf_var}, {b});
         @c_dec(param_types=(Param('a', Type('float')), Param('b', Type('float'))), add_to_class=self)
         def _float_div_float(_, call_position: Position, a: Object, b: Object) -> Object:
             return Object(f'(({a}) / ({b}))', Type('float'), call_position)
-        
-        @c_dec(
-            param_types=(Param('a', Type('Fraction')), Param('b', Type('Fraction'))),
-            add_to_class=self
-        )
-        def _Fraction_div_Fraction(codegen, call_position: Position, a: Object, b: Object) -> Object:
-            f: TempVar = codegen.create_temp_var(Type('Fraction'), call_position)
-            codegen.prepend_code(f"""Fraction {f} = {{
-    .top = ({a}).top * ({b}).bottom, .bottom = ({a}).bottom * ({b}).top
-}};
-""")
-            
-            return f.OBJECT()
-        
-        @c_dec(
-            param_types=(Param('a', Type('Vector2')), Param('b', Type('Vector2'))),
-            add_to_class=self
-        )
-        def _Vector2_div_Vector2(codegen, call_position: Position, a: Object, b: Object) -> Object:
-            vec: TempVar = codegen.create_temp_var(Type('Vector2'), call_position)
-            codegen.prepend_code(f"""Vector2 {vec} = {{
-    .x = ({a}).x / ({b}).x, .y = ({a}).y / ({b}).y
-}};
-""")
-            
-            return vec.OBJECT()
         
         @c_dec(param_types=(Param('a', Type('int')), Param('b', Type('int'))), add_to_class=self)
         def _int_mod_int(_, call_position: Position, a: Object, b: Object) -> Object:
@@ -1056,7 +1009,7 @@ strcat({buf_var}, {b});
             current_length: TempVar = codegen.create_temp_var(Type('int'), call_position)
             i: TempVar = codegen.create_temp_var(Type('int'), call_position)
             codegen.prepend_code(f"""int {current_length} = {
-    _string_length(codegen, call_position, b)
+    codegen.c_manager._string_length(codegen, call_position, b)
 };
 string {res} = (string)malloc({length} + 1);
 {codegen.c_manager.buf_check(res)}
@@ -1086,7 +1039,7 @@ if ({length} > 0) {{
             res: TempVar = codegen.create_temp_var(Type('string'), call_position, free=res_free)
             current_length: TempVar = codegen.create_temp_var(Type('int'), call_position)
             codegen.prepend_code(f"""int {current_length} = {
-    _string_length(codegen, call_position, a)
+    codegen.c_manager._string_length(codegen, call_position, a)
 };
 string {res} = (string)malloc({length} + 1);
 {codegen.c_manager.buf_check(res)}
@@ -1149,8 +1102,8 @@ if ({length} > 0) {{
         
         @c_dec(param_types=(Param('a', Type('string')), Param('b', Type('string'))), add_to_class=self)
         def _string_gt_string(codegen, call_position: Position, a: Object, b: Object) -> Object:
-            alen = _string_length(codegen, call_position, a)
-            blen = _string_length(codegen, call_position, b)
+            alen = codegen.c_manager._string_length(codegen, call_position, a)
+            blen = codegen.c_manager._string_length(codegen, call_position, b)
             return Object(f'({alen} > {blen})', Type('bool'), call_position)
         
         @c_dec(param_types=(Param('a', Type('int')), Param('b', Type('int'))), add_to_class=self)
@@ -1163,8 +1116,8 @@ if ({length} > 0) {{
 
         @c_dec(param_types=(Param('a', Type('string')), Param('b', Type('string'))), add_to_class=self)
         def _string_gte_string(codegen, call_position: Position, a: Object, b: Object) -> Object:
-            alen = _string_length(codegen, call_position, a)
-            blen = _string_length(codegen, call_position, b)
+            alen = codegen.c_manager._string_length(codegen, call_position, a)
+            blen = codegen.c_manager._string_length(codegen, call_position, b)
             return Object(f'({alen} >= {blen})', Type('bool'), call_position)
         
         @c_dec(param_types=(Param('a', Type('int')), Param('b', Type('int'))), add_to_class=self)
@@ -1177,8 +1130,8 @@ if ({length} > 0) {{
         
         @c_dec(param_types=(Param('a', Type('string')), Param('b', Type('string'))), add_to_class=self)
         def _string_lt_string(codegen, call_position: Position, a: Object, b: Object) -> Object:
-            alen = _string_length(codegen, call_position, a)
-            blen = _string_length(codegen, call_position, b)
+            alen = codegen.c_manager._string_length(codegen, call_position, a)
+            blen = codegen.c_manager._string_length(codegen, call_position, b)
             return Object(f'({alen} < {blen})', Type('bool'), call_position)
         
         @c_dec(param_types=(Param('a', Type('int')), Param('b', Type('int'))), add_to_class=self)
@@ -1191,8 +1144,8 @@ if ({length} > 0) {{
         
         @c_dec(param_types=(Param('a', Type('string')), Param('b', Type('string'))), add_to_class=self)
         def _string_lte_string(codegen, call_position: Position, a: Object, b: Object) -> Object:
-            alen = _string_length(codegen, call_position, a)
-            blen = _string_length(codegen, call_position, b)
+            alen = codegen.c_manager._string_length(codegen, call_position, a)
+            blen = codegen.c_manager._string_length(codegen, call_position, b)
             return Object(f'({alen} <= {blen})', Type('bool'), call_position)
         
         @c_dec(param_types=(Param('a', Type('bool')), Param('b', Type('bool'))), add_to_class=self)
@@ -1228,14 +1181,14 @@ if ({length} > 0) {{
         def _int_humanize_size(codegen, call_position: Position, i: Object) -> Object:
             mag: TempVar = codegen.create_temp_var(Type('int'), call_position)
             x: TempVar = codegen.create_temp_var(Type('int'), call_position)
-            abs_call: Object = _Math_abs(codegen, call_position, x.OBJECT())
+            abs_call: Object = codegen.c_manager._Math_abs(codegen, call_position, x.OBJECT())
             
             if 'sizeNames' not in self.RESERVED_NAMES:
                 codegen.add_toplevel_code("""const string sizeNames[] = {
     "B", "KB", "MB", "GB", "TB", "PB"
 };
 """)
-                self.RESERVED_NAMES.append('sizeNames')
+                self.reserve('sizeNames')
 
             code, buf_free = self.fmt_length(codegen, call_position, '"%.4f%s"', str(x),
                                             f'sizeNames[{mag}]')
@@ -1287,1179 +1240,103 @@ double {significand} = {num} / pow(10.0, {exponent});
         @c_dec(
             param_types=(
                 Param('f', Type('float')),
-                Param('precision', Type('int'), default=Object('5', Type('int'), POS_ZERO))
+                Param('precision', Type('int'), default=Object('5', Type('int')))
             ),
             is_method=True, add_to_class=self
         )
         def _float_science(codegen, call_position: Position, f: Object, precision: Object) -> Object:
             return _int_science(codegen, call_position, f, precision)
         
-        @c_dec(param_types=(Param('s', Type('string')),), is_property=True, add_to_class=self)
-        def _string_length(codegen, call_position: Position, s: Object) -> Object:
-            self.include('<string.h>', codegen)
-            return Object(f'((int)strlen({s}))', Type('int'), call_position)
         
-        @c_dec(param_types=(Param('s', Type('string')),), is_property=True, add_to_class=self)
-        def _string_is_empty(codegen, call_position: Position, s: Object) -> Object:
-            return Object(
-                f'({_string_length(codegen, call_position, s)} == 0)',
-                Type('bool'), call_position
-            )
+        self.wrap_struct_properties('timer', Type('Timer'), [
+            Param('is_running', Type('bool'))
+        ])
         
-        @c_dec(param_types=(Param('s', Type('string')),), is_property=True, add_to_class=self)
-        def _string_is_char(codegen, call_position: Position, s: Object) -> Object:
-            return Object(
-                f'({_string_length(codegen, call_position, s)} == 1)',
-                Type('bool'), call_position
-            )
+        def elapsed_ns(codegen, call_position: Position, timer: Object):
+            elapsed: TempVar = codegen.create_temp_var(Type('LARGE_INTEGER'), call_position)
+            res: TempVar = codegen.create_temp_var(Type('float'), call_position)
+            return f"""#if OS_WINDOWS
+    LARGE_INTEGER {elapsed};
+    {elapsed}.QuadPart = ({timer}).end.QuadPart - ({timer}).start.QuadPart;
+    float {res} = {elapsed}.QuadPart * 1e9 / ({timer}).frequency.QuadPart;
+#elif OS_LINUX
+    float {res} = (float)((({timer}).end.tv_sec - ({timer}).start.tv_sec) * 1e9 +
+        (({timer}).end.tv_sec - ({timer}).end.tv_nsec - ({timer}).start.tv_nsec));
+#else
+{self.symbol_not_supported('Timer.elapsed_ns')}
+#endif
+""", res
         
-        @c_dec(param_types=(Param('s', Type('string')),), is_property=True, add_to_class=self)
-        def _string_is_digit(codegen, call_position: Position, s: Object) -> Object:
-            self.include('<string.h>', codegen)
-            self.include('<ctype.h>', codegen)
-            
-            i: TempVar = codegen.create_temp_var(Type('int'), call_position)
-            res: TempVar = codegen.create_temp_var(Type('bool'), call_position)
-            codegen.prepend_code(f"""bool {res} = true;
-for (int {i} = 0; {i} < {_string_length(codegen, call_position, s)}; {i}++) {{
-    if (!isdigit(({s})[{i}])) {{
-        {res} = false;
-        break;
-    }}
-}}
-""")
-            
-            return res.OBJECT()
-        
-        @c_dec(param_types=(Param('s', Type('string')),), is_property=True, add_to_class=self)
-        def _string_is_lower(codegen, call_position: Position, s: Object) -> Object:
-            self.include('<string.h>', codegen)
-            self.include('<ctype.h>', codegen)
-            
-            i: TempVar = codegen.create_temp_var(Type('int'), call_position)
-            res: TempVar = codegen.create_temp_var(Type('bool'), call_position)
-            codegen.prepend_code(f"""bool {res} = true;
-for (int {i} = 0; {i} < {_string_length(codegen, call_position, s)}; {i}++) {{
-    if (!islower(({s})[{i}])) {{
-        {res} = false;
-        break;
-    }}
-}}
-""")
-            
-            return res.OBJECT()
-        
-        @c_dec(param_types=(Param('s', Type('string')),), is_property=True, add_to_class=self)
-        def _string_is_upper(codegen, call_position: Position, s: Object) -> Object:
-            self.include('<string.h>', codegen)
-            self.include('<ctype.h>', codegen)
-
-            i: TempVar = codegen.create_temp_var(Type('int'), call_position)
-            res: TempVar = codegen.create_temp_var(Type('bool'), call_position)
-            codegen.prepend_code(f"""bool {res} = true;
-for (int {i} = 0; {i} < {_string_length(codegen, call_position, s)}; {i}++) {{
-    if (!isupper(({s})[{i}])) {{
-        {res} = false;
-        break;
-    }}
-}}
-""")
-            
-            return res.OBJECT()
-        
-        @c_dec(param_types=(Param('s', Type('string')),), is_method=True, add_to_class=self)
-        def _string_lower(codegen, call_position: Position, s: Object) -> Object:
-            self.include('<string.h>', codegen)
-            self.include('<ctype.h>', codegen)
-            
-            strlen = _string_length(codegen, call_position, s)
-            
-            temp_free = Free()
-            temp_var: TempVar = codegen.create_temp_var(Type('string'), call_position, free=temp_free)
-            i: TempVar = codegen.create_temp_var(Type('int'), call_position)
-            codegen.prepend_code(f"""string {temp_var} = (string)malloc({strlen} + 1);
-{codegen.c_manager.buf_check(temp_var)}
-for (size_t {i} = 0; {i} < {strlen}; {i}++)
-    {temp_var}[{i}] = tolower({s}[{i}]);
-{temp_var}[{strlen}] = '\\0';
-""")
-            
-            return Object.STRINGBUF(temp_free, call_position)
-        
-        @c_dec(param_types=(Param('s', Type('string')),), is_method=True, add_to_class=self)
-        def _string_upper(codegen, call_position: Position, s: Object) -> Object:
-            self.include('<string.h>', codegen)
-            self.include('<ctype.h>', codegen)
-
-            strlen = _string_length(codegen, call_position, s)
-
-            temp_free = Free()
-            temp_var: TempVar = codegen.create_temp_var(Type('string'), call_position, free=temp_free)
-            i: TempVar = codegen.create_temp_var(Type('int'), call_position)
-            codegen.prepend_code(f"""string {temp_var} = (string)malloc({strlen} + 1);
-{codegen.c_manager.buf_check(temp_var)}
-for (size_t {i} = 0; {i} < {strlen}; {i}++)
-    {temp_var}[{i}] = toupper({s}[{i}]);
-{temp_var}[{strlen}] = '\\0';
-""")
-
-            return Object.STRINGBUF(temp_free, call_position)
-        
-        @c_dec(param_types=(Param('s', Type('string')),), is_method=True, add_to_class=self)
-        def _string_title(codegen, call_position: Position, s: Object) -> Object:
-            self.include('<string.h>', codegen)
-            self.include('<ctype.h>', codegen)
-            
-            temp_free = Free()
-            temp_var: TempVar = codegen.create_temp_var(Type('string'), call_position, free=temp_free)
-            lv: TempVar = codegen.create_temp_var(Type('string'), call_position)
-            codegen.prepend_code(f"""string {temp_var} = strdup({s});
-{codegen.c_manager.buf_check(temp_var)}
-for (string {lv} = {temp_var}; *{lv} != '\\0'; ++{lv})
-    *{lv} = ({lv} == {temp_var} || *({lv} - 1) == ' ') ? toupper(*{lv}) : tolower(*{lv});
-""")
-            
-            return Object.STRINGBUF(temp_free, call_position)
-        
-        @c_dec(
-            param_types=(Param('s', Type('string')), Param('prefix', Type('string'))),
-            is_method=True, add_to_class=self
-        )
-        def _string_startswith(codegen, call_position: Position, s: Object, prefix: Object) -> Object:
-            self.include('<string.h>', codegen)
-
-            return Object(
-                f'(strncmp({s}, {prefix}, {_string_length(codegen, call_position, prefix)}) == 0)',
-                Type('bool'), call_position
-            )
-        
-        @c_dec(
-            param_types=(Param('s', Type('string')), Param('suffix', Type('string'))),
-            is_method=True, add_to_class=self
-        )
-        def _string_endswith(codegen, call_position: Position, s: Object, suffix: Object) -> Object:
-            self.include('<string.h>', codegen)
-            
-            su = str(suffix)
-            slen: TempVar = codegen.create_temp_var(Type('int'), call_position)
-            suffix_len: TempVar = _string_length(codegen, call_position, suffix)
-            sulen: TempVar = codegen.create_temp_var(Type('int'), call_position)
-            codegen.prepend_code(f"""size_t {slen} = {_string_length(codegen, call_position, s)};
-size_t {sulen} = {suffix_len};
-""")
-            return Object(
-                f"""({slen} < {sulen} ? false : (strncmp(
-                    ({s}) + {slen} - {sulen}, {su}, {sulen}) == 0)
-                )""",
-                Type('bool'), call_position
-            )
-        
-        @c_dec(
-            param_types=(Param('s', Type('string')), Param('index', Type('int'))),
-            is_method=True, add_to_class=self
-        )
-        def _string_at(codegen, call_position: Position, s: Object, index: Object) -> Object:
-            self.include('<string.h>', codegen)
-            
-            strlen = _string_length(codegen, call_position, s)
-            temp_var: TempVar = codegen.create_temp_var(Type('string'), call_position)
-            codegen.prepend_code(f"""if (({index}) > {strlen} - 1) {{
-    {self.err('Index out of bounds on string')}
-}}
-static char {temp_var}[2];
-{temp_var}[0] = ({s})[{index}];
-{temp_var}[1] = '\\0';
-""")
-            
-            return temp_var.OBJECT()
-        
-        @c_dec(
-            param_types=(Param('s', Type('string')), Param('substr', Type('string'))),
-            is_method=True, add_to_class=self
-        )
-        def _string_has(codegen, call_position: Position, s: Object, substr: Object) -> Object:
-            self.include('<string.h>', codegen)
-            return Object(
-                f'(strstr({s}, {substr}) != NULL)',
-                Type('bool'), call_position
-            )
-        
-        @c_dec(
-            param_types=(Param('s', Type('string')), Param('arr', Type('array[string]', 'string_array'))),
-            is_method=True, add_to_class=self
-        )
-        def _string_join(codegen, call_position: Position, s: Object, arr: Object) -> Object:
-            self.include('<string.h>', codegen)
-            
-            tlen: TempVar = codegen.create_temp_var(Type('int'), call_position)
-            sep_len: TempVar = codegen.create_temp_var(Type('int'), call_position)
-            res_free = Free()
-            res: TempVar = codegen.create_temp_var(Type('string'), call_position, free=res_free)
-            count: TempVar = codegen.create_temp_var(Type('int'), call_position)
-            i: TempVar = codegen.create_temp_var(Type('int'), call_position)
-            a = f'({arr})'
-            codegen.prepend_code(f"""size_t {tlen} = 0;
-size_t {sep_len} = {_string_length(codegen, call_position, s)};
-int {count} = 0;
-for (int {i} = 0; {i} < {a}.length; {i}++) {{
-    {tlen} += {_string_length(
-    codegen, call_position, Object(f'{a}.elements[{i}]', Type('string'), call_position)
-)};
-    if ({i} > 0) {{
-        {tlen} += {sep_len};
-    }}
-    {count}++;
-}}
-
-string {res} = (string)malloc({tlen} + 1);
-{codegen.c_manager.buf_check(res)}
-{res}[0] = '\\0';
-for (int {i} = 0; {i} < {a}.length; {i}++) {{
-    if ({i} > 0) {{
-        strcat({res}, {s});
-    }}
-    strcat({res}, {a}.elements[{i}]);
-}}
-""")
-            
-            return Object.STRINGBUF(res_free, call_position)
-        
-        @c_dec(param_types=(Param('s', Type('string')),), is_method=True, add_to_class=self)
-        def _string_parse_int(codegen, call_position: Position, s: Object) -> Object:
-            return _string_to_int(codegen, call_position, s)
-        
-        @c_dec(param_types=(Param('s', Type('string')),), is_method=True, add_to_class=self)
-        def _string_parse_float(codegen, call_position: Position, s: Object) -> Object:
-            return _string_to_float(codegen, call_position, s)
-        
-        @c_dec(param_types=(Param('s', Type('string')),), is_method=True, add_to_class=self)
-        def _string_parse_bool(codegen, call_position: Position, string: Object) -> Object:
-            return _string_to_bool(codegen, call_position, string)
-        
-        @c_dec(
-            param_types=(Param('s', Type('string')), Param('substr', Type('string'))),
-            is_method=True, add_to_class=self
-        )
-        def _string_find(codegen, call_position: Position, s: Object, substring: Object) -> Object:
-            self.include('<string.h>', codegen)
-            idx: TempVar = codegen.create_temp_var(Type('int'), call_position)
-            i: TempVar = codegen.create_temp_var(Type('int'), call_position)
-            codegen.prepend_code(f"""int {idx} = -1;
-for (size_t {i} = 0; {i} < {_string_length(codegen, call_position, s)}; {i}++) {{
-    if (strncmp(
-        {s} + {i},
-        {substring},
-        {_string_length(codegen, call_position, substring)}
-    ) == 0) {{
-        {idx} = {i};
-        break;
-    }}
-}}
-""")
-            
-            return idx.OBJECT()
-        
-        @c_dec(
-            param_types=(
-                Param('s', Type('string')), Param('start', Type('int')), Param('end', Type('int'))
-            ), is_method=True, add_to_class=self
-        )
-        def _string_slice(codegen, call_position: Position, s: Object, start: Object,
-                          end: Object) -> Object:
-            self.include('<string.h>', codegen)
-            buf_free = Free()
-            buf: TempVar = codegen.create_temp_var(Type('string'), call_position, free=buf_free)
-            start_var: TempVar = codegen.create_temp_var(Type('int'), call_position)
-            end_var: TempVar = codegen.create_temp_var(Type('int'), call_position)
-            codegen.prepend_code(f"""string {buf} = NULL;
-int {start_var} = {start};
-int {end_var} = {end};
-if ({start_var} < 0 || {end_var} < 0) {{
-    {self.err('Index out of bounds on string slice')}
-}} else if ({start_var} > {end_var}) {{
-    {self.err('Start index must be less than end index')}
-}}
-
-{buf} = (string)malloc({end_var} - {start_var} + 1);
-{self.buf_check(str(buf))}
-strncpy({buf}, ({s}) + {start_var}, {end_var} - {start_var} + 1);
-{buf}[{end_var} - {start_var} + 1] = '\\0';
-""")
-            
-            return Object.STRINGBUF(buf_free, call_position)
-        
-        @c_dec(
-            param_types=(Param('s', Type('string')), Param('*', Type('*'))),
-            is_method=True, add_to_class=self
-        )
-        def _string_format(codegen, call_position: Position, s: Object, *args: Object) -> Object:
-            code, buf_free = self.fmt_length(
-                codegen, call_position, str(s),
-                *[str(arg) for arg in args]
-            )
-            
+        @c_dec(param_types=(Param('timer', Type('Timer')),), is_property=True, add_to_class=self)
+        def _Timer_elapsed_ns(codegen, call_position: Position, timer: Object) -> Object:
+            code, res = elapsed_ns(codegen, call_position, timer)
             codegen.prepend_code(code)
-            return Object.STRINGBUF(buf_free, call_position)
-        
-        @c_dec(
-            param_types=(Param('s', Type('string')), Param('i', Type('int'))),
-            return_type=Type('string'), add_to_class=self
-        )
-        def _iter_string(codegen, call_position: Position, string: Object, i: Object) -> Object:
-            self.include('<string.h>', codegen)
-            return _string_at(codegen, call_position, string, i)
-        
-        @c_dec(param_types=(Param('s', Type('string')), Param('i', Type('int'))), add_to_class=self)
-        def _index_string(codegen, call_position: Position, string: Object, i: Object) -> Object:
-            self.include('<string.h>', codegen)
-            return _string_at(codegen, call_position, string, i)
-        
-        
-        @c_dec(is_property=True, is_static=True, add_to_class=self)
-        def _Math_pi(_, call_position: Position) -> Object:
-            return Object('3.14159265358979323846f', Type('float'), call_position)
-        
-        @c_dec(is_property=True, is_static=True, add_to_class=self)
-        def _Math_e(_, call_position: Position) -> Object:
-            return Object('2.7182818284590452354f', Type('float'), call_position)
-        
-        @c_dec(is_property=True, is_static=True, add_to_class=self)
-        def _Math_tau(_, call_position: Position) -> Object:
-            return Object('6.28318530717958647692f', Type('float'), call_position)
-        
-        @c_dec(is_property=True, is_static=True, add_to_class=self)
-        def _Math_phi(_, call_position: Position) -> Object:
-            return Object('1.61803398874989484820f', Type('float'), call_position)
-        
-        def Math_absint(_, call_position: Position, x: Object) -> Object:
-            return Object(f'(abs({x}))', Type('int'), call_position)
-        
-        @c_dec(param_types=(Param('x', Type('float')),), is_method=True, is_static=True, overloads={
-            ((Param('x', Type('int')),), Type('int')): Math_absint
-        }, add_to_class=self)
-        def _Math_abs(codegen, call_position: Position, x: Object) -> Object:
-            self.include('<math.h>', codegen)
-            return Object(f'((float)fabsf({x}))', Type('float'), call_position)
-        
-        def rand_start0(codegen, call_position: Position, max: Object) -> Object:
-            return _Math_random(codegen, call_position, Object('0', Type('int'), call_position), max)
-        
-        @c_dec(
-            param_types=(Param('min', Type('int')), Param('max', Type('int'))),
-            is_method=True, is_static=True, add_to_class=self, overloads={
-                ((Param('max', Type('int')),), Type('int')): rand_start0
-            }
-        )
-        def _Math_random(codegen, call_position: Position, min: Object, max: Object) -> Object:
-            low_num: TempVar = codegen.create_temp_var(Type('int'), call_position)
-            hi_num: TempVar = codegen.create_temp_var(Type('int'), call_position)
-            codegen.prepend_code(f"""int {low_num} = 0, {hi_num} = 0;
-if (({min}) < ({max})) {{
-{low_num} = {min};
-{hi_num} = {max};
-}} else {{
-{low_num} = {max};
-{hi_num} = {min};
-}}
-""")
-            return Object(
-                f'((rand() % ({hi_num} - {low_num})) + {low_num})',
-                Type('int'), call_position
-            )
-        
-        @c_dec(
-            param_types=(Param('x', Type('float')),), is_method=True, is_static=True,
-            overloads={((Param('x', Type('int')),), Type('float')): None}, add_to_class=self
-        )
-        def _Math_sin(codegen, call_position: Position, x: Object) -> Object:
-            self.include('<math.h>', codegen)
-            return Object(f'(sinf({x}))', Type('float'), call_position)
-        
-        @c_dec(
-            param_types=(Param('x', Type('float')),), is_method=True, is_static=True,
-            overloads={((Param('x', Type('int')),), Type('float')): None}, add_to_class=self
-        )
-        def _Math_cos(codegen, call_position: Position, x: Object) -> Object:
-            self.include('<math.h>', codegen)
-            return Object(f'((float)cosf({x}))', Type('float'), call_position)
-        
-        @c_dec(
-            param_types=(Param('x', Type('float')),), is_method=True, is_static=True,
-            overloads={((Param('x', Type('int')),), Type('float')): None}, add_to_class=self
-        )
-        def _Math_tan(codegen, call_position: Position, x: Object) -> Object:
-            self.include('<math.h>', codegen)
-            return Object(f'((float)tanf({x}))', Type('float'), call_position)
-        
-        @c_dec(
-            param_types=(Param('x', Type('float')),), is_method=True, is_static=True,
-            overloads={((Param('x', Type('int')),), Type('float')): None}, add_to_class=self
-        )
-        def _Math_asin(codegen, call_position: Position, x: Object) -> Object:
-            self.include('<math.h>', codegen)
-            return Object(f'((float)asinf({x}))', Type('float'), call_position)
-
-        @c_dec(
-            param_types=(Param('x', Type('float')),), is_method=True, is_static=True,
-            overloads={((Param('x', Type('int')),), Type('float')): None}, add_to_class=self
-        )
-        def _Math_acos(codegen, call_position: Position, x: Object) -> Object:
-            self.include('<math.h>', codegen)
-            return Object(f'((float)acosf({x}))', Type('float'), call_position)
-
-        @c_dec(
-            param_types=(Param('x', Type('float')),), is_method=True, is_static=True,
-            overloads={((Param('x', Type('int')),), Type('float')): None}, add_to_class=self
-        )
-        def _Math_atan(codegen, call_position: Position, x: Object) -> Object:
-            self.include('<math.h>', codegen)
-            return Object(f'((float)atanf({x}))', Type('float'), call_position)
-        
-        @c_dec(
-            param_types=(Param('y', Type('float')), Param('x', Type('float'))),
-            is_method=True, is_static=True, add_to_class=self,
-            overloads={
-                ((Param('y', Type('int')), Param('x', Type('int'))), Type('float')): None,
-                ((Param('y', Type('int')), Param('x', Type('float'))), Type('float')): None,
-                ((Param('y', Type('float')), Param('x', Type('int'))), Type('float')): None
-            }
-        )
-        def _Math_atan2(codegen, call_position: Position, y: Object, x: Object) -> Object:
-            self.include('<math.h>', codegen)
-            return Object(f'((float)atan2f({y}, {x}))', Type('float'), call_position)
-        
-        @c_dec(
-            param_types=(Param('x', Type('float')),), is_method=True, is_static=True,
-            overloads={((Param('x', Type('int')),), Type('float')): None}, add_to_class=self
-        )
-        def _Math_sqrt(codegen, call_position: Position, x: Object) -> Object:
-            self.include('<math.h>', codegen)
-            return Object(f'((float)sqrtf({x}))', Type('float'), call_position)
-        
-        @c_dec(
-            param_types=(Param('x', Type('float')), Param('n', Type('float'))),
-            is_method=True, is_static=True, add_to_class=self,
-            overloads={
-                ((Param('x', Type('int')), Param('n', Type('int'))), Type('float')): None,
-                ((Param('x', Type('int')), Param('n', Type('float'))), Type('float')): None,
-                ((Param('x', Type('float')), Param('n', Type('int'))), Type('float')): None
-            }
-        )
-        def _Math_nth_root(codegen, call_position: Position, x: Object, n: Object) -> Object:
-            self.include('<math.h>', codegen)
-            return Object(f'((float)powf({x}, 1.0f / ({n})))', Type('float'), call_position)
-        
-        @c_dec(
-            param_types=(Param('x', Type('float')), Param('y', Type('float'))),
-            is_method=True, is_static=True, add_to_class=self,
-            overloads={
-                ((Param('x', Type('int')), Param('y', Type('int'))), Type('float')): None,
-                ((Param('x', Type('int')), Param('y', Type('float'))), Type('float')): None,
-                ((Param('x', Type('float')), Param('y', Type('int'))), Type('float')): None
-            }
-        )
-        def _Math_pow(codegen, call_position: Position, x: Object, y: Object) -> Object:
-            self.include('<math.h>', codegen)
-            return Object(f'((float)powf({x}, {y}))', Type('float'), call_position)
-        
-        @c_dec(
-            param_types=(Param('x', Type('float')),), is_method=True, is_static=True,
-            overloads={((Param('x', Type('int')),), Type('float')): None}, add_to_class=self
-        )
-        def _Math_log(codegen, call_position: Position, x: Object) -> Object:
-            self.include('<math.h>', codegen)
-            return Object(f'((float)logf({x}))', Type('float'), call_position)
-
-        @c_dec(
-            param_types=(Param('x', Type('float')),), is_method=True, is_static=True,
-            overloads={((Param('x', Type('int')),), Type('float')): None}, add_to_class=self
-        )
-        def _Math_log10(codegen, call_position: Position, x: Object) -> Object:
-            self.include('<math.h>', codegen)
-            return Object(f'((float)log10f({x}))', Type('float'), call_position)
-        
-        @c_dec(
-            param_types=(Param('x', Type('float')),), is_method=True, is_static=True,
-            overloads={((Param('x', Type('int')),), Type('float')): None}, add_to_class=self
-        )
-        def _Math_log2(codegen, call_position: Position, x: Object) -> Object:
-            self.include('<math.h>', codegen)
-            return Object(f'((float)log2f({x}))', Type('float'), call_position)
-
-        @c_dec(
-            param_types=(Param('x', Type('float')),), is_method=True, is_static=True,
-            overloads={((Param('x', Type('int')),), Type('float')): None}, add_to_class=self
-        )
-        def _Math_exp(codegen, call_position: Position, x: Object) -> Object:
-            self.include('<math.h>', codegen)
-            return Object(f'((float)expf({x}))', Type('float'), call_position)
-        
-        @c_dec(
-            param_types=(Param('x', Type('float')),),
-            is_method=True, is_static=True, add_to_class=self
-        )
-        def _Math_ceil(codegen, call_position: Position, x: Object) -> Object:
-            self.include('<math.h>', codegen)
-            return Object(f'((int)ceilf({x}))', Type('int'), call_position)
-        
-        @c_dec(
-            param_types=(Param('x', Type('float')),),
-            is_method=True, is_static=True, add_to_class=self
-        )
-        def _Math_floor(codegen, call_position: Position, x: Object) -> Object:
-            self.include('<math.h>', codegen)
-            return Object(f'((int)floorf({x}))', Type('int'), call_position)
-        
-        @c_dec(
-            param_types=(Param('x', Type('float')),),
-            is_method=True, is_static=True, add_to_class=self
-        )
-        def _Math_round(codegen, call_position: Position, x: Object) -> Object:
-            self.include('<math.h>', codegen)
-            return Object(f'((int)roundf({x}))', Type('int'), call_position)
-        
-        @c_dec(
-            param_types=(Param('x', Type('float')), Param('y', Type('float'))),
-            is_method=True, is_static=True, add_to_class=self,
-            overloads={
-                ((Param('x', Type('int')), Param('y', Type('int'))), Type('int')): None,
-                ((Param('x', Type('int')), Param('y', Type('float'))), Type('float')): None,
-                ((Param('x', Type('float')), Param('y', Type('int'))), Type('float')): None
-            }
-        )
-        def _Math_min(codegen, call_position: Position, x: Object, y: Object) -> Object:
-            self.include('<math.h>', codegen)
-            return Object(
-                f'(({x}) < ({y}) ? ({x}) : ({y}))',
-                Type('int') if x.type == Type('int') and y.type == Type('int') else Type('float'),
-                call_position
-            )
-        
-        @c_dec(
-            param_types=(Param('x', Type('float')), Param('y', Type('float'))),
-            is_method=True, is_static=True, add_to_class=self,
-            overloads={
-                ((Param('x', Type('int')), Param('y', Type('int'))), Type('int')): None,
-                ((Param('x', Type('int')), Param('y', Type('float'))), Type('float')): None,
-                ((Param('x', Type('float')), Param('y', Type('int'))), Type('float')): None
-            }
-        )
-        def _Math_max(codegen, call_position: Position, x: Object, y: Object) -> Object:
-            self.include('<math.h>', codegen)
-            return Object(
-                f'(({x}) < ({y}) ? ({y}) : ({x}))',
-                Type('int') if x.type == Type('int') and y.type == Type('int') else Type('float'),
-                call_position
-            )
-        
-        @c_dec(
-            param_types=(Param('deg', Type('float')),), is_method=True, is_static=True,
-            overloads={((Param('deg', Type('int')),), Type('float')): None}, add_to_class=self
-        )
-        def _Math_rad(codegen, call_position: Position, deg: Object) -> Object:
-            self.include('<math.h>', codegen)
-            pi = _Math_pi(codegen, call_position)
-            return Object(f'((float)({deg}) * {pi} / 180.0f)', Type('float'), call_position)
-        
-        @c_dec(
-            param_types=(Param('rad', Type('float')),), is_method=True, is_static=True,
-            overloads={((Param('rad', Type('int')),), Type('float')): None}, add_to_class=self
-        )
-        def _Math_deg(codegen, call_position: Position, rad: Object) -> Object:
-            self.include('<math.h>', codegen)
-            pi = _Math_pi(codegen, call_position)
-            return Object(f'((float)({rad}) * 180.0f / {pi})', Type('float'), call_position)
-        
-        @c_dec(
-            param_types=(Param('x', Type('float')),), is_method=True, is_static=True,
-            overloads={((Param('x', Type('int')),), Type('float')): None}, add_to_class=self
-        )
-        def _Math_sinh(codegen, call_position: Position, x: Object) -> Object:
-            self.include('<math.h>', codegen)
-            return Object(f'((float)sinh({x}))', Type('float'), call_position)
-        
-        @c_dec(
-            param_types=(Param('x', Type('float')),), is_method=True, is_static=True,
-            overloads={((Param('x', Type('int')),), Type('float')): None}, add_to_class=self
-        )
-        def _Math_cosh(codegen, call_position: Position, x: Object) -> Object:
-            self.include('<math.h>', codegen)
-            return Object(f'((float)cosh({x}))', Type('float'), call_position)
-        
-        @c_dec(
-            param_types=(Param('x', Type('float')),), is_method=True, is_static=True,
-            overloads={((Param('x', Type('int')),), Type('float')): None}, add_to_class=self
-        )
-        def _Math_tanh(codegen, call_position: Position, x: Object) -> Object:
-            self.include('<math.h>', codegen)
-            return Object(f'((float)tanh({x}))', Type('float'), call_position)
-        
-        @c_dec(
-            param_types=(Param('x', Type('float')), Param('y', Type('float'))),
-            is_method=True, is_static=True, add_to_class=self,
-            overloads={
-                ((Param('x', Type('int')), Param('y', Type('int'))), Type('float')): None,
-                ((Param('x', Type('int')), Param('y', Type('float'))), Type('float')): None,
-                ((Param('x', Type('float')), Param('y', Type('int'))), Type('float')): None
-            }
-        )
-        def _Math_copysign(codegen, call_position: Position, x: Object, y: Object) -> Object:
-            self.include('<math.h>', codegen)
-            return Object(f'((float)copysignf({x}, {y}))', Type('float'), call_position)
-        
-        @c_dec(
-            param_types=(Param('top', Type('int')), Param('bottom', Type('int'))),
-            is_method=True, is_static=True, add_to_class=self
-        )
-        def _Math_fraction(codegen, call_position: Position, top: Object, bottom: Object) -> Object:
-            f: TempVar = codegen.create_temp_var(Type('Fraction'), call_position)
-            codegen.prepend_code(f'Fraction {f} = {{ .top = {top}, .bottom = {bottom} }};')
-            return f.OBJECT()
-        
-        @c_dec(
-            param_types=(Param('a', Type('int')), Param('b', Type('int'))),
-            is_method=True, is_static=True, add_to_class=self
-        )
-        def _Math_gcd(codegen, call_position: Position, a: Object, b: Object) -> Object:
-            res: TempVar = codegen.create_temp_var(Type('int'), call_position)
-            codegen.prepend_code(f"""int {res} = {_Math_min(codegen, call_position, a, b)};
-while ({res} > 0) {{
-    if (({a}) % {res} == 0 && ({b}) % {res} == 0)
-        break;
-    {res}--;
-}}
-""")
-            
             return res.OBJECT()
         
-        @c_dec(
-            param_types=(Param('a', Type('int')), Param('b', Type('int'))),
-            is_method=True, is_static=True, add_to_class=self
-        )
-        def _Math_lcm(codegen, call_position: Position, a: Object, b: Object) -> Object:
-            return Object(
-                f'(({a}) * ({b}) / {_Math_gcd(codegen, call_position, a, b)})',
-                Type('int'), call_position
+        @c_dec(param_types=(Param('timer', Type('Timer')),), is_property=True, add_to_class=self)
+        def _Timer_elapsed_us(codegen, call_position: Position, timer: Object) -> Object:
+            return _float_div_float(codegen, call_position,
+                _Timer_elapsed_ns(codegen, call_position, timer),
+                Object('1e3', Type('float'), call_position)
             )
         
-        @c_dec(
-            param_types=(Param('x', Type('float')), Param('y', Type('float'))),
-            is_method=True, is_static=True, add_to_class=self
-        )
-        def _Math_vec2(codegen, call_position: Position, x: Object, y: Object) -> Object:
-            vec: TempVar = codegen.create_temp_var(Type('Vector2'), call_position)
-            codegen.prepend_code(f"""Vector2 {vec} = {{ .x = {x}, .y = {y} }};
-""")
-            
-            return vec.OBJECT()
+        @c_dec(param_types=(Param('timer', Type('Timer')),), is_property=True, add_to_class=self)
+        def _Timer_elapsed_ms(codegen, call_position: Position, timer: Object) -> Object:
+            return _float_div_float(codegen, call_position,
+                _Timer_elapsed_ns(codegen, call_position, timer),
+                Object('1e6', Type('float'), call_position)
+            )
+        
+        @c_dec(param_types=(Param('timer', Type('Timer')),), is_property=True, add_to_class=self)
+        def _Timer_elapsed_s(codegen, call_position: Position, timer: Object) -> Object:
+            return _float_div_float(codegen, call_position,
+                _Timer_elapsed_ns(codegen, call_position, timer),
+                Object('1e9', Type('float'), call_position)
+            )
+        
+        @c_dec(param_types=(Param('timer', Type('Timer')),), is_method=True, add_to_class=self)
+        def _Timer_start(codegen, call_position: Position, timer: Object) -> Object:
+            codegen.prepend_code(f"""#if OS_WINDOWS
+    QueryPerformanceFrequency(&({timer}).frequency);
+    QueryPerformanceCounter(&({timer}).start);
+#elif OS_LINUX
+    clock_gettime(CLOCK_MONOTONIC, &({timer}).start);
+#else
+{self.symbol_not_supported('Timer.start')}
+#endif
 
-        
-        self.wrap_struct_properties('frac', Type('Fraction'), [
-            Param('top', Type('int')), Param('bottom', Type('int'))
-        ])
-        
-        @c_dec(param_types=(Param('frac', Type('Fraction')),), is_property=True, add_to_class=self)
-        def _Fraction_simple(codegen, call_position: Position, frac: Object) -> Object:
-            f: TempVar = codegen.create_temp_var(Type('Fraction'), call_position)
-            g: TempVar = codegen.create_temp_var(Type('int'), call_position)
-            codegen.prepend_code(f"""int {g} = {_Math_gcd(
-    codegen, call_position,
-    Object(f'(({frac}).top)', Type('int'), call_position),
-    Object(f'(({frac}).bottom)', Type('int'), call_position)
-)};
-Fraction {f} = {{ .top = ({frac}).top / {g}, .bottom = ({frac}).bottom / {g} }};
+({timer}).is_running = true;
 """)
             
-            return f.OBJECT()
-        
-        @c_dec(param_types=(Param('frac', Type('Fraction')),), is_property=True, add_to_class=self)
-        def _Fraction_recip(codegen, call_position: Position, frac: Object) -> Object:
-            f: TempVar = codegen.create_temp_var(Type('Fraction'), call_position)
-            codegen.prepend_code(f"""Fraction {f} = {{
-    .top = ({frac}).bottom, .bottom = ({frac}).top
-}};
-""")
-            return f.OBJECT()
-        
-        
-        self.wrap_struct_properties('vec', Type('Vector2'), [
-            Param('x', Type('float')), Param('y', Type('float'))
-        ])
-        
-        @c_dec(param_types=(Param('vec', Type('Vector2')),), is_property=True, add_to_class=self)
-        def _Vector2_length(_, call_position: Position, vec: Object) -> Object:
-            return Object(
-                f'(sqrtf(({vec}).x * ({vec}).x + ({vec}).y * ({vec}).y))',
-                Type('float'), call_position
-            )
-        
-        @c_dec(param_types=(Param('vec', Type('Vector2')),), is_property=True, add_to_class=self)
-        def _Vector2_norm(codegen, call_position: Position, vec: Object) -> Object:
-            v: TempVar = codegen.create_temp_var(Type('Vector2'), call_position)
-            codegen.prepend_code(f"""Vector2 {v} = {{
-    .x = ({vec}).x / {_Vector2_length(codegen, call_position, vec)},
-    .y = ({vec}).y / {_Vector2_length(codegen, call_position, vec)}
-}};
-""")
-            return v.OBJECT()
-        
-        @c_dec(
-            param_types=(Param('vec1', Type('Vector2')), Param('vec2', Type('Vector2'))),
-            is_method=True, add_to_class=self
-        )
-        def _Vector2_dot(_, call_position: Position, vec1: Object, vec2: Object) -> Object:
-            return Object(
-                f'(({vec1}).x * ({vec2}).x + ({vec1}).y * ({vec2}).y)',
-                Type('float'), call_position
-            )
-        
-        @c_dec(
-            param_types=(Param('vec1', Type('Vector2')), Param('vec2', Type('Vector2'))),
-            is_method=True, add_to_class=self
-        )
-        def _Vector2_cross(_, call_position: Position, vec1: Object, vec2: Object) -> Object:
-            return Object(
-                f'(({vec1}).x * ({vec2}).y - ({vec1}).y * ({vec2}).x)',
-                Type('float'), call_position
-            )
-        
-        @c_dec(
-            param_types=(Param('vec1', Type('Vector2')), Param('vec2', Type('Vector2'))),
-            is_method=True, add_to_class=self
-        )
-        def _Vector2_dist(codegen, call_position: Position, vec1: Object, vec2: Object) -> Object:
-            return _Vector2_length(
-                codegen, call_position,
-                _Vector2_sub_Vector2(codegen, call_position, vec1, vec2)
-            )
-
-
-        @c_dec(is_property=True, is_static=True, add_to_class=self)
-        def _System_pid(codegen, call_position: Position) -> Object:
-            pid_var: TempVar = codegen.create_temp_var(Type('int'), call_position)
-            codegen.prepend_code(f"""#ifdef OS_WINDOWS
-int {pid_var} = (int)GetCurrentProcessId();
-#else
-int {pid_var} = (int)getpid();
-#endif
-""")
-            
-            return pid_var.OBJECT()
-        
-        @c_dec(is_property=True, is_static=True, add_to_class=self)
-        def _System_os(_, call_position: Position) -> Object:
-            return Object('OS', Type('string'), call_position)
-        
-        @c_dec(is_property=True, is_static=True, add_to_class=self)
-        def _System_arch(_, call_position: Position) -> Object:
-            return Object('ARCH', Type('string'), call_position)
-        
-        @c_dec(is_property=True, is_static=True, add_to_class=self)
-        def _System_admin(_, call_position: Position) -> Object:
-            return Object('((bool)IS_ADMIN)', Type('bool'), call_position)
-        
-        @c_dec(is_property=True, is_static=True, add_to_class=self)
-        def _System_processor_count(codegen, call_position: Position) -> Object:
-            sysinfo: TempVar = codegen.create_temp_var(Type('SystemInfo'), call_position)
-            codegen.prepend_code(f"""#ifdef OS_WINDOWS
-SYSTEM_INFO {sysinfo};
-GetSystemInfo(&{sysinfo});
-#else
-{self.symbol_not_supported('System.processor_count')}
-#endif
-""")
-            
-            return Object(f'((int){sysinfo}.dwNumberOfProcessors)', Type('int'), call_position)
-        
-        @c_dec(is_property=True, is_static=True, add_to_class=self)
-        def _System_cwd(codegen, call_position: Position) -> Object:
-            cwd_var: TempVar = codegen.create_temp_var(Type('string'), call_position)
-            codegen.prepend_code(f"""char {cwd_var}[1024];
-#ifdef OS_WINDOWS
-if (GetCurrentDirectory(sizeof({cwd_var}), {cwd_var}) == 0) {{
-    {self.err('Failed to get current working directory')}
-}}
-#else
-if (getcwd({cwd_var}, sizeof({cwd_var})) == NULL) {{
-    {self.err('Failed to get current working directory')}
-}}
-#endif
-""")
-            
-            return cwd_var.OBJECT()
-        
-        @c_dec(is_property=True, is_static=True, add_to_class=self)
-        def _System_time(codegen, call_position: Position) -> Object:
-            t: TempVar = codegen.create_temp_var(Type('TimeInt', 'time_t'), call_position)
-            codegen.prepend_code(f'time_t {t} = time(NULL);')
-            return Object(f'(Time){{ .t = {t}, .ti = localtime(&{t}) }}', Type('Time'), call_position)
-        
-        @c_dec(is_property=True, is_static=True, add_to_class=self)
-        def _System_cursor_pos(codegen, call_position: Position) -> Object:
-            point: TempVar = codegen.create_temp_var(Type('POINT'), call_position)
-            codegen.prepend_code(f"""#ifdef OS_WINDOWS
-POINT {point};
-GetCursorPos(&{point});
-#else
-{self.symbol_not_supported('System.cursor_pos')}
-#endif
-""")
-            
-            return _Math_vec2(
-                codegen, call_position, Object(f'(int){point}.x', Type('int'), call_position),
-                Object(f'(int){point}.y', Type('int'), call_position)
-            )
-        
-        @c_dec(is_property=True, is_static=True, add_to_class=self)
-        def _System_COLOR_BLACK(_, call_position: Position) -> Object:
-            return Object('"\\033[30m"', Type('string'), call_position)
-        
-        @c_dec(is_property=True, is_static=True, add_to_class=self)
-        def _System_COLOR_RED(_, call_position: Position) -> Object:
-            return Object('"\\033[31m"', Type('string'), call_position)
-        
-        @c_dec(is_property=True, is_static=True, add_to_class=self)
-        def _System_COLOR_GREEN(_, call_position: Position) -> Object:
-            return Object('"\\033[32m"', Type('string'), call_position)
-        
-        @c_dec(is_property=True, is_static=True, add_to_class=self)
-        def _System_COLOR_YELLOW(_, call_position: Position) -> Object:
-            return Object('"\\033[33m"', Type('string'), call_position)
-        
-        @c_dec(is_property=True, is_static=True, add_to_class=self)
-        def _System_COLOR_BLUE(_, call_position: Position) -> Object:
-            return Object('"\\033[34m"', Type('string'), call_position)
-        
-        @c_dec(is_property=True, is_static=True, add_to_class=self)
-        def _System_COLOR_MAGENTA(_, call_position: Position) -> Object:
-            return Object('"\\033[35m"', Type('string'), call_position)
-        
-        @c_dec(is_property=True, is_static=True, add_to_class=self)
-        def _System_COLOR_CYAN(_, call_position: Position) -> Object:
-            return Object('"\\033[36m"', Type('string'), call_position)
-        
-        @c_dec(is_property=True, is_static=True, add_to_class=self)
-        def _System_COLOR_WHITE(_, call_position: Position) -> Object:
-            return Object('"\\033[37m"', Type('string'), call_position)
-        
-        @c_dec(is_property=True, is_static=True, add_to_class=self)
-        def _System_COLOR_BBLACK(_, call_position: Position) -> Object:
-            return Object('"\\033[90m"', Type('string'), call_position)
-        
-        @c_dec(is_property=True, is_static=True, add_to_class=self)
-        def _System_COLOR_BRED(_, call_position: Position) -> Object:
-            return Object('"\\033[91m"', Type('string'), call_position)
-        
-        @c_dec(is_property=True, is_static=True, add_to_class=self)
-        def _System_COLOR_BGREEN(_, call_position: Position) -> Object:
-            return Object('"\\033[92m"', Type('string'), call_position)
-        
-        @c_dec(is_property=True, is_static=True, add_to_class=self)
-        def _System_COLOR_BYELLOW(_, call_position: Position) -> Object:
-            return Object('"\\033[93m"', Type('string'), call_position)
-        
-        @c_dec(is_property=True, is_static=True, add_to_class=self)
-        def _System_COLOR_BBLUE(_, call_position: Position) -> Object:
-            return Object('"\\033[94m"', Type('string'), call_position)
-        
-        @c_dec(is_property=True, is_static=True, add_to_class=self)
-        def _System_COLOR_BMAGENTA(_, call_position: Position) -> Object:
-            return Object('"\\033[95m"', Type('string'), call_position)
-        
-        @c_dec(is_property=True, is_static=True, add_to_class=self)
-        def _System_COLOR_BCYAN(_, call_position: Position) -> Object:
-            return Object('"\\033[96m"', Type('string'), call_position)
-        
-        @c_dec(is_property=True, is_static=True, add_to_class=self)
-        def _System_COLOR_BWHITE(_, call_position: Position) -> Object:
-            return Object('"\\033[97m"', Type('string'), call_position)
-        
-        @c_dec(is_property=True, is_static=True, add_to_class=self)
-        def _System_TERMINAL_RESET(_, call_position: Position) -> Object:
-            return Object('"\\033[0m"', Type('string'), call_position)
-        
-        @c_dec(is_property=True, is_static=True, add_to_class=self)
-        def _System_TERMINAL_BOLD(_, call_position: Position) -> Object:
-            return Object('"\\033[1m"', Type('string'), call_position)
-        
-        @c_dec(is_property=True, is_static=True, add_to_class=self)
-        def _System_TERMINAL_CROSS(_, call_position: Position) -> Object:
-            return Object('"\\033[9m"', Type('string'), call_position)
-        
-        @c_dec(is_property=True, is_static=True, add_to_class=self)
-        def _System_TERMINAL_ITALIC(_, call_position: Position) -> Object:
-            return Object('"\\033[3m"', Type('string'), call_position)
-        
-        @c_dec(is_property=True, is_static=True, add_to_class=self)
-        def _System_TERMINAL_UNDERLINE(_, call_position: Position) -> Object:
-            return Object('"\\033[4m"', Type('string'), call_position)
-        
-        @c_dec(is_property=True, is_static=True, add_to_class=self)
-        def _System_TERMINAL_SLOW_BLINK(_, call_position: Position) -> Object:
-            return Object('"\\033[5m"', Type('string'), call_position)
-        
-        @c_dec(is_property=True, is_static=True, add_to_class=self)
-        def _System_TERMINAL_FAST_BLINK(_, call_position: Position) -> Object:
-            return Object('"\\033[6m"', Type('string'), call_position)
-        
-        # https://stackoverflow.com/questions/4842424/list-of-ansi-color-escape-sequences
-        
-        @c_dec(
-            param_types=(Param('code', Type('int'), default=Object('0', Type('int'), POS_ZERO)),),
-            is_method=True, is_static=True, add_to_class=self
-        )
-        def _System_exit(codegen, call_position: Position, code: Object) -> Object:
-            codegen.prepend_code(f'{codegen.get_end_code()}\nexit({code});')
             return Object.NULL(call_position)
         
-        @c_dec(
-            param_types=(Param('milliseconds', Type('int')),),
-            is_method=True, is_static=True, add_to_class=self
-        )
-        def _System_sleep(codegen, call_position: Position, milliseconds: Object) -> Object:
-            codegen.prepend_code(f"""#ifdef OS_WINDOWS
-Sleep({milliseconds});
-#elif defined(OS_LINUX) | defined(OS_MACOS)
-usleep({milliseconds} * 1000);
+        def timer_stop(timer: Object) -> str:
+            return f"""#if OS_WINDOWS
+    QueryPerformanceCounter(&({timer}).end);
+#elif OS_LINUX
+    clock_gettime(CLOCK_MONOTONIC, &({timer}).end);
 #else
-{self.symbol_not_supported('System.sleep')}
+{self.symbol_not_supported('Timer.stop')}
 #endif
-""")
-            return Object.NULL(call_position)
+({timer}).is_running = false;
+"""
         
-        @c_dec(
-            param_types=(Param('func', Type('function')),),
-            is_method=True, is_static=True, add_to_class=self
-        )
-        def _System_atexit(codegen, call_position: Position, func: Object) -> Object:
-            void_func: str = codegen.get_unique_name()
-            codegen.scope.env[void_func] = EnvItem(
-                void_func, Type('nil'), call_position, reserved=True
-            )
-            
-            func_obj: EnvItem = codegen.scope.env[str(func)]
-            if func_obj.func is None:
-                call_position.error_here(f'\'{func}\' is not a function')
-            
-            if func_obj.func.return_type != Type('nil'):
-                call_position.error_here(
-                    f'\'{func}\' set as an atexit function but does not return nil'
-                )
-            elif func_obj.func.params != []:
-                call_position.error_here(
-                    f'\'{func}\' set as an atexit function but has parameters'
-                )
-            
-            codegen.add_toplevel_code(f"""nil {func}();
-void {void_func}() {{ {func}(); }}
-""")
-            codegen.prepend_code(f'atexit({void_func});')
-            return Object.NULL(call_position)
-        
-        @c_dec(
-            param_types=(Param('command', Type('string')),),
-            is_method=True, is_static=True, add_to_class=self
-        )
-        def _System_shell(_, call_position: Position, command: Object) -> Object:
-            return Object(f'((bool)system({command}))', Type('bool'), call_position)
-        
-        @c_dec(is_method=True, is_static=True, add_to_class=self)
-        def _System_block_keyboard(codegen, call_position: Position) -> Object:
-            codegen.prepend_code(f"""#ifdef OS_WINDOWS
-if (!IS_ADMIN) {{
-    {self.err('Blocking keyboard requires administrator permissions')}
-}}
-BlockInput(TRUE);
-#else
-{self.symbol_not_supported('System.block_keyboard')}
-#endif
-""")
-            
+        @c_dec(param_types=(Param('timer', Type('Timer')),), is_method=True, add_to_class=self)
+        def _Timer_stop(codegen, call_position: Position, timer: Object) -> Object:
+            codegen.prepend_code(timer_stop(timer))
             return Object.NULL(call_position)
         
         @c_dec(is_method=True, is_static=True, add_to_class=self)
-        def _System_unblock_keyboard(codegen, call_position: Position) -> Object:
-            codegen.prepend_code(f"""#ifdef OS_WINDOWS
-if (!IS_ADMIN) {{
-    {self.err('Unblocking keyboard requires administrator permissions')}
-}}
-BlockInput(FALSE);
-#else
-{self.symbol_not_supported('System.unblock_keyboard')}
-#endif
+        def _Timer_new(codegen, call_position: Position) -> Object:
+            timer: TempVar = codegen.create_temp_var(Type('Timer'), call_position)
+            codegen.prepend_code(f"""Timer {timer} = {{ .is_running = false }};
 """)
             
-            return Object.NULL(call_position)
-        
-        @c_dec(
-            param_types=(Param('char', Type('string')),),
-            is_method=True, is_static=True, add_to_class=self
-        )
-        def _System_is_key_pressed(codegen, call_position: Position, char: Object) -> Object:
-            is_pressed: TempVar = codegen.create_temp_var(Type('bool'), call_position)
-            codegen.prepend_code(f"""if (!{_string_is_char(codegen, call_position, char)}) {{
-    {self.err('Key must be a single character')}
-}}
-
-#ifdef OS_WINDOWS
-bool {is_pressed} = (bool)(GetAsyncKeyState((int)({char})[0] & 0x8000));
-#else
-{self.symbol_not_supported('System.is_key_pressed')}
-#endif
-""")
-            
-            return is_pressed.OBJECT()
-        
-        def Sscp_intint(codegen, call_position: Position,
-                                        x: Object, y: Object) -> Object:
-            codegen.prepend_code(f"""#ifdef OS_WINDOWS
-SetCursorPos({x}, {y});
-#else
-{self.symbol_not_supported('System.set_cursor_pos')}
-#endif
-""")
-            
-            return Object.NULL(call_position)
-        
-        @c_dec(
-            param_types=(Param('vec', Type('Vector2')),),
-            is_method=True, is_static=True, add_to_class=self, overloads={
-                ((Param('x', Type('int')), Param('y', Type('int'))), Type('nil')): Sscp_intint
-            }
-        )
-        def _System_set_cursor_pos(codegen, call_position: Position, vec: Object) -> Object:
-            codegen.prepend_code(f"""#ifdef OS_WINDOWS
-SetCursorPos(({vec}).x, ({vec}).y);
-#else
-{self.symbol_not_supported('System.set_cursor_pos')}
-#endif
-""")
-            
-            return Object.NULL(call_position)
-
-
-        @c_dec(param_types=(Param('time', Type('Time')),), is_property=True, add_to_class=self)
-        def _Time_second(_, call_position: Position, time: Object) -> Object:
-            return Object(f'(({time}).ti->tm_sec)', Type('int'), call_position)
-        
-        @c_dec(param_types=(Param('time', Type('Time')),), is_property=True, add_to_class=self)
-        def _Time_minute(_, call_position: Position, time: Object) -> Object:
-            return Object(f'(({time}).ti->tm_min)', Type('int'), call_position)
-        
-        @c_dec(param_types=(Param('time', Type('Time')),), is_property=True, add_to_class=self)
-        def _Time_hour(_, call_position: Position, time: Object) -> Object:
-            return Object(f'(({time}).ti->tm_hour)', Type('int'), call_position)
-        
-        @c_dec(param_types=(Param('time', Type('Time')),), is_property=True, add_to_class=self)
-        def _Time_day(_, call_position: Position, time: Object) -> Object:
-            return Object(f'(({time}).ti->tm_mday)', Type('int'), call_position)
-        
-        @c_dec(param_types=(Param('time', Type('Time')),), is_property=True, add_to_class=self)
-        def _Time_month(_, call_position: Position, time: Object) -> Object:
-            return Object(f'(({time}).ti->tm_mon + 1)', Type('int'), call_position)
-        
-        @c_dec(param_types=(Param('time', Type('Time')),), is_property=True, add_to_class=self)
-        def _Time_year(_, call_position: Position, time: Object) -> Object:
-            return Object(f'(({time}).ti->tm_year + 1900)', Type('int'), call_position)
-        
-        @c_dec(param_types=(Param('time', Type('Time')),), is_property=True, add_to_class=self)
-        def _Time_weekday(_, call_position: Position, time: Object) -> Object:
-            return Object(f'(({time}).ti->tm_wday)', Type('int'), call_position)
-        
-        @c_dec(param_types=(Param('time', Type('Time')),), is_property=True, add_to_class=self)
-        def _Time_yearday(_, call_position: Position, time: Object) -> Object:
-            return Object(f'(({time}).ti->tm_yday)', Type('int'), call_position)
-        
-        @c_dec(param_types=(Param('time', Type('Time')),), is_property=True, add_to_class=self)
-        def _Time_isdst(_, call_position: Position, time: Object) -> Object:
-            return Object(f'(({time}).ti->tm_isdst)', Type('int'), call_position)
-        
-        
-        @c_dec(is_property=True, is_static=True, add_to_class=self)
-        def _Cure_version(_, call_position: Position) -> Object:
-            return Object('(VERSION)', Type('string'), call_position)
-        
-        @c_dec(is_property=True, is_static=True, add_to_class=self)
-        def _Cure_flags(codegen, call_position: Position) -> Object:
-            return self.c_array_from_list(codegen, call_position, Type('string'), [
-                Object(f'"{flag}"', Type('string'), call_position)
-                for flag in codegen.extra_compile_args
-            ])
-        
-        @c_dec(is_property=True, is_static=True, add_to_class=self)
-        def _Cure_dependencies(codegen, call_position: Position) -> Object:
-            return self.c_array_from_list(codegen, call_position, Type('string'), [
-                Object(dep if dep.startswith('"') else f'"{dep}"', Type('string'), call_position)
-                for dep in self.includes
-            ])
-        
-        @c_dec(
-            param_types=(Param('src', Type('string')),),
-            is_method=True, is_static=True, add_to_class=self
-        )
-        def _Cure_compile(codegen, call_position: Position, src: Object) -> Object:
-            from codegen import str_to_c
-            if not codegen.is_string_literal(str(src)):
-                call_position.error_here('Source code must be a string literal')
-            
-            _, code = str_to_c(str(src)[1:-1], codegen.scope)
-            codegen.prepend_code(code)
-            return Object.NULL(call_position)
-        
-        
-        self.wrap_struct_properties('builder', Type('StringBuilder'), [
-            Param('length', Type('int')), Param('capacity', Type('int'))
-        ])
-        
-        @c_dec(
-            param_types=(Param('builder', Type('StringBuilder')),),
-            is_property=True, add_to_class=self
-        )
-        def _StringBuilder_str(codegen, call_position: Position, obj: Object) -> Object:
-            buf: TempVar = codegen.create_temp_var(Type('string'), call_position)
-            codegen.prepend_code(f"""string {buf} = ({obj}).buf;
-{buf}[({obj}).length] = '\\0';
-""")
-            
-            return buf.OBJECT()
-        
-        @c_dec(
-            param_types=(Param('builder', Type('StringBuilder')), Param('s', Type('string'))),
-            is_method=True, add_to_class=self
-        )
-        def _StringBuilder_add(codegen, call_position: Position, builder: Object, s: Object) -> Object:
-            slen = _string_length(codegen, call_position, s)
-            lvar: TempVar = codegen.create_temp_var(Type('int'), call_position)
-            codegen.prepend_code(f"""size_t {lvar} = {slen};
-if (({builder}).capacity - ({builder}).length < {lvar}) {{
-    ({builder}).capacity *= 2;
-    ({builder}).buf = (string)realloc(({builder}).buf, ({builder}).capacity);
-}}
-
-memcpy(({builder}).buf + ({builder}).length, {s}, {lvar});
-({builder}).length += {lvar};
-""")
-            
-            return Object.NULL(call_position)
-        
-        @c_dec(is_method=True, is_static=True, add_to_class=self)
-        def _StringBuilder_new(codegen, call_position: Position) -> Object:
-            obj_free = Free()
-            obj: TempVar = codegen.create_temp_var(Type('StringBuilder'), call_position, free=obj_free)
-            obj_free.object_name = f'{obj}.buf'
-            
-            codegen.prepend_code(f"""StringBuilder {obj} = {{
-    .buf = (string)malloc({STRINGBUILDER_CAPACITY}), .capacity = {STRINGBUILDER_CAPACITY},
-    .length = 0
-}};
-{self.buf_check(f'{obj}.buf')}
-""")
-            
-            return obj.OBJECT()
+            return timer.OBJECT()
     
         
         @func_modification(params=(Param('message', Type('string')),), add_to_class=self)
-        def _Info(codegen, _func_obj: Function, call_position: Position, _args: list[Arg],
+        def _Info(codegen, _func_obj: UserFunction, call_position: Position, _args: list[Arg],
                 msg: Object) -> None:
             if not codegen.is_string_literal(msg):
                 call_position.error_here('Info message must be a string literal')
@@ -2467,7 +1344,7 @@ memcpy(({builder}).buf + ({builder}).length, {s}, {lvar});
             call_position.info_here(str(msg)[1:-1])
     
         @func_modification(params=(Param('message', Type('string')),), add_to_class=self)
-        def _Warn(codegen, _func_obj: Function, call_position: Position, _args: list[Arg],
+        def _Warn(codegen, _func_obj: UserFunction, call_position: Position, _args: list[Arg],
                 msg: Object) -> None:
             if not codegen.is_string_literal(msg):
                 call_position.error_here('Warning message must be a string literal')
@@ -2475,7 +1352,7 @@ memcpy(({builder}).buf + ({builder}).length, {s}, {lvar});
             call_position.warn_here(str(msg)[1:-1])
 
         @func_modification(params=(Param('message', Type('string')),), add_to_class=self)
-        def _Error(codegen, _func_obj: Function, call_position: Position, _args: list[Arg],
+        def _Error(codegen, _func_obj: UserFunction, call_position: Position, _args: list[Arg],
                 msg: Object) -> None:
             if not codegen.is_string_literal(msg):
                 call_position.error_here('Error message must be a string literal')
@@ -2483,26 +1360,25 @@ memcpy(({builder}).buf + ({builder}).length, {s}, {lvar});
             call_position.error_here(str(msg)[1:-1])
         
         @func_modification(add_to_class=self)
-        def _Benchmark(codegen, func_obj: Function, call_position: Position, _args: list[Arg]) -> None:
-            begin: TempVar = codegen.create_temp_var(Type('int', 'clock_t'), call_position)
-            end: TempVar = codegen.create_temp_var(Type('int', 'clock_t'), call_position)
-            codegen.prepend_code(f'clock_t {begin} = clock();\n')
-            codegen.append_code(f"""clock_t {end} = clock();
-printf(
-    "Time spent to execute '{func_obj.name}': %f seconds\\n",
-    ((double)({end} - {begin})) / CLOCKS_PER_SEC
-);
+        def _Benchmark(codegen, func_obj: UserFunction, call_position: Position,
+                       _args: list[Arg]) -> None:
+            timer = _Timer_new(codegen, call_position)
+            _Timer_start(codegen, call_position, timer)
+            code, res = elapsed_ns(codegen, call_position, timer)
+            codegen.append_code(f"""{timer_stop(timer)};
+{code};
+printf("Time spent to execute '{func_obj.name}': %fms\\n", {res} / 1e6);
 """)
         
         @func_modification(add_to_class=self)
-        def _Cache(codegen, func_obj: Function, call_position: Position, args: list[Arg]) -> Object:
+        def _Cache(codegen, func_obj: UserFunction, call_position: Position, args: list[Arg]) -> Object:
             func_params = func_obj.params
             cache_struct_type = Type(f'cache_dict_{func_obj.name}')
             cache_key = f'cacheof_{func_obj.name}'
             global_scope = codegen.scope.toplevel
             previously_called = global_scope.env.get(cache_key) is not None
             if not previously_called:
-                codegen.c_manager.RESERVED_NAMES.extend((cache_key, cache_struct_type.c_type))
+                codegen.c_manager.reserve((cache_key, cache_struct_type.c_type))
                 global_scope.env[cache_key] = EnvItem(
                     cache_key, cache_struct_type, call_position, reserved=True
                 )
@@ -2580,7 +1456,7 @@ if (!{has_cached}) {{
             return res.OBJECT()
         
         @func_modification(params=(Param('transformer', Type('function')),), add_to_class=self)
-        def _Transform(codegen, func_obj: Function, call_position: Position, args: list[Arg],
+        def _Transform(codegen, func_obj: UserFunction, call_position: Position, args: list[Arg],
                        transformer: Object) -> Object:
             func = codegen.scope.env[func_obj.name]
             if func.func is not None:
@@ -2616,38 +1492,3 @@ if (!{has_cached}) {{
 """)
             
             return codegen.call(transformer.code, [Arg(res.OBJECT())], call_position)
-        
-#         @func_modification(
-#             params=(Param('limit', Type('int')), Param('time', Type('int'))), add_to_class=self
-#         )
-#         def _RateLimit(codegen, func_obj: Function, call_position: Position, args: list[Arg],
-#                        limit: Object, time: Object) -> None:
-#             global_scope = codegen.scope.toplevel
-#             time_since_call = f'{func_obj.name}_time_since_last_call'
-#             call_count = f'{func_obj.name}_call_count'
-#             previously_called = global_scope.env.get(time_since_call) is not None
-#             if not previously_called:
-#                 codegen.c_manager.RESERVED_NAMES.extend((call_count, time_since_call))
-#                 global_scope.env[time_since_call] = EnvItem(
-#                     time_since_call, Type('int', 'time_t'), call_position
-#                 )
-                
-#                 global_scope.env[call_count] = EnvItem(call_count, Type('int'), call_position)
-                
-#                 codegen.add_toplevel_code(f"""time_t {time_since_call} = 0;
-# int {call_count} = 0;
-# """)
-            
-#             difftime: TempVar = codegen.create_temp_var(Type('int', 'time_t'), call_position)
-#             codegen.prepend_code(f"""double {difftime} = difftime(time(NULL), {time_since_call});
-# if ({difftime} < {time_since_call}) {{
-#     {time_since_call} = 0;
-#     {call_count} = 0;
-# }}
-
-# if ({call_count} > {limit}) {{
-#     {codegen.c_manager.err(f'\'{func_obj.name}\' exceeded rate call limit')}
-# }}
-# """)
-#             codegen.append_code(f"""{call_count}++;
-# """)

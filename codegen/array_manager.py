@@ -1,4 +1,5 @@
 from codegen.objects import Position, Object, Free, Type, Arg, TempVar, Param
+from codegen.function_manager import OverloadKey, OverloadValue
 from codegen.c_manager import CManager, c_dec
 
 DEFAULT_CAPACITY = 10
@@ -23,6 +24,7 @@ class ArrayManager:
 """)
         
         c_manager: CManager = self.codegen.c_manager
+        c_manager.reserve(array_type.c_type)
         
         c_manager.wrap_struct_properties('arr', array_type, [
             Param('length', Type('int')), Param('capacity', Type('int'))
@@ -42,14 +44,14 @@ class ArrayManager:
 for (size_t {i} = 0; {i} < {a}.length; {i}++) {{
 """)
             codegen.prepend_code(f"""{codegen.c_manager._StringBuilder_add(
-    codegen, call_position, builder, codegen.c_manager._to_string(
-        codegen, call_position, Object(f'{a}.elements[{i}]', type, call_position)
-    )
+codegen, call_position, builder, codegen.c_manager._to_string(
+    codegen, call_position, Object(f'{a}.elements[{i}]', type, call_position)
+)
 )};
 if ({i} < {a}.length - 1) {{
 """)
             codegen.prepend_code(f"""{codegen.c_manager._StringBuilder_add(
-    codegen, call_position, builder, Object('", "', Type('string'), call_position)
+codegen, call_position, builder, Object('", "', Type('string'), call_position)
 )};
 }}
 }}
@@ -113,11 +115,13 @@ if ({i} < {a}.length - 1) {{
             param_types=(Param('arr', array_type), Param('element', type)), is_method=True,
             add_to_class=c_manager, func_name_override=f'{array_type.c_type}_add',
             overloads={
-                ((
+                OverloadKey(Type('nil'), (
                     Param('arr', array_type), Param('index', Type('int')),
                     Param('element', type)
-                ), Type('nil')): array_insert,
-                ((Param('arr', array_type), Param('arr2', array_type)), Type('nil')): array_add_range
+                )): OverloadValue(array_insert),
+                OverloadKey(
+                    Type('nil'), (Param('arr', array_type), Param('arr2', array_type))
+                ): OverloadValue(array_add_range)
             }
         )
         def array_add(codegen, call_position: Position, arr: Object, element: Object) -> Object:
@@ -160,10 +164,10 @@ if ({i} < {a}.length - 1) {{
 if ({idx} < 0) {{
     {idx} = {a}.length + {idx};
     if (abs({idx}) > {a}.length) {{
-        {c_manager.err('Index out of range')}
+        {codegen.c_manager.err('Index out of range')}
     }}
 }} else if ({idx} >= {a}.length) {{
-    {c_manager.err('Index out of range')}
+    {codegen.c_manager.err('Index out of range')}
 }}
 """)
             
@@ -254,7 +258,7 @@ if ({idx} < 0) {{
             i = f'({index})'
             j: TempVar = codegen.create_temp_var(Type('int'), call_position)
             codegen.prepend_code(f"""if ({i} >= {a}.length || {i} < 0) {{
-    {c_manager.err('Index out of range')}
+    {codegen.c_manager.err('Index out of range')}
 }}
 for (size_t {j} = {i}; {j} < {a}.length - 1; {j}++) {{
     {a}.elements[{j}] = {a}.elements[{j} + 1];
@@ -275,7 +279,7 @@ for (size_t {j} = {i}; {j} < {a}.length - 1; {j}++) {{
             i: TempVar = codegen.create_temp_var(Type('int'), call_position)
             j: TempVar = codegen.create_temp_var(Type('int'), call_position)
             codegen.prepend_code(f"""if ({a}.length == 0) {{
-    {c_manager.err('Array is empty')}
+    {codegen.c_manager.err('Array is empty')}
 }}
 {type.c_type}* {temp} = NULL;
 for (size_t {i} = 0; {i} < {a}.length; {i}++) {{
@@ -290,7 +294,7 @@ for (size_t {i} = 0; {i} < {a}.length; {i}++) {{
 }}
 
 if (!{temp}) {{
-    {c_manager.err('Element not found')}
+    {codegen.c_manager.err('Element not found')}
 }}
 {popped} = *{temp};
 """)
@@ -307,7 +311,7 @@ if (!{temp}) {{
             popped: TempVar = codegen.create_temp_var(type, call_position)
             j: TempVar = codegen.create_temp_var(Type('int'), call_position)
             codegen.prepend_code(f"""if ({i} >= {a}.length || {i} < 0) {{
-    {c_manager.err('Index out of range')}
+    {codegen.c_manager.err('Index out of range')}
 }}
 {type.c_type} {popped};
 {popped} = {a}.elements[{i}];
@@ -329,7 +333,7 @@ for (size_t {j} = {i}; {j} < {a}.length - 1; {j}++) {{
 {a}.length = 0;
 {a}.capacity = {DEFAULT_CAPACITY};
 {a}.elements = ({type.c_type}*)malloc(sizeof({type.c_type}) * {DEFAULT_CAPACITY});
-{c_manager.buf_check(f'{a}.elements')}
+{codegen.c_manager.buf_check(f'{a}.elements')}
 """)
             
             return Object.NULL(call_position)
@@ -401,8 +405,8 @@ for (size_t {i} = 0; {i} < {a}.length; {i}++) {{
 for (size_t {i} = 0; {i} < {a}.length; {i}++) {{
 """)
             codegen.prepend_code(f"""if ({codegen.call(
-    f'{type}_eq_{type}', [Arg(Object(f'{a}.elements[{i}]', type, call_position)), Arg(value)],
-    call_position
+    f'{type.c_type}_eq_{type.c_type}',
+    [Arg(Object(f'{a}.elements[{i}]', type, call_position)), Arg(value)], call_position
 )}) {{
         {idx} = {i};
         break;
@@ -410,6 +414,27 @@ for (size_t {i} = 0; {i} < {a}.length; {i}++) {{
 }}
 """)
             return idx.OBJECT()
+        
+        @c_dec(
+            param_types=(
+                Param('arr', array_type), Param('start', Type('int')), Param('to', Type('int'))
+            ), is_method=True, add_to_class=c_manager,
+            func_name_override=f'{array_type.c_type}_slice'
+        )
+        def array_slice(codegen, call_position: Position, arr: Object, start: Object,
+                        to: Object) -> Object:
+            res: Object = array_make(codegen, call_position)
+            i: TempVar = codegen.create_temp_var(Type('int'), call_position)
+            codegen.prepend_code(f"""size_t {i} = 0;
+{res}.elements = ({type.c_type}*)malloc(sizeof({type.c_type}) * (({to}) - ({start})));
+{codegen.c_manager.buf_check(f'{res}.elements')}
+for (size_t {i} = ({start}); {i} < ({to}); {i}++) {{
+    {res}.elements[{i} - ({start})] = {res}.elements[{i}];
+}}
+{res}.length = ({to}) - ({start});
+""")
+
+            return Object(f'({res})', array_type, call_position)
         
         @c_dec(
             param_types=(Param('b', array_type), Param('a', array_type)),

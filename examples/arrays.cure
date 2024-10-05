@@ -1,6 +1,6 @@
 func main() -> int {
     // Define an array of random integers
-    arr = int{8914, 614, 94, 90124, 735, 61, 67124, 1526, 74, 124}
+    arr = {8914, 614, 94, 90124, 735, 61, 67124, 1526, 74, 124}
     print(type(arr)) // Print the type of the array
     print(arr) // Print the array
 
@@ -21,9 +21,9 @@ func main() -> int {
     print(arr)
 
     // Pick a random element from the array and remove it
-    rand = arr.pick_random()
-    print(rand)
-    arr.remove(rand)
+    random = arr.pick_random()
+    print(random)
+    arr.remove(random)
     print(arr)
 
     // Create another array

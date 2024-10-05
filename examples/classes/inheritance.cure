@@ -1,0 +1,58 @@
+// Define a class called Person
+class Person {
+    // Define the properties of the class
+    string name // Name of the person
+    int age // Age of the person
+    int cash = 0 // Amount of money the person has, initially 0
+
+    // Define the constructor of the class
+    static func Person(string name, int age) {
+        // Set the properties of the class
+        this.name = name
+        this.age = age
+    }
+}
+
+// Define a class called Employee which inherits from Person
+// Meaning that Employee has all the properties and functions of Person
+class Employee <- Person {
+    // Define the properties of the class
+    string department // Department the employee works in
+    int salary // Salary of the employee
+
+    // Define the constructor of the class
+    static func Employee(string name, int age, string department, int salary) {
+        // Set the properties of the class
+        this.name = name
+        this.age = age
+        this.department = department
+        this.salary = salary
+    }
+
+    // Define a function to pay the employee. This function can only be called within the class
+    private func pay() {
+        this.cash += this.salary
+    }
+
+    // Make a function to pay the employee. This function can be called from outside the class
+    func holiday() {
+        this.pay()
+        print($"Paid {this.name} £{this.salary}")
+    }
+}
+
+
+func main() -> int {
+    // Create a new employee called John
+    // A 24 year old who works in the IT department with a salary of £1000
+    employee = new Employee("John", 24, "IT", 1000)
+    // print(employee.pay()) // This will throw an error because the function is private
+    print(employee.cash) // Print the amount of money the employee has
+    print(employee.salary) // Print the salary of the employee
+    print(employee.department) // Print the department of the employee
+    print(employee.name) // Print the name of the employee
+    print(employee.age) // Print the age of the employee
+    
+    employee.holiday() // Let the employee go on holiday
+    return 0
+}

@@ -1,13 +1,41 @@
 from codegen.objects import Object, Position, Free, Type, TempVar, Param
+from codegen.function_manager import OverloadKey, OverloadValue
 from codegen.c_manager import c_dec, INCLUDES
 
 
 class serialization:
     def __init__(self, codegen) -> None:
-        codegen.valid_types.append('Serialization')
+        codegen.add_type('Serialization')
         codegen.extra_compile_args.append(INCLUDES / 'binn/binn.c')
         codegen.c_manager.include(f'"{INCLUDES / "binn/binn.h"}"', codegen)
-        
+        codegen.c_manager.reserve((
+            'BINN_H', 'BINN_VERSION', 'TRUE', 'FALSE', 'BOOL', 'APIENTRY', 'BINN_PRIVATE', 'INLINE',
+            'ALWAYS_INLINE', 'int64', 'uint64', 'INT64_FORMAT', 'UINT64_FORMAT', 'INT64_HEX_FORMAT',
+            'INVALID_BINN', 'BINN_STORAGE_NOBYTES', 'BINN_STORAGE_BYTE', 'BINN_STORAGE_WORD',
+            'BINN_STORAGE_DWORD', 'BINN_STORAGE_QWORD', 'BINN_STORAGE_STRING', 'BINN_STORAGE_BLOB',
+            'BINN_STORAGE_CONTAINER', 'BINN_STORAGE_VIRTUAL', 'BINN_STORAGE_MIN', 'BINN_STORAGE_MAX',
+            'BINN_STORAGE_MASK', 'BINN_STORAGE_MASK16', 'BINN_STORAGE_HAS_MORE', 'BINN_TYPE_MASK',
+            'BINN_TYPE_MASK16', 'BINN_MAX_VALUE_MASK', 'BINN_LIST', 'BINN_MAP', 'BINN_OBJECT',
+            'BINN_NULL', 'BINN_TRUE', 'BINN_FALSE', 'BINN_UINT8', 'BINN_INT8', 'BINN_UINT16',
+            'BINN_INT16', 'BINN_UINT32', 'BINN_INT32', 'BINN_UINT64', 'BINN_INT64', 'BINN_SCHAR',
+            'BINN_UCHAR', 'BINN_STRING', 'BINN_DATETIME', 'BINN_DATE', 'BINN_TIME', 'BINN_DECIMAL',
+            'BINN_CURRENCYSTR', 'BINN_SINGLE_STR', 'BINN_DOUBLE_STR', 'BINN_FLOAT32', 'BINN_FLOAT64',
+            'BINN_FLOAT', 'BINN_SINGLE', 'BINN_DOUBLE', 'BINN_CURRENCY', 'BINN_BLOB', 'BINN_BOOL',
+            'BINN_EXTENDED', 'BINN_HTML', 'BINN_XML', 'BINN_JSON', 'BINN_JAVASCRIPT', 'BINN_CSS',
+            'BINN_JPEG', 'BINN_GIF', 'BINN_PNG', 'BINN_BMP', 'BINN_FAMILY_NONE', 'BINN_FAMILY_NULL',
+            'BINN_FAMILY_INT', 'BINN_FAMILY_FLOAT', 'BINN_FAMILY_STRING', 'BINN_FAMILY_BLOB',
+            'BINN_FAMILY_BINN', 'BINN_FAMILY_BOOL', 'BINN_SIGNED_INT', 'BINN_UNSIGNED_INT',
+            'binn_mem_free', 'BINN_STATIC', 'BINN_TRANSIENT', 'binn_struct', 'binn', 'binn_version',
+            'binn_set_alloc_functions', 'binn_create_type', 'binn_get_type_info',
+            'binn_get_write_storage', 'binn_get_read_storage', 'binn_is_container', 'binn_new',
+            'binn_list', 'binn_map', 'binn_object', 'binn_create', 'binn_create_list',
+            'binn_create_map', 'binn_create_object', 'binn_copy', 'binn_list_add_new',
+            'binn_map_set_new', 'binn_object_set_new', 'binn_list_add', 'binn_map_set',
+            'binn_object_set', 'binn_free', 'binn_release', 'binn_value', 'binn_int8', 'binn_int16',
+            'binn_int32', 'binn_int64', 'binn_uint8', 'binn_uint16', 'binn_uint32', 'binn_uint64',
+            'binn_float', 'binn_double', 'binn_bool', 'binn_null', 'binn_string', 'binn_blob'
+            # TODO: Finish this
+        ))
         codegen.add_toplevel_code("""#ifndef CURE_SERIALIZATION_H
 typedef struct {
     binn* b;
@@ -43,7 +71,9 @@ fclose({f});
             return serializer
         
         @c_dec(is_method=True, is_static=True, overloads={
-            ((Param('file', Type('string')),), Type('Serialization')): Serialization_from_string_file
+            OverloadKey(
+                Type('Serialization'), (Param('file', Type('string')),)
+            ): OverloadValue(Serialization_from_string_file)
         }, add_to_class=self)
         def _Serialization_new(codegen, call_position: Position) -> Object:
             obj_free = Free(free_name='binn_free')

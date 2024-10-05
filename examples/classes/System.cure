@@ -25,6 +25,5 @@ func main() -> int {
     
     System.exit() // Exit the program
     print("This won't not be printed")
-
     return 0
 }

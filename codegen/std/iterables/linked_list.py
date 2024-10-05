@@ -1,20 +1,28 @@
 from codegen.objects import Object, Position, Type, TempVar, Param
 from codegen.c_manager import c_dec
+from ir.nodes import TypeNode
 
 
 class LinkedList:
     def __init__(self, codegen) -> None:
         self.codegen = codegen
+        setattr(codegen, 'LinkedList_type', self.ll_type)
         
         self.defined_types: list[str] = []
         
         @c_dec(
-            param_types=(Param('type', Type('type')),),
-            can_user_call=True, add_to_class=self
+            can_user_call=True, add_to_class=self, generic_params=('T',),
+            return_type=Type('LinkedList[{T}]')
         )
-        def _create_linked_list(codegen, call_position: Position, type: Object) -> Object:
-            ll_type = self.define_linked_list_type(Type(str(type)))
+        def _create_linked_list(codegen, call_position: Position, *, T: Type) -> Object:
+            ll_type = self.define_linked_list_type(T)
             return codegen.call(f'{ll_type.c_type}_make', [], call_position)
+    
+    def ll_type(self, node: TypeNode) -> Type | None:
+        if node.array_type is None:
+            return None
+        
+        return self.define_linked_list_type(self.codegen.visit_TypeNode(node.array_type))
     
     def define_linked_list_type(self, type: Type) -> Type:
         node_type = Type(f'LinkedList[{type}]', f'{type.c_type}LinkedListNode')

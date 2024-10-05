@@ -1,25 +1,32 @@
-// TODO: Fix this file, currently it crashes trying to free the wrong builder variable
-
+// Create a function that creates a string that appends n number of "ABC"s.
 [Benchmark()]
 func test_string(int n) {
     s = ""
+    // Loop n times
     foreach _ in range(n) {
-        s += "ABC"
+        s += "ABC" // Append "ABC"
     }
 }
 
+// Create a function that creates a StringBuilder that adds n number of "ABC"s.
 [Benchmark()]
 func test_builder(int n) {
-    builder = new StringBuilder()
+    builder = new StringBuilder() // Create a StringBuilder
+
+    // Loop n times
     foreach _ in range(n) {
-        builder.add("ABC")
+        builder.add("ABC") // Append "ABC"
     }
 }
 
 
 func main() -> int {
-    n = 5000
-    test_string(n)
-    test_builder(n)
+    // Make a new variable n, then run the tests with the value of n
+    n = 1000
+    test_string(n) // Run the string test
+    test_builder(n) // Run the StringBuilder test
+
+    // From my tests, the StringBuilder is much faster than the string on large numbers
+    // On small numbers, the gap is so small that it can't be measured using Benchmark
     return 0
 }

@@ -2,3 +2,5 @@
 **/__pycache__
 .idea/
 .vscode/
+bin/build.bat
+bin/config.json

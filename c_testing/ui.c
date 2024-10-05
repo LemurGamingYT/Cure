@@ -1,232 +1,221 @@
-#ifndef _WIN32
-#error "ui.c can only be ran on Windows"
+#include "utils.h"
+#ifndef OS_WINDOWS
+#error "This file is only for Windows"
 #endif
 
 #include <windows.h>
-#include <stdbool.h>
+#include <stdlib.h>
 #include <stdio.h>
 
+typedef void (*ButtonCallback)(HWND);
 
 typedef struct {
-    HFONT obj;
-    const char* name;
-    int size;
-} Font;
+    int width, height;
+} Rect;
+
+typedef struct {
+    int x, y;
+} Vector2int;
 
 typedef struct {
     HWND hwnd;
-    const char* title;
-    int width;
-    int height;
-    void** widgets;
+    ButtonCallback callback;
+} Button;
+
+typedef struct {
+    HWND hwnd;
+} Label;
+
+typedef struct {
+    HWND hwnd;
+} Frame;
+
+typedef struct {
+    HWND hwnd;
+    Button** buttons;
+    size_t button_count;
+    Label** labels;
+    size_t label_count;
+    Frame** frames;
+    size_t frame_count;
 } Window;
 
-typedef enum {
-    WIDGET_BUTTON, WIDGET_LABEL, WIDGET_FRAME
-} WidgetType;
 
-typedef struct {
-    HWND hwnd;
-    WidgetType type;
-    const char* text;
-    int x, y, width, height;
-    Font* font;
-    void (*on_click)(Window*);
-    struct Widget* next;
-} Widget;
-
-
-void close_window(Window* window);
-
-
-LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
+static LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
     Window* window = (Window*)GetWindowLongPtr(hwnd, GWLP_USERDATA);
-    static BOOL isMouseTracking = FALSE;
-    static BOOL isButtonPressed = FALSE;
-
     switch (uMsg) {
         case WM_DESTROY:
             PostQuitMessage(0);
-            close_window(window);
             return 0;
         case WM_COMMAND:
             if (HIWORD(wParam) == BN_CLICKED) {
-                Widget* widget = (Widget*)GetWindowLongPtr((HWND)lParam, GWLP_USERDATA);
-                if (widget && widget->on_click) widget->on_click(window);
-            }
-            break;
-        case WM_CTLCOLORBTN:
-        case WM_CTLCOLORSTATIC:
-            {
-                Widget* widget = (Widget*)GetWindowLongPtr((HWND)lParam, GWLP_USERDATA);
-                if (widget && widget->font) {
-                    HDC hdc = (HDC)wParam;
-                    SelectObject(hdc, widget->font->obj);
+                Button* button = (Button*)GetWindowLongPtr((HWND)lParam, GWLP_USERDATA);
+                if (button && button->callback) {
+                    button->callback(button->hwnd);
                 }
             }
             break;
     }
-    
+
     return DefWindowProc(hwnd, uMsg, wParam, lParam);
 }
 
-Font* create_font(const char* name, int size) {
-    Font* font = (Font*)malloc(sizeof(Font));
-    if (!font) {
-        printf("Failed to allocate memory for font.\n");
-        return NULL;
-    }
-
-    font->obj = CreateFont(
-        size, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE, DEFAULT_CHARSET,
-        OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY,
-        DEFAULT_PITCH | FF_DONTCARE, name
-    );
-    font->name = name;
-    font->size = size;
-    return font;
-}
-
-Window* create_window(const char* title, int width, int height) {
-    Window* window = malloc(sizeof(Window));
-    if (!window) {
-        printf("Failed to allocate memory for window.\n");
-        return NULL;
-    }
-
-    window->title = title;
-    window->width = width;
-    window->height = height;
-    window->widgets = NULL;
-
+static Window Window_new(const char* title, const Rect size) {
     WNDCLASS wc = {0};
     wc.lpfnWndProc = WindowProc;
     wc.hInstance = GetModuleHandle(NULL);
-    wc.lpszClassName = "CureUIWindowClass";
+    wc.lpszClassName = "CureUI";
     RegisterClass(&wc);
 
-    window->hwnd = CreateWindowEx(0, wc.lpszClassName, title, WS_OVERLAPPEDWINDOW,
-        CW_USEDEFAULT, CW_USEDEFAULT, width, height, NULL, NULL, wc.hInstance, NULL);
-    
-    SetWindowLongPtr(window->hwnd, GWLP_USERDATA, (LONG_PTR)window);
+    Window window = { .button_count = 0, .buttons = NULL, .hwnd = CreateWindowEx(
+        0, "CureUI", title, WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT, size.width,
+        size.height, NULL, NULL, GetModuleHandle(NULL), NULL
+    ) };
+
+    if (window.hwnd == NULL) {
+        error("Failed to create window.");
+    }
+
+    SetWindowLongPtr(window.hwnd, GWLP_USERDATA, (LONG_PTR)&window);
     return window;
 }
 
-Widget* create_widget(Window* parent, WidgetType type, const char* text,
-                      int x, int y, int width, int height,
-                      void (*on_click)(Window*), Font* font) {
-    Widget* widget = calloc(1, sizeof(Widget));
-    if (!widget) {
-        printf("Failed to allocate memory for widget.\n");
-        return NULL;
-    }
-
-    widget->type = type;
-    widget->text = text;
-    widget->x = x;
-    widget->y = y;
-    widget->width = width;
-    widget->height = height;
-    widget->on_click = on_click;
-    if (type != WIDGET_FRAME) {
-        widget->font = font;
-        SendMessage(widget->hwnd, WM_SETFONT, (WPARAM)font->obj, TRUE);
-    } else {
-        widget->font = NULL;
-    }
-
-    widget->next = NULL;
-
-    const char* class_name;
-    DWORD style = WS_CHILD | WS_VISIBLE;
-    switch (type) {
-        case WIDGET_BUTTON:
-            class_name = "BUTTON";
-            style |= BS_PUSHBUTTON;
-            break;
-        case WIDGET_LABEL:
-            class_name = "STATIC";
-            style |= SS_LEFT;
-            break;
-        case WIDGET_FRAME:
-            class_name = "BUTTON";
-            style |= BS_GROUPBOX;
-            break;
-        default:
-            class_name = "STATIC";
-            style |= SS_LEFT;
-    }
-
-    widget->hwnd = CreateWindow(class_name, text, style, x, y, width, height,
-        parent->hwnd, NULL, (HINSTANCE)GetWindowLongPtr(parent->hwnd, GWLP_HINSTANCE), NULL);
-
-    SetWindowLongPtr(widget->hwnd, GWLP_USERDATA, (LONG_PTR)widget);
-
-    // Add widget to the window's linked list
-    if (!parent->widgets) {
-        parent->widgets = (void**)widget;
-    } else {
-        Widget* last = (Widget*)parent->widgets;
-        while (last->next) last = (Widget*)last->next;
-        last->next = (struct Widget*)widget;
-    }
-
-    return widget;
-}
-
-Widget* create_label(Window* parent, const char* text, int x, int y, int width, int height,
-                     Font* font) {
-    return create_widget(parent, WIDGET_LABEL, text, x, y, width, height, NULL, font);
-}
-
-Widget* create_button(Window* parent, const char* text, int x, int y, int width, int height,
-                      void (*on_click)(Window*), Font* font) {
-    return create_widget(parent, WIDGET_BUTTON, text, x, y, width, height, on_click, font);
-}
-
-Widget* create_frame(Window* parent, int x, int y, int width, int height) {
-    return create_widget(parent, WIDGET_FRAME, NULL, 10, 10, 765, 535, NULL, NULL);
-}
-
-void close_window(Window* window) {
-    if (window != NULL && window->widgets != NULL) {
-        Widget* current = (Widget*)window->widgets;
-        while (current) {
-            Widget* next = (Widget*)current->next;
-            DestroyWindow(current->hwnd);
-            if (current->type != WIDGET_FRAME) {
-                DeleteObject(current->font->obj);
-                free(current->font);
-            }
-
-            free(current);
-            current = next;
-        }
+static void Window_destroy(Window* window) {
+    if (window != NULL) {
         DestroyWindow(window->hwnd);
-        free(window);
+        if (window->buttons != NULL) {
+            for (int i = 0; i < window->button_count; ++i) {
+                free(window->buttons[i]);
+            }
+            free(window->buttons);
+        }
+        window->buttons = NULL;
+
+        if (window->labels != NULL) {
+            for (int i = 0; i < window->label_count; ++i) {
+                free(window->labels[i]);
+            }
+            free(window->labels);
+        }
+        window->labels = NULL;
+
+        if (window->frames != NULL) {
+            for (int i = 0; i < window->frame_count; ++i) {
+                free(window->frames[i]);
+            }
+            free(window->frames);
+        }
+        window->frames = NULL;
     }
 }
 
-void test_on_click(Window* window) {
-    MessageBox(window->hwnd, "Button clicked!", "Information", MB_OK | MB_ICONINFORMATION);
+static Frame* Window_add_frame(
+    Window* window, const Vector2int pos, const Rect size
+) {
+    Frame* frame = (Frame*)malloc(sizeof(Frame));
+    if (frame == NULL) {
+        Window_destroy(window);
+        error("Failed to allocate memory for frame");
+    }
+
+    frame->hwnd = CreateWindow(
+        "STATIC", "", WS_VISIBLE | WS_CHILD | SS_CENTER | SS_CENTERIMAGE, pos.x, pos.y,
+        size.width, size.height, window->hwnd, NULL, GetModuleHandle(NULL), NULL
+    );
+
+    if (frame->hwnd == NULL) {
+        free(frame);
+        Window_destroy(window);
+        error("Failed to create frame");
+    }
+
+    window->frames = realloc(window->frames, (window->frame_count + 1) * sizeof(Frame*));
+    window->frames[window->frame_count++] = frame;
+    return frame;
+}
+
+static Label* Window_add_label(
+    Window* window, const char* text, const Vector2int pos, const Rect size
+) {
+    Label* label = (Label*)malloc(sizeof(Label));
+    if (label == NULL) {
+        Window_destroy(window);
+        error("Failed to allocate memory for label");
+    }
+
+    label->hwnd = CreateWindow(
+        "STATIC", text, WS_VISIBLE | WS_CHILD | SS_CENTER | SS_CENTERIMAGE, pos.x, pos.y,
+        size.width, size.height, window->hwnd, NULL, GetModuleHandle(NULL), NULL
+    );
+
+    if (label->hwnd == NULL) {
+        free(label);
+        Window_destroy(window);
+        error("Failed to create label");
+    }
+
+    window->labels = realloc(window->labels, (window->label_count + 1) * sizeof(Label*));
+    if (window->labels == NULL) {
+        free(label);
+        Window_destroy(window);
+        error("Failed to allocate memory for labels");
+    }
+
+    window->labels[window->label_count++] = label;
+    return label;
+}
+
+static Button* Window_add_button(
+    Window* window, const char* text, const Vector2int pos, const Rect size,
+    ButtonCallback callback
+) {
+    Button* button = (Button*)malloc(sizeof(Button));
+    if (button == NULL) {
+        Window_destroy(window);
+        error("Failed to allocate memory for button");
+    }
+
+    button->hwnd = CreateWindow(
+        "BUTTON", text, WS_TABSTOP | WS_VISIBLE | WS_CHILD | BS_DEFPUSHBUTTON, pos.x, pos.y,
+        size.width, size.height, window->hwnd, NULL, GetModuleHandle(NULL), NULL
+    );
+
+    if (button->hwnd == NULL) {
+        free(button);
+        Window_destroy(window);
+        error("Failed to create button");
+    }
+
+    button->callback = callback;
+
+    window->buttons = realloc(window->buttons, (window->button_count + 1) * sizeof(Button*));
+    if (window->buttons == NULL) {
+        free(button);
+        Window_destroy(window);
+        error("Failed to allocate memory for button list");
+    }
+
+    window->buttons[window->button_count++] = button;
+    SetWindowLongPtr(button->hwnd, GWLP_USERDATA, (LONG_PTR)button);
+    return button;
+}
+
+void btn_callback(HWND hwnd) {
+    MessageBox(hwnd, "Button clicked!", "Button Clicked", MB_OK);
 }
 
 int main() {
-    Window* window = create_window("Cure UI", 800, 600);
-    Widget* label = create_label(window, "Cure UI", 400, 50, 75, 25, NULL, create_font("Segoe UI", 24));
-    Widget* btn = create_button(
-        window, "Test Button", 350, 250, 150, 30, test_on_click, create_font("Segoe UI", 24)
-    );
-    Widget* frame = create_frame(window, 10, 10, 765, 535);
-
-    ShowWindow(window->hwnd, SW_SHOW);
-
+    Window window = Window_new("Test Window", (Rect){ 800, 600 });
+    Window_add_frame(&window, (Vector2int){ 0, 0 }, (Rect){ 400, 300 });
+    Window_add_button(&window, "Button", (Vector2int){ 10, 10 }, (Rect){ 100, 30 }, btn_callback);
+    Window_add_label(&window, "Label", (Vector2int){ 10, 50 }, (Rect){ 50, 20 });
+    ShowWindow(window.hwnd, SW_SHOW);
     MSG msg = {0};
     while (GetMessage(&msg, NULL, 0, 0)) {
         TranslateMessage(&msg);
         DispatchMessage(&msg);
     }
 
-    close_window(window);
+    Window_destroy(&window);
     return 0;
 }

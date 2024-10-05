@@ -1,0 +1,8 @@
+func main() -> int {
+    // Create a new Logger class
+	logger = new Logger("test.log")
+
+    // Log "Hello, world!" to test.log
+	logger.log("Hello, world!")
+    return 0
+}

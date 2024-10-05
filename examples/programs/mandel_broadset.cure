@@ -1,0 +1,47 @@
+func in_mandelbrot(float x0, float y0, int n) -> bool {
+    x = 0.0
+    y = 0.0
+    xtemp = 0.0
+    while n > 0 {
+        xtemp = x * x - y * y + x0
+        y = 2.0 * x * y + y0
+        x = xtemp
+        n -= 1
+        if x * x + y * y > 4.0 {
+            return false
+        }
+    }
+
+    return true
+}
+
+func main() -> int {
+    xmin = -2.0
+    xmax = 1.0
+    ymin = -1.5
+    ymax = 1.5
+    width = 80.0
+    height = 80.0
+    threshold = 1000
+    dx = (xmax - xmin) / width
+    dy = (ymax - ymin) / height
+
+    float x = 0.0
+    float y = ymax
+
+    while y >= ymin {
+        x = xmin
+        while x < xmax {
+            if in_mandelbrot(x, y, threshold) {
+                print_literal("*")
+            } else {
+                print_literal(".")
+            }
+
+            x += dx
+        }
+
+        print_literal("\n")
+        y -= dy
+    }
+}

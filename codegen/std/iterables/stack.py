@@ -1,20 +1,29 @@
 from codegen.objects import Object, Position, Free, Type, Arg, TempVar, Param
 from codegen.c_manager import c_dec
+from ir.nodes import TypeNode
 
 
 class Stack:
     def __init__(self, codegen) -> None:
         self.codegen = codegen
+        setattr(codegen, 'Stack_type', self.stack_type)
         
         self.defined_types: list[str] = []
         
         @c_dec(
-            param_types=(Param('type', Type('type')), Param('size', Type('int'))),
-            can_user_call=True, add_to_class=self
+            param_types=(Param('size', Type('int')),),
+            can_user_call=True, add_to_class=self, generic_params=('T',),
+            return_type=Type('stack[{T}]')
         )
-        def _create_stack(codegen, call_position: Position, type: Object, size: Object) -> Object:
-            stack_type = self.define_stack_type(Type(str(type)))
+        def _create_stack(codegen, call_position: Position, size: Object, *, T: Type) -> Object:
+            stack_type = self.define_stack_type(T)
             return codegen.call(f'{stack_type.c_type}_create', [Arg(size)], call_position)
+    
+    def stack_type(self, node: TypeNode) -> Type | None:
+        if node.array_type is None:
+            return None
+        
+        return self.define_stack_type(self.codegen.visit_TypeNode(node.array_type))
     
     def define_stack_type(self, type: Type) -> Type:
         stack_type = Type(f'stack[{type}]', f'{type.c_type}Stack')

@@ -16,7 +16,7 @@ func binary_search(array[int] arr, int target) -> int {
 }
 
 func main() -> int {
-    arr = int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
+    arr = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
     target = 8
     res = binary_search(arr, target)
     if res != -1 {

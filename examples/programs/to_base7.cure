@@ -1,0 +1,19 @@
+func to_base7(int n) -> string {
+    is_negative = n < 0
+    n = Math.abs(n)
+    res = ""
+    while n > 0 {
+        res += to_string(n % 7)
+        n = Math.floor(n / 7)
+    }
+
+    res = res.reversed
+    return $"-{res}" if is_negative else res
+}
+
+func main() -> int {
+    print(to_base7(100))
+    print(to_base7(-7))
+    print(to_base7(0))
+    return 0
+}

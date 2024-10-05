@@ -1,0 +1,17 @@
+// 'http' will be a library that provides a simple interface for handling http requests, responses
+// and creating http servers. Currently, it only supports GET requests. It is only supported on
+// Windows currently.
+use "http"
+
+
+func main() -> int {
+    // This http library's GET request actually just uses sockets to make the request and so
+    // you could use the sockets library to make the same request if you need more control.
+
+    // Request a web page and print the status code and content
+    // This may be a bit buggy, but it seems to work for now.
+    response = get_req("www.google.com", "/")
+    print($"Status code for google.com: {response.status_code}") // Should be 200 for OK
+    print($"Content for google.com: {response.content}") // Should be the HTML of the page
+    return 0
+}

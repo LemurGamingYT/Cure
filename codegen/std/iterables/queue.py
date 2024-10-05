@@ -1,23 +1,31 @@
 from codegen.objects import Object, Position, Type, Param, Arg, Free, TempVar
 from codegen.c_manager import c_dec
+from ir.nodes import TypeNode
 
 
 class Queue:
     def __init__(self, codegen) -> None:
         self.codegen = codegen
+        setattr(codegen, 'Queue_type', self.queue_type)
         
         self.defined_types: list[str] = []
         
         @c_dec(
-            param_types=(Param('type', Type('type')), Param('size', Type('int'))),
-            can_user_call=True, add_to_class=self
+            param_types=(Param('size', Type('int')),),
+            can_user_call=True, add_to_class=self, generic_params=('T',), return_type=Type('Queue[T]')
         )
-        def _create_queue(codegen, call_position: Position, type: Object, size: Object) -> Object:
-            queue_type = self.define_queue_type(Type(str(type)))
+        def _create_queue(codegen, call_position: Position, size: Object, *, T: Type) -> Object:
+            queue_type = self.define_queue_type(T)
             return codegen.call(f'{queue_type.c_type}_create', [Arg(size)], call_position)
     
+    def queue_type(self, node: TypeNode) -> Type | None:
+        if node.array_type is None:
+            return None
+        
+        return self.define_queue_type(self.codegen.visit_TypeNode(node.array_type))
+    
     def define_queue_type(self, type: Type) -> Type:
-        queue_type = Type(f'queue[{type}]', f'{type.c_type}_queue')
+        queue_type = Type(f'Queue[{type}]', f'{type.c_type}_queue')
         if type.c_type in self.defined_types:
             return queue_type
         

@@ -25,7 +25,25 @@
         "cc_array_sized.h": "c",
         "string.h": "c",
         "winsock2.h": "c",
-        "ws2tcpip.h": "c"
+        "ws2tcpip.h": "c",
+        "lvgl.h": "c",
+        "iniparser.h": "c",
+        "utils.h": "c",
+        "iostream": "cpp",
+        "stddef.h": "c",
+        "algorithm": "c",
+        "functional": "c",
+        "optional": "c",
+        "system_error": "c",
+        "xtr1common": "c",
+        "memory": "c",
+        "ratio": "c",
+        "tuple": "c",
+        "iosfwd": "c",
+        "xlocbuf": "c",
+        "curl.h": "c",
+        "curl_hmac.h": "c",
+        "escape.h": "c"
     },
     "python.REPL.enableREPLSmartSend": false
 }

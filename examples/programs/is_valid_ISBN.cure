@@ -1,0 +1,39 @@
+func is_valid_ISBN(string ISBN) -> bool {
+    unique_id = int{}
+    i = 0
+    while i < ISBN.length {
+        unique_id.add((int)(ISBN[i]))
+        i += 1
+    }
+
+    actual_check_digit = unique_id.get(ISBN.length - 1)
+    times_three = int{}
+    i = 0
+    foreach x in unique_id {
+        if i % 2 == 0 {
+            times_three.add(x * 3)
+        } else {
+            times_three.add(x)
+        }
+
+        i += 1
+    }
+
+    sum_new_digits = 0
+    foreach x in times_three {
+        sum_new_digits += x
+    }
+
+    sum_mod_ten = sum_new_digits % 10
+    if sum_mod_ten == 0 {
+        sum_mod_ten = 10
+    }
+
+    check_digit = 10 - sum_mod_ten
+    return check_digit == actual_check_digit
+}
+
+func main() -> int {
+    print(is_valid_ISBN("978-3-16-148410-0"))
+    return 0
+}

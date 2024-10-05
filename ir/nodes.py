@@ -5,6 +5,7 @@ from pathlib import Path
 from abc import ABC
 
 from colorama import init, Fore, Style
+from colorama.ansi import AnsiFore
 init()
 
 
@@ -16,23 +17,21 @@ class Position:
     column: int
     src: str = field(repr=False)
     
-    def _line(self) -> str:
+    def get_print_content(self, color: AnsiFore, msg: str) -> str:
+        return f'{self.get_src()}\n{Style.BRIGHT}{color}{" " * self.column}^\n{msg}{Style.RESET_ALL}'
+    
+    def get_src(self) -> str:
         return self.src.splitlines()[self.line - 1]
-        # lines[1] = f'{Style.BRIGHT}{lines[1]}{Style.RESET_ALL}'
-        # return '\n'.join(lines) + '\n'
     
     def error_here(self, msg: str) -> NoReturn:
-        print(self._line())
-        print(f'{Style.BRIGHT}{Fore.RED}{" " * self.column}^\n{msg}{Style.RESET_ALL}')
+        print(self.get_print_content(Fore.RED, msg))
         sys_exit(1)
     
     def warn_here(self, msg: str) -> None:
-        print(self._line())
-        print(f'{Style.BRIGHT}{Fore.YELLOW}{msg}{Style.RESET_ALL}')
+        print(self.get_print_content(Fore.YELLOW, msg))
     
     def info_here(self, msg: str) -> None:
-        print(self._line())
-        print(f'{Style.BRIGHT}{Fore.CYAN}{msg}{Style.RESET_ALL}')
+        print(self.get_print_content(Fore.CYAN, msg))
 
 @dataclass(**kwargs)
 class Node(ABC):
@@ -52,6 +51,7 @@ class TypeNode(Node):
     name: str
     array_type: Union['TypeNode', None] = field(default=None)
     dict_types: tuple['TypeNode', 'TypeNode'] | None = field(default=None)
+    is_optional: bool = field(default=False)
 
 @dataclass(**kwargs)
 class ParamNode(Node):
@@ -69,6 +69,7 @@ class ArgNode(Node):
 class Call(Node):
     name: str
     args: list[ArgNode] = field(default_factory=list)
+    generic_args: list[TypeNode] = field(default_factory=list)
 
 @dataclass(**kwargs)
 class FunctionMod(Call):
@@ -123,6 +124,8 @@ class FuncDecl(Node):
     params: list[ParamNode] = field(default_factory=list)
     return_type: TypeNode | None = field(default=None)
     modifications: list[Call] = field(default_factory=list)
+    generic_params: list[str] = field(default_factory=list)
+    extend_type: TypeNode | None = field(default=None)
 
 @dataclass(**kwargs)
 class Value(Node):
@@ -139,13 +142,13 @@ class Nil(Node):
 
 @dataclass(**kwargs)
 class Array(Node):
-    type: TypeNode
+    type: TypeNode | None
     elements: list[ArgNode] = field(default_factory=list)
 
 @dataclass(**kwargs)
 class Dict(Node):
-    key_type: TypeNode
-    value_type: TypeNode
+    key_type: TypeNode | None
+    value_type: TypeNode | None
     elements: dict[Node, Node] = field(default_factory=dict)
 
 @dataclass(**kwargs)
@@ -168,6 +171,7 @@ class Attribute(Node):
     obj: Node
     attr: str
     args: list[ArgNode] | None = field(default=None)
+    generic_args: list[TypeNode] = field(default_factory=list)
 
 @dataclass(**kwargs)
 class New(Node):
@@ -210,10 +214,13 @@ class ClassProperty(Node):
     name: str
     type: TypeNode
     value: Node | None = field(default=None)
+    public: bool = field(default=True)
 
 @dataclass(**kwargs)
 class ClassMethod(FuncDecl):
-    pass
+    is_public: bool = field(default=True)
+    is_static: bool = field(default=False)
+    is_overriding: bool = field(default=False)
 
 ClassMembers = list[ClassProperty | ClassMethod]
 
@@ -221,6 +228,7 @@ ClassMembers = list[ClassProperty | ClassMethod]
 class Class(Node):
     name: str
     members: ClassMembers = field(default_factory=ClassMembers)
+    bases: list[str] = field(default_factory=list)
 
 @dataclass(**kwargs)
 class AttrAssign(Node):
@@ -233,3 +241,9 @@ class AttrAssign(Node):
 class LiteralCode(Node):
     code: str
     type: TypeNode
+
+@dataclass(**kwargs)
+class AnonymousFunc(Node):
+    body: Body
+    params: list[ParamNode] = field(default_factory=list)
+    return_type: TypeNode | None = field(default=None)

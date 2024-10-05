@@ -1,5 +1,6 @@
-from codegen.objects import Object, Position, EnvItem, Free, Type, TempVar, Param, Function, Arg
+from codegen.objects import Object, Position, EnvItem, Free, Type, TempVar, Param, Arg
 from codegen.c_manager import c_dec, INCLUDES, func_modification
+from codegen.function_manager import UserFunction
 from codegen.target import Target
 
 
@@ -12,7 +13,7 @@ def get_result_field(params: list[Param]) -> str:
     
     return result_struct_field
 
-def get_function_info(name: str, codegen, pos: Position) -> Function:
+def get_function_info(name: str, codegen, pos: Position) -> UserFunction:
     if codegen.scope.env.get(name) is None:
         pos.error_here(f'Function \'{name}\' not found')
     
@@ -24,7 +25,7 @@ class Thread:
         fn = get_function_info(name, codegen, call_position)
             
         struct_t = Type(f'thread_{fn.name}_t')
-        codegen.c_manager.RESERVED_NAMES.append(str(struct_t))
+        codegen.c_manager.reserve(str(struct_t))
         
         result_struct_field = get_result_field(fn.params)
         codegen.add_toplevel_code(f"""typedef struct {{
@@ -53,8 +54,12 @@ return 0;
         thread: TempVar = codegen.create_temp_var(Type('Thread'), call_position, free=thread_close)
         thread_close.object_name = f'{thread}.t'
         
+        params_initialization = ', '.join(f'.{p.name} = {args[i]}' for i, p in enumerate(fn.params))
+        if params_initialization == '':
+            params_initialization = '0'
+        
         codegen.prepend_code(f"""Thread {thread};
-{struct_t} {arg} = {{ {', '.join(f'.{p.name} = {args[i]}' for i, p in enumerate(fn.params))} }};
+{struct_t} {arg} = {{ {params_initialization} }};
 {thread}.arg = &{arg};
 if (!thrd_create(&{thread}.t, (thrd_start_t){thread_fn}, &{arg})) {{
 {codegen.c_manager.err('Threading failed')}
@@ -64,11 +69,19 @@ if (!thrd_create(&{thread}.t, (thrd_start_t){thread_fn}, &{arg})) {{
         return thread.OBJECT(), struct_t, result_struct_field
     
     def __init__(self, codegen) -> None:
-        codegen.valid_types.append('Thread')
-        codegen.c_manager.RESERVED_NAMES.extend((
+        codegen.c_manager.reserve((
             'thrd_t', 'thrd_create', 'thrd_success', 'thrd_busy', 'thrd_error', 'thrd_join',
             'thrd_detach', 'thrd_current', 'thrd_equal', 'thrd_sleep', 'thrd_yield', 'thrd_exit',
-            'thrd_no_mem', 'thrd_start_t', 'thrd_timedout'
+            'thrd_no_mem', 'thrd_start_t', 'thrd_timedout', '_TINYCTHREAD_H_',
+            '_TTHREAD_PLATFORM_DEFINED_', '_TTHREAD_WIN32_', '_TTHREAD_POSIX_', '_GNU_SOURCE',
+            '_POSIX_C_SOURCE', '_XOPEN_SOURCE', '_XPG6', 'TTHREAD_NORETURN', 'TIME_UTC',
+            '_TTHREAD_EMULATE_TIMESPEC_GET_', '_tthread_timespec', 'timespec',
+            '_tthread_timespec_get', 'timespec_get', 'TINYCTHREAD_VERSION_MAJOR',
+            'TINYCTHREAD_VERSION_MINOR', 'TINYCTHREAD_VERSION', '_Thread_local', 'TSS_DTOR_ITERATIONS',
+            'mtx_plain', 'mtx_timed', 'mtx_recursive', 'mtx_t', 'mtx_init', 'mtx_destroy',
+            'mtx_lock', 'mtx_unlock', 'mtx_trylock', 'cnd_t', 'cnd_init', 'cnd_destroy', 'cnd_signal',
+            'cnd_broadcast', 'cnd_wait', 'cnd_timedwait', 'tss_t', 'tss_dtor_t', 'tss_create',
+            'tss_delete', 'tss_get', 'tss_set', 'once_flag', 'ONCE_FLAG_INIT', 'call_once'
         ))
         codegen.extra_compile_args.append(INCLUDES / 'tinycthread/tinycthread.c')
         codegen.c_manager.include(f'"{INCLUDES / "tinycthread/tinycthread.h"}"', codegen)
@@ -122,7 +135,7 @@ int {id} = GetThreadId(({thread}).t);
             params=(Param('join', Type('bool'), default=Object('true', Type('bool'))),),
             add_to_class=self
         )
-        def _Thread(codegen, func_obj: Function, call_position: Position, args: list[Arg],
+        def _Thread(codegen, func_obj: UserFunction, call_position: Position, args: list[Arg],
                     join: Object) -> Object:
             thread, struct_t, res_field = self.create_thread(
                 codegen, call_position, func_obj.name,

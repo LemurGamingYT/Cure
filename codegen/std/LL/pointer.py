@@ -4,8 +4,6 @@ from codegen.c_manager import c_dec
 
 class Pointer:
     def __init__(self, codegen) -> None:
-        codegen.valid_types.append('Pointer')
-        
         codegen.add_toplevel_code("""#ifndef CURE_LL_H
 typedef struct {
     void* data;
@@ -71,12 +69,8 @@ memcpy(({pointer}).data, (void*)(&{data_var}), sizeof({data_var}));
             return Object.NULL(call_position)
         
         @c_dec(
-            param_types=(Param('ptr', Type('Pointer')), Param('read_type', Type('type'))),
-            is_method=True, add_to_class=self
+            param_types=(Param('ptr', Type('Pointer')),),
+            is_method=True, add_to_class=self, generic_params=('T',), return_type=Type('{T}')
         )
-        def _Pointer_read(_, call_position: Position,
-                        pointer: Object, as_type: Object) -> Object:
-            return Object(
-                f'(*({as_type}*)({pointer}).data)',
-                Type(str(as_type)), call_position
-            )
+        def _Pointer_read(_, call_position: Position, pointer: Object, *, T: Type) -> Object:
+            return Object(f'(*({T}*)({pointer}).data)', T, call_position)

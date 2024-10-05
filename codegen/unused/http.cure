@@ -1,8 +1,0 @@
-use "http"
-
-
-func main() -> int {
-    response = get_url("www.google.com")
-    print(response)
-    return 0
-}

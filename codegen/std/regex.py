@@ -1,13 +1,17 @@
 from codegen.objects import Object, Position, Type, Arg, TempVar, Param
+# from codegen.array_manager import DEFAULT_CAPACITY
 from codegen.c_manager import c_dec, INCLUDES
 
 
 class regex:
     def __init__(self, codegen) -> None:
-        codegen.valid_types.append('Regex')
+        codegen.add_type('Regex')
         codegen.extra_compile_args.append(INCLUDES / 'tinyregexc/re.c')
         codegen.c_manager.include(f'"{INCLUDES / "tinyregexc/re.h"}"', codegen)
-        
+        codegen.c_manager.reserve((
+            '_TINY_REGEX_C', 'RE_DOT_MATCHES_NEWLINE', 'regex_t', 're_t', 're_compile', 're_matchp',
+            're_match'
+        ))
         codegen.add_toplevel_code("""#ifndef CURE_REGEX_H
 typedef struct {
     const char* pattern;
@@ -89,6 +93,48 @@ Match {obj} = {{ .length = {match_length}, .is_match = {is_match} }};
 """)
             
             return obj
+        
+#         @c_dec(
+#             param_types=(Param('regex', Type('Regex')), Param('s', Type('string'))),
+#             is_method=True, add_to_class=self
+#         )
+#         def _Regex_findall(codegen, call_position: Position, re: Object, string: Object) -> Object:
+#             match_length: TempVar = codegen.create_temp_var(Type('int'), call_position)
+#             match_start: TempVar = codegen.create_temp_var(Type('int'), call_position)
+#             capacity: TempVar = codegen.create_temp_var(Type('int'), call_position)
+#             start: TempVar = codegen.create_temp_var(Type('string'), call_position)
+#             res: TempVar = codegen.create_temp_var(Type('string*'), call_position)
+#             size: TempVar = codegen.create_temp_var(Type('int'), call_position)
+#             codegen.prepend_code(f"""string {start} = {string};
+# int {size} = 0, {capacity} = {DEFAULT_CAPACITY}, {match_length};
+# string* {res} = (string*)malloc({capacity} * sizeof(string));
+# {codegen.c_manager.buf_check(str(res))}
+# while (*{start} != '\\0') {{
+#     int {match_start} = re_matchp(({re}).compiled, {start}, &{match_length});
+#     if ({match_start} == -1) break;
+    
+#     {res}[{size}] = (string)malloc(({match_length} + 1));
+#     {codegen.c_manager.buf_check(str(res))}
+#     strncpy({res}[{size}], {start} + {match_start}, {match_length});
+#     {res}[{size}][{match_length}] = '\\0';
+#     {size}++;
+    
+#     if ({size} == {capacity}) {{
+#         {capacity} *= 2;
+#         {res} = (string*)realloc({res}, {capacity} * sizeof(char*));
+#         {codegen.c_manager.buf_check(str(res))}
+#     }}
+    
+#     {start} += {match_start} + {match_length};
+# }}
+# """)
+            
+#             code, arr = codegen.c_manager.array_from_c_array(
+#                 codegen, call_position, Type('string'), str(res), capacity
+#             )
+            
+#             codegen.prepend_code(code)
+#             return arr.OBJECT()
         
         @c_dec(
             param_types=(Param('pattern', Type('string')),),

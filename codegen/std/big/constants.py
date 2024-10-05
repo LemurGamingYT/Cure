@@ -1,0 +1,1 @@
+MAX_DIGITS = 1000

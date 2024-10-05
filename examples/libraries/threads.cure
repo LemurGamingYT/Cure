@@ -24,6 +24,7 @@ func main() -> int {
     thread = new Thread(test, 1, 2) // Automatically starts the thread
     print(thread) // Print the thread object
     
+    // Thread.id is not supported on Windows
     if System.os == "Windows" {
         print($"Thread ID: {thread.id}") // Print the thread's ID
     } else {

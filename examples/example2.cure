@@ -6,14 +6,42 @@ func add_to_array(array[int] &arr, int x, int y, int z) {
     arr.add(z)
 }
 
-// Define a function with a default parameter
-func triple_add(int a, int b, int c = 3) -> int {
+// Create a fibonacci sequence function and use the 'Cache' function modification
+[Benchmark()]
+[Cache()]
+func fibonacci(int n) -> int {
+    if n <= 1 {
+        return n
+    } else {
+        return fibonacci(n - 1) + fibonacci(n - 2)
+    }
+}
+
+// Define a function to be threaded
+func threaded(int n) {
+    arr = int{}
+
+    i = 0
+    while i < n {
+        if i % 2 == 0 {
+            arr.add(i)
+        }
+
+        i += 1
+    }
+}
+
+// Define a generic function
+func triple_add[T](T a, T b, T c) -> T {
     return a + b + c
 }
 
 func main() -> int {
-    print(triple_add(1, 2))
-    print(triple_add(1, 2, 4))
+    // T is replaced with int
+    print(triple_add(1, 2, 3))
+
+    // T is replaced with string
+    print(triple_add("a", "b", "c"))
 
     arr = int{}
     add_to_array(arr, 1, 2, 3)
@@ -41,13 +69,51 @@ func main() -> int {
     // Use the 'parsers' library to create a new JSON file
     use "parsers"
 
-    json = new JSONParser()
+    json = new JSONParser() // Create an empty JSONParser object
     json.write_string("name", "Douglas")
     json.write_string("surname", "Crockford")
     json.write_string("fullname", $"{json.read_string('name')} {json.read_string('surname')}")
     json.write_string("city", "San Francisco")
     json.write_int("age", 69)
     
+    // Save the JSONParser object to a file
     json.to_file("biography.json")
-    return 0
+
+    // Use 'threads' to create a new thread on the abc function
+    use "threads"
+
+    // Threads are automatically started
+    thread = new Thread(threaded, ONE_THOUSAND)
+
+    // Wait for the thread to finish
+    thread.join()
+
+    // Calculate the 45th fibonacci number, happens very fast because it's cached
+    // Meaning every time the function is called, the result is cached and looked up
+    // instead of recalculating the result
+    print(fibonacci(45))
+
+    // Create two new Vector2 objects
+    a = Math.vec2(50.0, 50.0)
+    b = Math.vec2(10.0, 10.0)
+    print(a, b) // Print them out
+
+    // Get the distance between the two vectors
+    print(a.dist(b))
+
+    // Get the cross product of the two vectors
+    print(a.cross(b))
+
+    // Get the dot product of the two vectors
+    print(a.dot(b))
+
+    // Get the two vectors as normalised vectors
+    print(a.norm, b.norm)
+
+    // Get the length/magnitude of the two vectors
+    print(a.length, b.length)
+
+    // Get the angle between the two vectors
+    print(a.angle(b))
+    return 0 // Return 0 to indicate success
 }

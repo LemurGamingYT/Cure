@@ -1,11 +1,12 @@
 from codegen.objects import Object, Position, Free, Type, TempVar, Param
+from codegen.function_manager import OverloadKey, OverloadValue
 from codegen.c_manager import c_dec
 
 
 class text:
     def __init__(self, codegen) -> None:
-        codegen.c_manager.RESERVED_NAMES.extend(('setlocale', Type('localeconv'), 'lconv'))
-        codegen.valid_types.append('LocaleConv')
+        codegen.c_manager.reserve(('setlocale', 'localeconv', 'lconv'))
+        codegen.add_type('LocaleConv')
         codegen.add_toplevel_code("""#ifndef CURE_TEXT_H
 #include <locale.h>
 typedef struct {
@@ -39,9 +40,10 @@ typedef struct {
             param_types=(
                 Param('category', Type('int')),
                 Param('locale', Type('string'), default=Object('"NULL"', Type('string')))
-            ),
-            can_user_call=True, add_to_class=self, overloads={
-                ((Param('category', Type('int')),), Type('nil')): _set_locale_category
+            ), can_user_call=True, add_to_class=self, overloads={
+                OverloadKey(
+                    Type('nil'), (Param('category', Type('int')),)
+                ): OverloadValue(_set_locale_category)
             }
         )
         def _set_locale(codegen, call_position: Position, category: Object, locale: Object) -> Object:

@@ -1,4 +1,4 @@
-from codegen.objects import Object, Position, Free, Type, Arg, TempVar, Param
+from codegen.objects import Object, Position, Free, Type, TempVar, Param, Arg
 from codegen.array_manager import DEFAULT_CAPACITY
 from codegen.c_manager import CManager, c_dec
 
@@ -229,13 +229,13 @@ if ({i} < {d}.length - 1) {{
 for (size_t {i} = 0; {i} < {d}.length; {i}++) {{
     """)
             codegen.prepend_code(f"""{codegen.call(
-        f'{key_arr_type.c_type}_add',
-        [
-            Arg(keys.OBJECT()),
-            Arg(Object(f'{d}.elements[{i}].key', key_type, call_position))
-        ],
-        call_position
-    )};
+    f'{key_arr_type.c_type}_add',
+    [
+        Arg(keys.OBJECT()),
+        Arg(Object(f'{d}.elements[{i}].key', key_type, call_position))
+    ],
+    call_position
+)};
 }}""")
             
             return keys.OBJECT()
@@ -255,13 +255,13 @@ for (size_t {i} = 0; {i} < {d}.length; {i}++) {{
 for (size_t {i} = 0; {i} < {d}.length; {i}++) {{
     """)
             codegen.prepend_code(f"""{codegen.call(
-        f'{val_arr_type.c_type}_add',
-        [
-            Arg(values.OBJECT()),
-            Arg(Object(f'{d}.elements[{i}].value', value_type, call_position))
-        ],
-        call_position
-    )};
+    f'{val_arr_type.c_type}_add',
+    [
+        Arg(values.OBJECT()),
+        Arg(Object(f'{d}.elements[{i}].value', value_type, call_position))
+    ],
+    call_position
+)};
 }}""")
             
             return values.OBJECT()

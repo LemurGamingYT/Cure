@@ -1,6 +1,6 @@
 func main() -> int {
     // Define a dictionary with string keys and integer values
-    dict = [string: int]{"one": 1, "two": 2, "three": 3}
+    dict = {"one": 1, "two": 2, "three": 3}
     print(type(dict)) // Print the type of the dictionary
     print(dict) // Print the dictionary
 

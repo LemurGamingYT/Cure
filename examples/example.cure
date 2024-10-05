@@ -40,7 +40,7 @@ func main() -> int {
     print(test_add(x, y))
 
     // define an array
-    arr = int{8935, 87125, 95, 841, 12378, 58, 5490, 1249, 3489, 590, 5309, 309}
+    arr = {8935, 87125, 95, 841, 12378, 58, 5490, 1249, 3489, 590, 5309, 309}
     print(type(arr))
     print(arr)
 
@@ -64,7 +64,7 @@ func main() -> int {
         print(elem)
     }
 
-    arr2 = int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
+    arr2 = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
 
     // '.add' is a function that has 3 overloads:
     arr.add(895) // add a single element at the end of the array
@@ -72,7 +72,7 @@ func main() -> int {
     arr.add(arr2) // add an array
 
     // define a dictionary
-    d = [string: int]{
+    d = {
         "a": 1,
         "b": 2,
         "c": 3
@@ -95,7 +95,7 @@ func main() -> int {
 
     // Write the integer value '5' to the allocated memory
     ptr.write(5)
-    print(ptr.read(int)) // Read an 'int' type from the allocated memory
+    print(ptr.read[int]()) // Read an 'int' type from the allocated memory
 
     // Make sure to free the allocated memory
     ptr.free()
@@ -104,7 +104,7 @@ func main() -> int {
     use "fstream"
 
     // Create a file and open it in write mode
-    file = create_file("test.txt", "w")
+    file = new File("test.txt", "w")
     print(file) // Nice string representation of the file
     print(file.path) // The input path
     print(file.mode) // Get the mode that the file was opened in
@@ -116,7 +116,7 @@ func main() -> int {
 
     file.close() // Close the writer file to write the contents to the file
 
-    read = open_file("test.txt", "r") // Since the file is created, simply open it.
+    read = new File("test.txt", "r") // Open the file in read mode.
     print(read.contents) // Read the contents of the file
 
     print(read.size) // Get the size of the file

@@ -7,20 +7,15 @@ from codegen.c_manager import c_dec
 
 class color:
     def __init__(self, codegen) -> None:
-        self.hex = HexTriplet(codegen)
-        self.rgb = RGB(codegen)
-        self.hsv = HSV(codegen)
-        
+        codegen.add_type(('RGB', 'HSV', 'HexTriplet'))
+        codegen.c_manager.reserve(('RGB', 'HSV', 'HexTriplet'))
+        codegen.c_manager.add_objects(HexTriplet(codegen), self)
+        codegen.c_manager.add_objects(RGB(codegen), self)
+        codegen.c_manager.add_objects(HSV(codegen), self)
         codegen.add_toplevel_code("""#ifndef CURE_COLOR_H
 #define CURE_COLOR_H
 #endif
 """)
-        
-        codegen.valid_types.extend(('RGB', 'HSV', 'HexTriplet'))
-        
-        codegen.c_manager.add_objects(self.hex, self)
-        codegen.c_manager.add_objects(self.rgb, self)
-        codegen.c_manager.add_objects(self.hsv, self)
     
         @c_dec(
             param_types=(Param('r', Type('int')), Param('g', Type('int')), Param('b', Type('int'))),

@@ -54,16 +54,21 @@ class IRBuilder(CureVisitor):
         pos = to_pos(ctx)
         name = ctx.ID().getText()
         if len(ctx.type_()) == 0:
-            return TypeNode(pos, name)
+            node = TypeNode(pos, name)
         elif len(ctx.type_()) == 1:
-            return TypeNode(pos, name, self.visitType(ctx.type_(0)))
+            node = TypeNode(pos, name, self.visitType(ctx.type_(0)))
         elif len(ctx.type_()) == 2:
-            return TypeNode(
+            node = TypeNode(
                 pos, name, None,
                 (self.visitType(ctx.type_(0)), self.visitType(ctx.type_(1)))
             )
         else:
             pos.error_here(f'Invalid type \'{ctx.getText()}\'')
+        
+        if ctx.QUESTION() is not None:
+            node.is_optional = True
+        
+        return node
     
     def visitUseStmt(self, ctx: CureParser.UseStmtContext) -> Use:
         pos = to_pos(ctx)
@@ -132,18 +137,36 @@ class IRBuilder(CureVisitor):
         return Call(to_pos(ctx), ctx.ID().getText(), self.visitArgs(ctx.args()))
     
     def visitFuncAssign(self, ctx: CureParser.FuncAssignContext) -> FuncDecl:
+        returns = None
+        if len(ctx.type_()) == 2:
+            returns = self.visitType(ctx.type_(1))
+        elif len(ctx.type_()) == 1:
+            returns = self.visitType(ctx.type_(0))
+        
         return FuncDecl(
-            to_pos(ctx), ctx.ID().getText(), self.visitBody(ctx.body()),
+            to_pos(ctx), ctx.ID(0).getText(), self.visitBody(ctx.body()),
             self.visitParams(ctx.params()),
-            self.visitType(ctx.type_()) if ctx.type_() is not None else None,
-            [self.visitFuncModifications(mod) for mod in ctx.funcModifications()]
+            returns,
+            [self.visitFuncModifications(mod) for mod in ctx.funcModifications()],
+            [t.getText() for t in ctx.ID()[1:]],
+            self.visitType(ctx.type_(0)) if len(ctx.type_()) == 2 else None
         )
     
     def visitClassProperty(self, ctx: CureParser.ClassPropertyContext) -> ClassProperty:
         return ClassProperty(
             to_pos(ctx), ctx.ID().getText(),
             self.visitType(ctx.type_()),
-            self.visitExpr(ctx.expr()) if ctx.expr() is not None else None
+            self.visitExpr(ctx.expr()) if ctx.expr() is not None else None,
+            ctx.PRIVATE() is None
+        )
+    
+    def visitClassMethod(self, ctx: CureParser.ClassMethodContext) -> ClassMethod:
+        return ClassMethod(
+            to_pos(ctx), ctx.ID().getText(), self.visitBody(ctx.body()),
+            self.visitParams(ctx.params()) if ctx.params() is not None else [],
+            self.visitType(ctx.type_()) if ctx.type_() is not None else None,
+            [], [], None,
+            ctx.PRIVATE() is None, ctx.STATIC() is not None, ctx.OVERRIDE() is not None
         )
     
     def visitClassDeclarations(self, ctx: CureParser.ClassDeclarationsContext | None)\
@@ -151,18 +174,15 @@ class IRBuilder(CureVisitor):
         if ctx is None:
             return []
         
-        functions = [self.visitFuncAssign(func) for func in ctx.funcAssign()]
+        methods = [self.visitClassMethod(func) for func in ctx.classMethod()]
         properties = [self.visitClassProperty(prop) for prop in ctx.classProperty()]
-        return [
-            ClassMethod(func.pos, func.name, func.body, func.params, func.return_type,
-                        func.modifications)
-            for func in functions
-        ] + properties
+        return methods + properties
     
     def visitClassAssign(self, ctx: CureParser.ClassAssignContext) -> Class:
         return Class(
-            to_pos(ctx), ctx.ID().getText(),
-            self.visitClassDeclarations(ctx.classDeclarations())
+            to_pos(ctx), ctx.ID(0).getText(),
+            self.visitClassDeclarations(ctx.classDeclarations()),
+            [ident.getText() for ident in ctx.ID()[1:]]
         )
     
     def visitParam(self, ctx: CureParser.ParamContext) -> ParamNode:
@@ -187,7 +207,7 @@ class IRBuilder(CureVisitor):
         if ctx.INT() is not None:
             return Value(to_pos(ctx), ctx.getText(), 'int')
         elif ctx.FLOAT() is not None:
-            return Value(to_pos(ctx), ctx.getText(), 'float')
+            return Value(to_pos(ctx), ctx.getText() + 'f', 'float')
         elif ctx.STRING() is not None:
             txt = ctx.getText()
             if len(txt) > 0 and txt[0] == '$':
@@ -221,10 +241,12 @@ class IRBuilder(CureVisitor):
             return Brackets(to_pos(ctx), self.visitExpr(ctx.expr()))
         elif ctx.ID() is not None:
             return Identifier(to_pos(ctx), ctx.ID().getText())
-        elif len(ctx.type_()) > 0:
+        elif ctx.LBRACE() is not None:
             if len(ctx.dict_element()) > 0:
                 return Dict(
-                    to_pos(ctx), self.visitType(ctx.type_(0)), self.visitType(ctx.type_(1)),
+                    to_pos(ctx),
+                    self.visitType(ctx.type_(0)) if ctx.type_(0) is not None else None,
+                    self.visitType(ctx.type_(1)) if ctx.type_(1) is not None else None,
                     {
                         self.visitExpr(element.expr(0)) : self.visitExpr(element.expr(1))
                         for element in ctx.dict_element()
@@ -232,14 +254,20 @@ class IRBuilder(CureVisitor):
                 )
             else:
                 return Array(
-                    to_pos(ctx), self.visitType(ctx.type_(0)),
+                    to_pos(ctx), self.visitType(ctx.type_(0)) if ctx.type_(0) is not None else None,
                     self.visitArgs(ctx.args())
                 )
         else:
             to_pos(ctx).error_here('Invalid atom')
     
+    def visitGenericArgs(self, ctx: CureParser.GenericArgsContext) -> list[TypeNode]:
+        return [self.visitType(t) for t in ctx.type_()]
+    
     def visitCall(self, ctx: CureParser.CallContext) -> Call:
-        return Call(to_pos(ctx), ctx.ID().getText(), self.visitArgs(ctx.args()))
+        return Call(
+            to_pos(ctx), ctx.ID().getText(), self.visitArgs(ctx.args()),
+            self.visitGenericArgs(ctx.genericArgs()) if ctx.genericArgs() is not None else []
+        )
     
     def visitExpr(self, ctx: CureParser.ExprContext) -> Node:
         if ctx.atom() is not None:
@@ -260,7 +288,7 @@ class IRBuilder(CureVisitor):
             
             return Attribute(
                 to_pos(ctx), self.visitExpr(ctx.expr(0)), ctx.ID().getText(),
-                args
+                args, self.visitGenericArgs(ctx.genericArgs()) if ctx.genericArgs() is not None else []
             )
         elif ctx.NEW() is not None:
             return New(
@@ -274,6 +302,12 @@ class IRBuilder(CureVisitor):
             )
         elif ctx.LBRACK() is not None:
             return Index(to_pos(ctx), self.visitExpr(ctx.expr(0)), self.visitExpr(ctx.expr(1)))
+        # elif ctx.FUNC() is not None:
+        #     return AnonymousFunc(
+        #         to_pos(ctx), self.visitBody(ctx.body()),
+        #         self.visitParams(ctx.params()) if ctx.params() is not None else [],
+        #         self.visitType(ctx.type_()) if ctx.type_() is not None else None
+        #     )
         elif ctx.LPAREN() is not None:
             return Cast(to_pos(ctx), self.visitExpr(ctx.expr(0)), self.visitType(ctx.type_()))
         # elif ctx.LBRACE() is not None:

@@ -8,8 +8,12 @@ from shutil import which
 from colorama import init, Fore, Style
 
 from codegen import cure_to_c
+# from repl import repl
 
 init()
+
+
+examples = (Path(__file__).parent / 'examples').absolute()
 
 
 def format_c_file(file: Path) -> None:
@@ -58,9 +62,59 @@ def compile(file: Path, args: Namespace) -> None:
     else:
         print(f'{Fore.RED}{Style.BRIGHT}{file.as_posix()} does not exist{Style.RESET_ALL}')
 
+def test(
+    file: Path, exclude_files: list[Path], args: Namespace, run_exe: bool = False
+) -> tuple[int, int]:
+    files = []
+    for f in file.glob('**/*.cure'):
+        should_add = True
+        for exclude in exclude_files:
+            if exclude.is_file() and f == exclude:
+                should_add = False
+                break
+            
+            if exclude.is_dir() and f.parent == exclude:
+                should_add = False
+                break
+        
+        if should_add:
+            files.append(f)
+    
+    total_tests = len(files)
+    tests_passed = total_tests
+
+    for file in files:
+        strf = file.as_posix()
+        try:
+            c_file, exe_file = compile_file(file, args)
+            if run_exe:
+                ret = run([exe_file.as_posix()])
+                if ret.returncode != 0:
+                    print(f'{Fore.RED}{Style.BRIGHT}{strf} returned {ret.returncode}{Style.RESET_ALL}')
+                    tests_passed -= 1
+            
+            if not args.keep_files:
+                c_file.unlink()
+                exe_file.unlink()
+            
+            print(f'{Fore.GREEN}{Style.BRIGHT}{strf} test passed{Style.RESET_ALL}')
+        except (SystemExit, Exception) as e:
+            err = f'{Fore.RED}{Style.BRIGHT}{strf} test failed'
+            if isinstance(e, Exception):
+                err += f' due to: {e}'
+            
+            print(err + Style.RESET_ALL)
+            tests_passed -= 1
+    
+    return tests_passed, total_tests
+
+def rm_recursive(parent: Path, extension: str) -> None:
+    for f in parent.glob(f'**/*.{extension}'):
+        f.unlink()
+
 def main() -> None:
     arg_parser = ArgumentParser(description='Cure compiler')
-    arg_parser.add_argument('file', type=Path, default='', nargs='?', help='File to compile')
+    arg_parser.add_argument('file', type=Path, default=None, nargs='?', help='File to compile')
     arg_parser.add_argument('--optimize', action='store_true', help='Optimize generated code')
     arg_parser.add_argument('--test', action='store_true', help='Run tests')
     arg_parser.add_argument('--keep-files', action='store_true',
@@ -69,7 +123,7 @@ def main() -> None:
                             help='Clean up the examples/ folder by deleting the .c and .exe files')
     args = arg_parser.parse_args()
     
-    if args.file != Path('.'):
+    if args.file is not None:
         compile(args.file, args)
         return
     
@@ -78,50 +132,25 @@ def main() -> None:
         return
     
     if args.test:
-        def _add_files(file: Path) -> None:
-            if file.is_file() and file.suffix == '.cure':
-                if file.name in {'local_file.cure', 'local_file.h'}:
-                    return
-                
-                files.append(file)
-            elif file.is_dir():
-                for f in file.iterdir():
-                    _add_files(f)
-        
-        files: list[Path] = []
-        _add_files(Path('examples'))
-        total_tests = len(files)
-        tests_passed = total_tests
-
-        for file in files:
-            try:
-                c_file, exe_file = compile_file(file, args)
-                if not args.keep_files:
-                    c_file.unlink()
-                    exe_file.unlink()
-                
-                print(f'{Fore.GREEN}{Style.BRIGHT}{file.as_posix()} test passed{Style.RESET_ALL}')
-            except (SystemExit, Exception) as e:
-                err = f'{Fore.RED}{Style.BRIGHT}{file.as_posix()} test failed'
-                if isinstance(e, Exception):
-                    err += f' due to: {e}'
-                
-                print(err + Style.RESET_ALL)
-                tests_passed -= 1
-        
+        tests_passed, total_tests = test(
+            examples, [examples / 'tests', examples / 'libraries/local_file.cure'], args
+        )
         print(f'{Style.BRIGHT}{tests_passed}/{total_tests} tests passed{Style.RESET_ALL}')
-    elif args.keep_exe:
+        
+        print(f'{Style.BRIGHT}Executing examples/tests/{Style.RESET_ALL}')
+        tests_passed, total_tests = test(examples / 'tests', [], args, True)
+        print(f'{Style.BRIGHT}{tests_passed}/{total_tests} tests passed{Style.RESET_ALL}')
+    elif args.keep_files:
         print('--keep-exe can only be used with --test')
         return
     
     if args.clean:
-        c_files = (Path(__file__).parent / 'examples').glob('**/*.c')
-        exe_files = (Path(__file__).parent / 'examples').glob('**/*.exe')
-        for f in c_files:
-            f.unlink()
-        
-        for f in exe_files:
-            f.unlink()
+        rm_recursive(examples, 'c')
+        rm_recursive(examples, 'exe')
+        rm_recursive(examples, 'h')
+        return
+    
+    # repl()
 
 
 if __name__ == '__main__':

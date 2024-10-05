@@ -5,8 +5,8 @@ extern "C" {
 #endif
 
 #include <stdbool.h>
-#include <stdio.h>
 #include <stdlib.h>
+#include <stdio.h>
 #include <time.h>
 
 #if defined(_WIN32) || defined(_WIN64)
@@ -17,6 +17,7 @@ extern "C" {
 #include <ws2tcpip.h>
 #include <windows.h>
 #include <shlobj.h>
+#include <fcntl.h>
 #include <io.h>
 
 #define OS "Windows"
@@ -60,13 +61,11 @@ typedef struct {
 } Math;
 
 typedef struct {
-  int top;
-  int bottom;
+  int top, bottom;
 } Fraction;
 
 typedef struct {
-  float x;
-  float y;
+  float x, y;
 } Vector2;
 
 typedef struct {
@@ -86,14 +85,35 @@ typedef struct {
   string buf;
   size_t length;
   size_t capacity;
+
+  int saved_stdout_fd;
+  HANDLE hRead;
+  HANDLE hWrite;
 } StringBuilder;
+
+typedef struct {
+#if OS_WINDOWS
+  LARGE_INTEGER start;
+  LARGE_INTEGER end;
+  LARGE_INTEGER frequency;
+#elif OS_LINUX
+  struct timespec start;
+  struct timespec end;
+#endif
+  bool is_running;
+} Timer;
+
+typedef struct {
+  FILE* out;
+  string path;
+} Logger;
 
 const int MIN_INT = -2147483648;
 const int MAX_INT = 2147483647;
 const string DIGITS = "0123456789";
 const string PUNCTUATION = "!@#$%^&*()_+-=[]{};:'\"\\|,.<>/?";
 const string LETTERS = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
-const string VERSION = "0.0.32";
+const string VERSION = "0.0.4";
 const float MIN_FLOAT = -1.701411733192644277e+38;
 const float MAX_FLOAT = 1.701411733192644277e+38;
 const int ONE_BILLION = 1000000000;

@@ -4,11 +4,9 @@ from codegen.c_manager import c_dec
 
 class base64:
     def __init__(self, codegen) -> None:
-        codegen.c_manager.RESERVED_NAMES.extend((
-            'encoding_table', 'decoding_table', 'mod_table'
-        ))
-        
-        codegen.add_toplevel_code("""static char encoding_table[] = {
+        codegen.c_manager.reserve(('encoding_table', 'decoding_table', 'mod_table'))
+        codegen.add_toplevel_code("""#ifndef CURE_BASE64_H
+static char encoding_table[] = {
     'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H',
     'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P',
     'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X',
@@ -20,6 +18,8 @@ class base64:
 };
 static char* decoding_table = NULL;
 static int mod_table[] = {0, 2, 1};
+#define CURE_BASE64_H
+#endif
 """)
     
         @c_dec(param_types=(Param('data', Type('string')),), can_user_call=True, add_to_class=self)

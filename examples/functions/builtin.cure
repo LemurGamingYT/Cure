@@ -22,5 +22,10 @@ func main() -> int {
 
     assert(x == 10) // If the test fails, the default error message is "Assertion failed"
     assert(x != 10, "x should not be 10") // This will fail and print the error message
+
+    // Print literal takes a string and prints it. Not anything else, most notably no new line
+    print_literal("Hi!")
+    print_literal(" Same line Hi!")
+    print_literal("\n")
     return 0
 }
