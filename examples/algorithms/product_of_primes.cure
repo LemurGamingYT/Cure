@@ -1,0 +1,20 @@
+func product_of_prime_factors(int n) -> array[int] {
+    factors = int{}
+    divisor = 2
+    num = n
+    while n > 1 {
+        while n % divisor == 0 {
+            factors.add(divisor)
+            n = Math.floor(n / divisor)
+        }
+
+        divisor += 1
+    }
+
+    return factors
+}
+
+func main() -> int {
+    print(product_of_prime_factors(120))
+    return 0
+}

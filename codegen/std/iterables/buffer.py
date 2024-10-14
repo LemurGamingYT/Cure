@@ -34,6 +34,7 @@ class buffer:
         
         c_manager = self.codegen.c_manager
         
+        c_manager.init_class(self, str(buf_type), buf_type)
         c_manager.wrap_struct_properties('buf', buf_type, [
             Param('length', Type('int'))
         ])
@@ -45,13 +46,6 @@ class buffer:
 """)
             
             return buf.OBJECT()
-        
-        @c_dec(
-            add_to_class=c_manager, func_name_override=f'{buf_type.c_type}_type',
-            is_method=True, is_static=True
-        )
-        def type_(_, call_position: Position) -> Object:
-            return Object(f'"{buf_type}"', Type('string'), call_position)
         
         @c_dec(
             param_types=(Param('buf', buf_type),), is_method=True,

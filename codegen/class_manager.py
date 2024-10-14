@@ -48,7 +48,7 @@ class ClassManager:
         )
         def _(codegen, call_position: Position, obj: Object,
                 name=property.name, t=typ, public=property.public) -> Object:
-            if not public and not codegen.is_in_class:
+            if not public and not codegen.scope.is_in_class:
                 call_position.error_here(f'\'{name}\' is not public')
             
             return Object(f'(({obj}).{name})', t, call_position)
@@ -59,7 +59,7 @@ class ClassManager:
         )
         def _(codegen, call_position: Position, obj: Object, value: Object,
                 name=property.name, public=property.public) -> Object:
-            if not public and not codegen.is_in_class:
+            if not public and not codegen.scope.is_in_class:
                 call_position.error_here(f'\'{name}\' is not public')
             
             codegen.prepend_code(f"""({obj}).{name} = {value};
@@ -176,6 +176,7 @@ class ClassManager:
                 if any(m.name == member.name for m in class_.members):
                     continue
                 
+                member.is_overriding = True
                 inheritance_code.append(self.method_to_code(member, cls_type, class_))
         
         return '\n'.join(inheritance_code)
@@ -185,12 +186,12 @@ class ClassManager:
     ) -> str:
         cls_type = self.get_type(class_name)
         code: list[str] = []
-        self.codegen.add_type(cls_type)
+        self.codegen.type_checker.add_type(cls_type)
         fields: list[Field] = [] # modified later
         class_ = Class(class_name, cls_type, pos, bases, fields, members)
         self.codegen.scope.env[class_name] = EnvItem(class_name, cls_type, pos, class_=class_)
         free_name = self.get_free_name(class_)
-        
+        self.codegen.c_manager.init_class(self.codegen.c_manager, class_name, cls_type)
         
         for base in bases:
             base_cls = base.class_

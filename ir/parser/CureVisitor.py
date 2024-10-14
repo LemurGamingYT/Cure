@@ -54,6 +54,11 @@ class CureVisitor(ParseTreeVisitor):
         return self.visitChildren(ctx)
 
 
+    # Visit a parse tree produced by CureParser#rangeStmt.
+    def visitRangeStmt(self, ctx:CureParser.RangeStmtContext):
+        return self.visitChildren(ctx)
+
+
     # Visit a parse tree produced by CureParser#foreachStmt.
     def visitForeachStmt(self, ctx:CureParser.ForeachStmtContext):
         return self.visitChildren(ctx)

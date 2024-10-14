@@ -4,20 +4,23 @@ from codegen.c_manager import c_dec
 
 
 class BigInt:
-    def __init__(self) -> None:
-        @c_dec(is_method=True, is_static=True, add_to_class=self)
-        def _BigInt_type(_, call_position: Position) -> Object:
-            return Object('"BigInt"', Type('string'), call_position)
+    def __init__(self, codegen) -> None:
+        codegen.c_manager.init_class(self, 'BigInt', Type('BigInt'))
+        codegen.add_toplevel_code(f"""typedef struct {{
+    char digits[{MAX_DIGITS}];
+    size_t length;
+}} BigInt;
+""")
         
         @c_dec(param_types=(Param('bi', Type('BigInt')),), add_to_class=self)
         def _BigInt_to_string(codegen, call_position: Position, bint: Object) -> Object:
             buf_free = Free()
-            buf: TempVar = codegen.create_temp_var(Type('string'), call_position, free=buf_free)
+            buf: TempVar = codegen.create_temp_var(Type('string'), call_position, free=buf_free,
+                                                   default_expr='NULL')
             length: TempVar = codegen.create_temp_var(Type('int'), call_position)
             i: TempVar = codegen.create_temp_var(Type('int'), call_position)
             
-            codegen.prepend_code(f"""string {buf} = NULL;
-int {length} = 0;
+            codegen.prepend_code(f"""int {length} = 0;
 for (int {i} = 0; {i} < ({bint}).length; {i}++) {{
 {length} += snprintf(NULL, 0, "%d", ({bint}).digits[{i}]);
 }}

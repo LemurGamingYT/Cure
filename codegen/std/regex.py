@@ -5,7 +5,7 @@ from codegen.c_manager import c_dec, INCLUDES
 
 class regex:
     def __init__(self, codegen) -> None:
-        codegen.add_type('Regex')
+        codegen.type_checker.add_type('Regex')
         codegen.extra_compile_args.append(INCLUDES / 'tinyregexc/re.c')
         codegen.c_manager.include(f'"{INCLUDES / "tinyregexc/re.h"}"', codegen)
         codegen.c_manager.reserve((
@@ -22,10 +22,20 @@ typedef struct {
     int length;
     bool is_match;
 } Match;
+
+typedef struct {
+    char* str;
+    size_t length;
+    size_t capacity;
+    char* previously_added;
+} RegexBuilder;
 #define CURE_REGEX_H
 #endif
 """)
         
+        codegen.c_manager.init_class(self, 'Regex', Type('Regex'))
+        codegen.c_manager.init_class(self, 'Match', Type('Match'))
+        codegen.c_manager.init_class(self, 'RegexBuilder', Type('RegexBuilder'))
         codegen.c_manager.wrap_struct_properties('match', Type('Match'), [
             Param('length', Type('int')), Param('is_match', Type('bool'))
         ])
@@ -34,13 +44,10 @@ typedef struct {
             Param('pattern', Type('string'))
         ])
         
-        @c_dec(is_method=True, is_static=True, add_to_class=self)
-        def _Regex_type(_, call_position: Position) -> Object:
-            return Object('"Regex"', Type('string'), call_position)
+        codegen.c_manager.wrap_struct_properties('rbuilder', Type('RegexBuilder'), [
+            Param('length', Type('int')), Param('capacity', Type('int'))
+        ])
         
-        @c_dec(is_method=True, is_static=True, add_to_class=self)
-        def _Match_type(_, call_position: Position) -> Object:
-            return Object('"Match"', Type('string'), call_position)
         
         @c_dec(param_types=(Param('regex', Type('Regex')),), is_method=True, add_to_class=self)
         def _Regex_to_string(codegen, call_position: Position, re: Object) -> Object:

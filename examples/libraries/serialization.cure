@@ -5,10 +5,10 @@ use "serialization"
 func main() -> int {
     // Create an empty serialization object
     write = new Serialization()
-    write.write_string("name", "John") // Write a string value
-    write.write_int("age", 25) // Write an integer value
-    write.write_float("height", 1.85) // Write a float value
-    write.write_bool("is_male", true) // Write a boolean value
+    write.write[string]("name", "John") // Write a string value
+    write.write[int]("age", 25) // Write an integer value
+    write.write[float]("height", 1.85) // Write a float value
+    write.write[bool]("is_male", true) // Write a boolean value
 
     // Write the serialization object to a file
     write.to_file("John.bin")
@@ -16,7 +16,7 @@ func main() -> int {
     read = new Serialization("John.bin") // Create a new serialization object from the file
 
     // Read the values from the file
-    print($"{read.read_string('name')} is {read.read_int('age')} years old")
-    print($"{read.read_string('name')} is {read.read_float('height')}m tall")
+    print($"{read.read[string]('name')} is {read.read[int]('age')} years old")
+    print($"{read.read[string]('name')} is {read.read[float]('height')}m tall")
     return 0
 }

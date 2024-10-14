@@ -16,13 +16,11 @@ typedef struct {{
 #endif
 """)
         
+        codegen.type_checker.add_type('Process')
+        codegen.c_manager.init_class(self, 'Process', Type('Process'))
         codegen.c_manager.wrap_struct_properties('proc', Type('Process'), [
             Param('pid', Type('int'))
         ])
-        
-        @c_dec(is_method=True, is_static=True, add_to_class=self)
-        def _Process_type(_, call_position: Position) -> Object:
-            return Object('"Process"', Type('string'), call_position)
         
         @c_dec(param_types=(Param('proc', Type('Process')),), is_method=True, add_to_class=self)
         def _Process_to_string(codegen, call_position: Position, proc: Object) -> Object:

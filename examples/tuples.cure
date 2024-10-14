@@ -1,0 +1,20 @@
+// Define a function that returns a tuple of three values
+// Tuples are immutable and very strict
+// They can hold any type of value
+func give_me_three_values() -> (int, int, int) {
+    return (1, 2, 3)
+}
+
+func main() -> int {
+    // Get the values as a tuple
+    values = give_me_three_values()
+    print(values) // (1, 2, 3)
+
+    // Tuples are incredibly strict and you need to index them using integer constants e.g. 1, 2 or 3
+    // You can't use variables or expressions to index them, however, this means that errors with
+    // indexing tuples are caught at compile time
+    print(values[1]) // 2
+    print(values[2]) // 3
+    print(values[0]) // 1
+    return 0
+}

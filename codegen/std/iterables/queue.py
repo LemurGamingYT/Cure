@@ -6,7 +6,7 @@ from ir.nodes import TypeNode
 class Queue:
     def __init__(self, codegen) -> None:
         self.codegen = codegen
-        setattr(codegen, 'Queue_type', self.queue_type)
+        setattr(codegen.type_checker, 'Queue_type', self.queue_type)
         
         self.defined_types: list[str] = []
         
@@ -40,6 +40,7 @@ class Queue:
         
         c_manager = self.codegen.c_manager
         
+        c_manager.init_class(self, str(queue_type), queue_type)
         c_manager.wrap_struct_properties('queue', queue_type, [
             Param('capacity', Type('int')), Param('length', Type('int')),
             Param('front', Type('int')), Param('rear', Type('int'))
@@ -62,13 +63,6 @@ class Queue:
 """)
             
             return queue.OBJECT()
-
-        @c_dec(
-            add_to_class=c_manager, func_name_override=f'{queue_type.c_type}_type',
-            is_method=True, is_static=True
-        )
-        def queue_type_(_, call_position: Position) -> Object:
-            return Object(f'"{queue_type}"', Type('string'), call_position)
         
         @c_dec(
             param_types=(Param('queue', queue_type),),
@@ -154,4 +148,5 @@ if ({i} < ({queue}).length - 1) {{
             
             return item.OBJECT()
 
+        self.defined_types.append(type.c_type)
         return queue_type

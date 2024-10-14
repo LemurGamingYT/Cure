@@ -2,8 +2,7 @@
  TODOs for the Cure programming language
 
 *as of v0.0.4*
-- [ ] Add TypeChecker class to the Codegen
-- [ ] Fix nested arrays
+- [x] Fix nested arrays
 - [x] Support toplevel/global variables
 - [ ] Support overloaded function modifications
 - [ ] Functions
@@ -31,7 +30,6 @@
     - [ ] AST Manipulation: the ability to manipulate the IR/AST at compile time
     - [ ] Macros: Code transformation before compilation. For example `macro double(x) x*2
 value = double(5) // Expands to 5*2`
-- [ ] Error handling (try/catch): Catch runtime errors and handle them accordingly
 - [ ] Coroutines and async/await: Asynchronous programming features for better concurrency handling
 - [x] Enums: A simple way to define a set of named constants
 - [ ] First class functions: Gives the ability to have functions as types
@@ -88,14 +86,14 @@ if pattern.match("123-4567") {
         - [ ] INI
         - [ ] Markdown
     - [ ] UI library: A library for creating user interfaces
-        - [ ] Window, Button, Label and Frame
+        - [x] Window, Button, Label and Frame
         - [ ] Textbox/Textarea, Slider, Checkbox, Radio buttons, Scrolling Frames, etc
         - [ ] Linux and Mac support
     - [ ] Testing functionality/framework: A library for testing code
     - [x] Iterables library: includes Stack and Linked List implementations
         - [x] Buffer library: Fixed size arrays
     - [x] Color library: RGB, HSV, etc with conversions between them
-    - [x] Sound library: Low and high level sound control, gives control over low level things like sample rate or number of channels of a .wav file but also has high level functions like play
+    - [ ] Sound library: Low and high level sound control, gives control over low level things like sample rate or number of channels of a .wav file but also has high level functions like play
     - [x] Serialization library: Serialize objects
     - [ ] Machine learning library: Machine learning for Cure
         - [ ] Neural networks: Neural Network support for Cure

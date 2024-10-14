@@ -16,8 +16,9 @@ class StringBuilder:
             is_property=True, add_to_class=self
         )
         def _StringBuilder_str(codegen, call_position: Position, obj: Object) -> Object:
-            buf: TempVar = codegen.create_temp_var(Type('string'), call_position)
-            codegen.prepend_code(f"""string {buf} = ({obj}).buf;
+            buf_free = Free()
+            buf: TempVar = codegen.create_temp_var(Type('string'), call_position, free=buf_free)
+            codegen.prepend_code(f"""string {buf} = strdup(({obj}).buf);
 {buf}[({obj}).length] = '\\0';
 """)
             

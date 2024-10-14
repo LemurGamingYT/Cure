@@ -6,7 +6,7 @@ from ir.nodes import TypeNode
 class Stack:
     def __init__(self, codegen) -> None:
         self.codegen = codegen
-        setattr(codegen, 'Stack_type', self.stack_type)
+        setattr(codegen.type_checker, 'Stack_type', self.stack_type)
         
         self.defined_types: list[str] = []
         
@@ -39,6 +39,7 @@ class Stack:
         
         c_manager = self.codegen.c_manager
         
+        c_manager.init_class(self, str(stack_type), stack_type)
         c_manager.wrap_struct_properties('stack', stack_type, [
             Param('size', Type('int')), Param('length', Type('int'))
         ])
@@ -59,13 +60,6 @@ class Stack:
 """)
             
             return stack.OBJECT()
-        
-        @c_dec(
-            add_to_class=c_manager, func_name_override=f'{stack_type.c_type}_type',
-            is_method=True, is_static=True
-        )
-        def stack_type_(_, call_position: Position) -> Object:
-            return Object(f'"Stack[{stack_type}]"', Type('string'), call_position)
         
         @c_dec(
             param_types=(Param('stack', stack_type),), is_method=True,

@@ -1,4 +1,5 @@
-#pragma once
+#ifndef CURE_UTILS_TESTING_H
+#define CURE_UTILS_TESTING_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -86,4 +87,6 @@ static char* allocate_fmt(const char* fmt, ...) {
 
 #ifdef __cplusplus
 }
+#endif
+
 #endif

@@ -19,7 +19,7 @@ func sum(array[float] arr) -> float {
 func cycle(array[string] arr, int length) -> string {
     s = ""
     i = 0
-    while s.length < length {
+    while i < length {
         if i >= arr.length {
             i = 0
         }
@@ -34,15 +34,13 @@ func cycle(array[string] arr, int length) -> string {
 func batch(string s, int n) -> array[string] {
     res = string{}
     current = ""
-    i = 0
-    while i < s.length {
+    for i in 0..s.length {
         if i % n == 0 && i != 0 {
             res.add(current)
             current = ""
         }
 
         current += s[i]
-        i += 1
     }
 
     if current != "" {
@@ -57,7 +55,7 @@ func repeat(string s, int n) -> string {
     if n == 1 { return s }
 
     res = ""
-    foreach i in range(n) {
+    for i in 0..n {
         res += s
     }
 

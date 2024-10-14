@@ -5,7 +5,7 @@ from codegen.c_manager import c_dec, INCLUDES
 
 class serialization:
     def __init__(self, codegen) -> None:
-        codegen.add_type('Serialization')
+        codegen.type_checker.add_type('Serialization')
         codegen.extra_compile_args.append(INCLUDES / 'binn/binn.c')
         codegen.c_manager.include(f'"{INCLUDES / "binn/binn.h"}"', codegen)
         codegen.c_manager.reserve((
@@ -43,6 +43,8 @@ typedef struct {
 #define CURE_SERIALIZATION_H
 #endif
 """)
+        
+        codegen.c_manager.init_class(self, 'Serialization', Type('Serialization'))
         
         def Serialization_from_string_file(codegen, call_position: Position,
                                     filename: Object) -> Object:
@@ -82,14 +84,6 @@ fclose({f});
             
             codegen.prepend_code(f'Serialization {obj} = {{ .b = binn_object() }};')
             return obj.OBJECT()
-    
-        @c_dec(is_method=True, is_static=True, add_to_class=self)
-        def _Serialization_type(_, call_position: Position) -> Object:
-            return Object('"Serialization"', Type('string'), call_position)
-
-        @c_dec(param_types=(Param('sz', Type('Serialization')),), is_method=True, add_to_class=self)
-        def _Serialization_to_string(_, call_position: Position, _obj: Object) -> Object:
-            return Object('"class \'Serialization\'"', Type('string'), call_position)
         
         @c_dec(
             param_types=(Param('sz', Type('Serialization')), Param('filename', Type('string'))),
@@ -117,121 +111,56 @@ fclose({f});
         @c_dec(
             param_types=(
                 Param('sz', Type('Serialization')), Param('key', Type('string')),
-                Param('value', Type('int'))
-            ), is_method=True, add_to_class=self
+                Param('value', Type('T'))
+            ), is_method=True, add_to_class=self, generic_params=('T',), return_type=Type('bool')
         )
-        def _Serialization_write_int(_, call_position: Position, obj: Object, key: Object,
-                                    value: Object) -> Object:
+        def _Serialization_write(_, call_position: Position, obj: Object, key: Object,
+                                    value: Object, *, T: Type) -> Object:
+            set_method = ''
+            if T == Type('int'):
+                set_method = 'int32'
+            elif T == Type('float'):
+                set_method = 'float'
+            elif T == Type('bool'):
+                set_method = 'bool'
+            elif T == Type('string'):
+                set_method = 'str'
+            elif T == Type('bool'):
+                set_method = 'bool'
+            elif T == Type('nil'):
+                set_method = 'null'
+            else:
+                call_position.error_here('Serialization.write() does not support type {T}')
+            
             return Object(
-                f'((bool)binn_object_set_int32(({obj}).b, {key}, {value}))',
+                f'((bool)binn_object_set_{set_method}(({obj}).b, {key}, {value}))',
                 Type('bool'), call_position
             )
         
         @c_dec(
             param_types=(Param('sz', Type('Serialization')), Param('key', Type('string'))),
-            is_method=True, add_to_class=self
+            is_method=True, add_to_class=self, generic_params=('T',), return_type=Type('{T}')
         )
-        def _Serialization_read_int(codegen, call_position: Position, obj: Object,
-                                    key: Object) -> Object:
-            value: TempVar = codegen.create_temp_var(Type('int'), call_position)
-            codegen.prepend_code(f"""int {value};
-binn_object_get_int32(({obj}).b, {key}, &{value});
+        def _Serialization_read(codegen, call_position: Position, obj: Object,
+                                    key: Object, *, T: Type) -> Object:
+            get_method = ''
+            if T == Type('int'):
+                get_method = 'int32'
+            elif T == Type('float'):
+                get_method = 'float'
+            elif T == Type('bool'):
+                get_method = 'bool'
+            elif T == Type('string'):
+                get_method = 'str'
+            elif T == Type('bool'):
+                get_method = 'bool'
+            elif T == Type('nil'):
+                get_method = 'null'
+            else:
+                call_position.error_here('Serialization.read() does not support type {T}')
+            
+            value: TempVar = codegen.create_temp_var(T, call_position)
+            codegen.prepend_code(f"""{T.c_type} {value};
+binn_object_get_{get_method}(({obj}).b, {key}, &{value});
 """)
             return value.OBJECT()
-        
-        @c_dec(
-            param_types=(
-                Param('sz', Type('Serialization')), Param('key', Type('string')),
-                Param('value', Type('float'))
-            ), is_method=True, add_to_class=self
-        )
-        def _Serialization_write_float(_, call_position: Position, obj: Object, key: Object,
-                                        value: Object) -> Object:
-            return Object(
-                f'((bool)binn_object_set_float(({obj}).b, {key}, {value}))',
-                Type('bool'), call_position
-            )
-        
-        @c_dec(
-            param_types=(Param('sz', Type('Serialization')), Param('key', Type('string'))),
-            is_method=True, add_to_class=self
-        )
-        def _Serialization_read_float(codegen, call_position: Position, obj: Object,
-                                    key: Object) -> Object:
-            value: TempVar = codegen.create_temp_var(Type('float'), call_position)
-            codegen.prepend_code(f"""float {value};
-binn_object_get_float(({obj}).b, {key}, &{value});
-""")
-            return value.OBJECT()
-        
-        @c_dec(
-            param_types=(
-                Param('sz', Type('Serialization')), Param('key', Type('string')),
-                Param('value', Type('string'))
-            ), is_method=True, add_to_class=self
-        )
-        def _Serialization_write_string(_, call_position: Position, obj: Object, key: Object,
-                                        value: Object) -> Object:
-            return Object(
-                f'((bool)binn_object_set_str(({obj}).b, {key}, {value}))',
-                Type('bool'), call_position
-            )
-        
-        @c_dec(
-            param_types=(Param('sz', Type('Serialization')), Param('key', Type('string'))),
-            is_method=True, add_to_class=self
-        )
-        def _Serialization_read_string(codegen, call_position: Position, obj: Object,
-                                        key: Object) -> Object:
-            value: TempVar = codegen.create_temp_var(Type('string'), call_position)
-            codegen.prepend_code(f"""string {value};
-binn_object_get_str(({obj}).b, {key}, &{value});
-""")
-            return value.OBJECT()
-        
-        @c_dec(
-            param_types=(
-                Param('sz', Type('Serialization')), Param('key', Type('string')),
-                Param('value', Type('bool'))
-            ), is_method=True, add_to_class=self
-        )
-        def _Serialization_write_bool(_, call_position: Position, obj: Object, key: Object,
-                                        value: Object) -> Object:
-            return Object(
-                f'((bool)binn_object_set_bool(({obj}).b, {key}, {value}))',
-                Type('bool'), call_position
-            )
-        
-        @c_dec(
-            param_types=(Param('sz', Type('Serialization')), Param('key', Type('string'))),
-            is_method=True, add_to_class=self
-        )
-        def _Serialization_read_bool(codegen, call_position: Position, obj: Object,
-                                        key: Object) -> Object:
-            value: TempVar = codegen.create_temp_var(Type('bool'), call_position)
-            codegen.prepend_code(f"""bool {value};
-binn_object_get_bool(({obj}).b, {key}, &{value});
-""")
-            return value.OBJECT()
-        
-        @c_dec(
-            param_types=(Param('sz', Type('Serialization')), Param('key', Type('string'))),
-            is_method=True, add_to_class=self
-        )
-        def _Serialization_write_nil(_, call_position: Position, obj: Object,
-                                        key: Object) -> Object:
-            return Object(
-                f'((bool)binn_object_set_null(({obj}).b, {key}))',
-                Type('bool'), call_position
-            )
-        
-        @c_dec(
-            param_types=(Param('sz', Type('Serialization')), Param('key', Type('string'))),
-            is_method=True, add_to_class=self
-        )
-        def _Serialization_read_nil(_, call_position: Position, obj: Object,
-                                    key: Object) -> Object:
-            return Object(
-                f'((bool)binn_object_get_null(({obj}).b, {key}))',
-                Type('nil'), call_position
-            )

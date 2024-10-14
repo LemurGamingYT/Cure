@@ -1,4 +1,5 @@
-#pragma once
+#ifndef CURE_HEADER_H
+#define CURE_HEADER_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -9,8 +10,9 @@ extern "C" {
 #include <stdio.h>
 #include <time.h>
 
-#if defined(_WIN32) || defined(_WIN64)
-#define OS_WINDOWS 1
+#include "./osarch_check.h"
+
+#if OS_WINDOWS
 #define NOMINMAX
 #define WIN32_LEAN_AND_MEAN
 #include <winsock2.h>
@@ -22,14 +24,12 @@ extern "C" {
 
 #define OS "Windows"
 #define IS_ADMIN IsUserAnAdmin()
-#elif defined(__APPLE__)
-#define OS_MAC 1
+#elif OS_MAC
 #include <unistd.h>
 
 #define OS "Mac"
 #define IS_ADMIN geteuid() == 0
-#elif defined(__linux__)
-#define OS_LINUX 1
+#elif OS_LINUX
 #include <unistd.h>
 
 #define OS "Linux"
@@ -38,14 +38,11 @@ extern "C" {
 #error "Unsupported operating system"
 #endif
 
-#if defined(_M_X64)
-#define ARCH_x86_64 1
+#if ARCH_x86_64
 #define ARCH "x86_64"
-#elif defined(_M_IX86)
-#define ARCH_x86 1
+#elif ARCH_x86
 #define ARCH "x86"
-#elif defined(_M_ARM64)
-#define ARCH_arm64 1
+#elif ARCH_arm64
 #define ARCH "arm64"
 #else
 #error "Unsupported architecture"
@@ -122,4 +119,6 @@ const int ONE_THOUSAND = 1000;
 
 #ifdef __cplusplus
 }
+#endif
+
 #endif

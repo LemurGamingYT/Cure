@@ -11,11 +11,11 @@ func main() -> int {
     json = new JSONParser(json_file)
 
     // read a string value from the JSON file
-    name = json.read_string("name")
+    name = json.read[string]("name")
     print($"Name: {name}")
 
     // read an integer value from the JSON file
-    age = json.read_int("age")
+    age = json.read[int]("age")
     print($"Age: {age}")
 
     json_file.close()

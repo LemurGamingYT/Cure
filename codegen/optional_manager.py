@@ -1,12 +1,20 @@
 from codegen.objects import Object, Position, Type, Param, TempVar
 from codegen.c_manager import c_dec
+from ir.nodes import TypeNode
 
 
 class OptionalManager:
     def __init__(self, codegen) -> None:
         self.codegen = codegen
+        setattr(codegen, 'optional_type', self.optional_type)
         
         self.defined_optionals: list[Type] = []
+    
+    def optional_type(self, node: TypeNode) -> Type | None:
+        if node.array_type is None:
+            return None
+        
+        return self.define_optional(self.codegen.visit_TypeNode(node.array_type))
     
     def define_optional(self, type: Type) -> Type:
         opt_t = Type(
@@ -21,10 +29,10 @@ class OptionalManager:
 }} {opt_t.c_type};
 """)
         self.defined_optionals.append(type)
-        self.codegen.add_type(type)
         
         c_manager = self.codegen.c_manager
         c_manager.reserve(opt_t.c_type)
+        c_manager.init_class(c_manager, str(opt_t), opt_t)
         
         def is_correct_type(value: Object) -> bool:
             return value.type == type or value.type == Type('nil')

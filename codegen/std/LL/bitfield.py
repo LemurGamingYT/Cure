@@ -7,22 +7,17 @@ BITS_PER_WORD = 32
 
 class BitField:
     def __init__(self, codegen) -> None:
-        codegen.add_type('BitField')
-        codegen.add_toplevel_code("""#ifndef CURE_LL_H
-typedef struct {
+        codegen.type_checker.add_type('BitField')
+        codegen.add_toplevel_code("""typedef struct {
     unsigned int *bits;
     size_t num_of_bits;
 } BitField;
-#endif
 """)
         
+        codegen.c_manager.init_class(self, 'BitField', Type('BitField'))
         codegen.c_manager.wrap_struct_properties('field', Type('BitField'), [
             Param('num_of_bits', Type('int'))
         ])
-        
-        @c_dec(is_method=True, is_static=True, add_to_class=self)
-        def _BitField_type(_, call_position: Position) -> Object:
-            return Object('"BitField"', Type('string'), call_position)
         
         @c_dec(param_types=(Param('field', Type('BitField')),), is_method=True, add_to_class=self)
         def _BitField_to_string(codegen, call_position: Position, field: Object) -> Object:

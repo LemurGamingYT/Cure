@@ -86,22 +86,13 @@ if (!thrd_create(&{thread}.t, (thrd_start_t){thread_fn}, &{arg})) {{
         codegen.extra_compile_args.append(INCLUDES / 'tinycthread/tinycthread.c')
         codegen.c_manager.include(f'"{INCLUDES / "tinycthread/tinycthread.h"}"', codegen)
         
-        codegen.add_toplevel_code("""#ifndef CURE_THREAD_H
-typedef struct {
+        codegen.add_toplevel_code("""typedef struct {
     void* arg;
     thrd_t t;
 } Thread;
-#endif
 """)
-    
-    
-        @c_dec(is_method=True, is_static=True, add_to_class=self)
-        def _Thread_type(_, call_position: Position) -> Object:
-            return Object('"Thread"', Type('string'), call_position)
         
-        @c_dec(param_types=(Param('thread', Type('Thread')),), is_method=True, add_to_class=self)
-        def _Thread_to_string(_, call_position: Position, _thread: Object) -> Object:
-            return Object('"class \'Thread\'"', Type('string'), call_position)
+        codegen.c_manager.init_class(self, 'Thread', Type('Thread'))
         
         @c_dec(param_types=(Param('thread', Type('Thread')),), is_property=True, add_to_class=self)
         def _Thread_id(codegen, call_position: Position, thread: Object) -> Object:

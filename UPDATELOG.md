@@ -1,5 +1,16 @@
 # Update Log
 
+### Version 0.0.5 (Oct 14, 2024)
+- Tuples
+- Bug fixes
+- UI library
+- .ini file parser
+- More file IO
+- Simplified Serialization and JSONParser read/write methods
+- The HexTriplet, RGB and HSV into one Color class
+- An adventure game!
+- Range loops
+
 ### Version 0.0.4 (Oct 5, 2024)
 - **Classes** with Inheritance
 - Generic functions

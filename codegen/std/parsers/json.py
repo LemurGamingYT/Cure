@@ -43,16 +43,12 @@ class json:
             'cJSON_SetValuestring', 'cJSON_SetBoolValue', 'cJSON_ArrayForEach', 'cJSON_malloc',
             'cJSON_free', 'cJSON__h'
         ))
-        codegen.add_toplevel_code("""#ifndef CURE_PARSERS_H
-typedef struct {
+        codegen.add_toplevel_code("""typedef struct {
     cJSON* json;
 } JSONParser;
-#endif
 """)
-    
-        @c_dec(add_to_class=self, is_method=True, is_static=True)
-        def _JSONParser_type(_, call_position: Position) -> Object:
-            return Object('"JSONParser"', Type('string'), call_position)
+        
+        codegen.c_manager.init_class(self, 'JSONParser', Type('JSONParser'))
         
         @c_dec(param_types=(Param('json', Type('JSONParser')),), add_to_class=self, is_method=True)
         def _JSONParser_to_string(_, call_position: Position, jp: Object) -> Object:
@@ -62,98 +58,58 @@ typedef struct {
         @c_dec(param_types=(Param('json', Type('JSONParser')),), is_property=True, add_to_class=self)
         def _JSONParser_get_string(codegen, call_position: Position, jp: Object) -> Object:
             return _JSONParser_to_string(codegen, call_position, jp)
-        
+
         @c_dec(
-            param_types=(Param('json', Type('JSONParser')), Param('key', Type('string'))),
-            is_method=True, add_to_class=self
+            param_types=(Param('json', Type('JSONParser')), Param('key', Type('string')),),
+            is_method=True, add_to_class=self, generic_params=('T',), return_type=Type('{T}')
         )
-        def _JSONParser_read_string(codegen, call_position: Position, jp: Object,
-                                    key: Object) -> Object:
+        def _JSONParser_read(codegen, call_position: Position, jp: Object, key: Object,
+                             *, T: Type) -> Object:
+            validate_method = ''
+            value_property = ''
+            if T == Type('int'):
+                validate_method = 'IsNumber'
+                value_property = 'valueint'
+            elif T == Type('string'):
+                validate_method = 'IsString'
+                value_property = 'valuestring'
+            elif T == Type('bool'):
+                validate_method = 'IsBool'
+                value_property = 'valuebool'
+            else:
+                call_position.error_here(f'{T} JSON type is not supported for reading')
+            
             value: TempVar = codegen.create_temp_var(Type('JsonObject', 'cJSON*'), call_position)
             codegen.prepend_code(f"""cJSON* {value} = cJSON_GetObjectItemCaseSensitive(
     ({jp}).json, {key}
 );
-if (!cJSON_IsString({value}) || {value}->valuestring == NULL) {{
-    {codegen.c_manager.err('Key is not a string')}
+
+if (!cJSON_{validate_method}({value})) {{
+    {codegen.c_manager.err(f'Key is not of type {T}')}
 }}
 """)
             
-            return Object(f'({value}->valuestring)', Type('string'), call_position)
-        
-        @c_dec(
-            param_types=(Param('json', Type('JSONParser')), Param('key', Type('string'))),
-            is_method=True, add_to_class=self
-        )
-        def _JSONParser_read_int(codegen, call_position: Position, jp: Object, key: Object) -> Object:
-            value: TempVar = codegen.create_temp_var(Type('int'), call_position)
-            codegen.prepend_code(f"""cJSON* {value} = cJSON_GetObjectItemCaseSensitive(
-    ({jp}).json, {key}
-);
-if (!cJSON_IsNumber({value})) {{
-    {codegen.c_manager.err('Key is not a number')}
-}}
-""")
-
-            return Object(f'({value}->valueint)', Type('int'), call_position)
-        
-        @c_dec(
-            param_types=(Param('json', Type('JSONParser')), Param('key', Type('string'))),
-            is_method=True, add_to_class=self
-        )
-        def _JSONParser_read_bool(codegen, call_position: Position, jp: Object, key: Object) -> Object:
-            value: TempVar = codegen.create_temp_var(Type('bool'), call_position)
-            codegen.prepend_code(f"""cJSON* {value} = cJSON_GetObjectItemCaseSensitive(
-    ({jp}).json, {key}
-);
-if (!cJSON_IsBool({value})) {{
-    {codegen.c_manager.err('Key is not a bool')}
-}}
-""")
-
-            return Object(f'({value}->valuebool)', Type('bool'), call_position)
+            return Object(f'({value}->{value_property})', T, call_position)
         
         @c_dec(
             param_types=(
                 Param('json', Type('JSONParser')), Param('key', Type('string')),
-                Param('value', Type('string'))
-            ), is_method=True, add_to_class=self
+                Param('value', Type('T'))
+            ), is_method=True, add_to_class=self, generic_params=('T',), return_type=Type('{T}')
         )
-        def _JSONParser_write_string(codegen, call_position: Position, jp: Object,
-                                     key: Object, value: Object) -> Object:
-            codegen.prepend_code(f'cJSON_AddStringToObject(({jp}).json, {key}, {value});')
-            return Object.NULL(call_position)
-        
-        @c_dec(
-            param_types=(
-                Param('json', Type('JSONParser')), Param('key', Type('string')),
-                Param('value', Type('int'))
-            ), is_method=True, add_to_class=self
-        )
-        def _JSONParser_write_int(codegen, call_position: Position, jp: Object,
-                                  key: Object, value: Object) -> Object:
-            codegen.prepend_code(f'cJSON_AddNumberToObject(({jp}).json, {key}, {value});')
-            return Object.NULL(call_position)
-        
-        @c_dec(
-            param_types=(
-                Param('json', Type('JSONParser')), Param('key', Type('string')),
-                Param('value', Type('float'))
-            ), is_method=True, add_to_class=self
-        )
-        def _JSONParser_write_float(codegen, call_position: Position, jp: Object,
-                                     key: Object, value: Object) -> Object:
-            codegen.prepend_code(f'cJSON_AddNumberToObject(({jp}).json, {key}, {value});')
-            return Object.NULL(call_position)
-        
-        @c_dec(
-            param_types=(
-                Param('json', Type('JSONParser')), Param('key', Type('string')),
-                Param('value', Type('bool'))
-            ), is_method=True, add_to_class=self
-        )
-        def _JSONParser_write_bool(codegen, call_position: Position, jp: Object,
-                                   key: Object, value: Object) -> Object:
-            codegen.prepend_code(f'cJSON_AddBoolToObject(({jp}).json, {key}, {value});')
+        def _JSONParser_write(codegen, call_position: Position, jp: Object,
+                              key: Object, value: Object, *, T: Type) -> Object:
+            add_method = ''
+            if T == Type('int'):
+                add_method = 'Number'
+            elif T == Type('string'):
+                add_method = 'String'
+            elif T == Type('bool'):
+                add_method = 'Bool'
+            else:
+                call_position.error_here(f'{T} JSON type is not supported for writing')
+            
+            codegen.prepend_code(f'cJSON_Add{add_method}ToObject(({jp}).json, {key}, {value});')
             return Object.NULL(call_position)
         
         @c_dec(

@@ -1,0 +1,16 @@
+// Create a function that runs another function that returns an int
+func run(() -> int a) -> int {
+    return a() // Call the function and return the result
+}
+
+// Create a function that returns an int
+func test() -> int {
+    print("Hello World!")
+    return 0 // Success
+}
+
+func main() -> int {
+    // Call the run function and pass the test function
+    print($"Function returned: {run(test)}")
+    return 0
+}

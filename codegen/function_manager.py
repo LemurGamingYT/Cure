@@ -1,8 +1,11 @@
 from dataclasses import dataclass, field
 from typing import Union, Callable, Any
+from copy import deepcopy
 
-from codegen.objects import Type, Object, Position, POS_ZERO, kwargs, Param, Arg, EnvItem, Free
 from ir.nodes import Body, FuncDecl, Call
+from codegen.objects import (
+    Type, Object, Position, POS_ZERO, kwargs, Param, Arg, EnvItem, Free, TempVar
+)
 
 
 FunctionType = Union['UserFunction', 'BuiltinFunction']
@@ -126,6 +129,17 @@ class FunctionManager:
     def is_preprocessed_function(self, func_name: str) -> bool:
         return (fn := self.codegen.scope.env[func_name]) is not None and fn.added_by_preprocessor
     
+    def make_function_type(
+        self, return_type: Type, param_types: tuple[Type, ...], pos: Position
+    ) -> Type:
+        temp_func_name: TempVar = self.codegen.create_temp_var(Type('function'), pos)
+        return Type(
+            f'({", ".join(str(param) for param in param_types)}) -> {return_type}',
+            f'{return_type} (*{temp_func_name})({", ".join(str(param) for param in param_types)})',
+            ('function',),
+            (tuple(param_types), return_type, str(temp_func_name))
+        )
+    
     def get_definition_signature(
         self, name: str, return_type: Type, params: list[Param], body: Object | str | None
     ) -> str:
@@ -164,9 +178,8 @@ class FunctionManager:
             else:
                 used_param_names.append(p)
     
-    def handle_function_overload(
-        self, name: str, return_type: Type, pos: Position, params: list[Param],
-        modifications: list[Call], body: Body, generic_params: list[str]
+    def handle_modifications(
+        self, modifications: list[Call]
     ):
         callables = []
         for mod in modifications:
@@ -175,6 +188,14 @@ class FunctionManager:
                 callables.append((mod, modification))
             elif modification is None:
                 mod.pos.error_here(f'Unknown function modification \'{mod.name}\'')
+        
+        return callables
+    
+    def handle_function_overload(
+        self, name: str, return_type: Type, pos: Position, params: list[Param],
+        modifications: list[Call], body: Body, generic_params: list[str]
+    ):
+        callables = self.handle_modifications(modifications)
         
         original_name = name
         overload_args: list | None = None
@@ -209,11 +230,17 @@ class FunctionManager:
     
     def define_function(self, node: FuncDecl) -> Object:
         if node.generic_params:
-            self.codegen.add_type(node.generic_params)
+            self.codegen.type_checker.add_type(node.generic_params)
+            
+            # FIXME: This is a hack to allow generic parameters within array and dictionary contexts
+            # e.g. array[T] but this should be changed in the future
+            for param in node.generic_params:
+                self.codegen.add_toplevel_code(f'typedef void* {param};')
         
         name = node.name
         return_type = self.codegen.visit_TypeNode(node.return_type)\
             if node.return_type is not None else Type('nil')
+        
         params = [self.codegen.visit_ParamNode(param) for param in node.params]
         self.check_duplicate_params(tuple(params), node.pos)
         
@@ -368,13 +395,21 @@ args = {args_name};
             if mod_res is not None and isinstance(mod_res, Object):
                 return mod_res
 
-    def get_generic_type(self, args: tuple[Type, ...], f: FunctionType, generic: str) -> Type | None:
-        if generic not in f.generic_params:
+    def get_generic_type(
+        self, args: tuple[Type, ...], generic_params: list[str], generic: Type
+    ) -> Type | None:
+        if generic.c_type not in generic_params and generic not in generic_params:
             return None
         
-        for arg, param in zip(args, f.generic_params):
-            if param == generic:
+        for arg, param in zip(args, generic_params):
+            if param == generic.c_type:
                 return arg
+            elif generic.c_type in param:
+                for gtype in generic_params:
+                    if gtype in param:
+                        type = generic.type.replace(gtype, arg.type)
+                        c_type = generic.c_type.replace(gtype, arg.c_type)
+                        return Type(type, c_type)
         
         return None
     
@@ -422,14 +457,14 @@ args = {args_name};
             pos.error_here(f'Expected {len(params)} generic arguments, got {len(generic_args)}')
         
         new_params: list[Param] = []
-        for param in f.params:
+        for param in deepcopy(f.params):
             p = param
-            if param.type.c_type in params:
-                generic_type = self.get_generic_type(generic_args, f, param.type.c_type)
+            if any(generic_type in param.type.c_type for generic_type in params):
+                generic_type = self.get_generic_type(generic_args, f.generic_params, param.type)
                 if generic_type is None:
                     pos.error_here(f'Could not find generic argument for \'{param.type.c_type}\'')
                 
-                p = Param(param.name, generic_type)
+                p.type = generic_type
             
             new_params.append(p)
         
@@ -441,7 +476,7 @@ args = {args_name};
         return_type.type = self.replace_generic_types(return_type.type, generic_args, tuple(params))
         return_type.c_type = self.replace_generic_types(return_type.c_type, generic_args, tuple(params))
         if return_type.c_type in params:
-            t = self.get_generic_type(generic_args, f, return_type.c_type)
+            t = self.get_generic_type(generic_args, f.generic_params, return_type)
             if t is None:
                 pos.error_here(f'Could not find generic argument for \'{f.return_type}\'')
             
@@ -457,6 +492,25 @@ args = {args_name};
             f.add_overload(codegen, f.callable, return_type, tuple(new_params))
         
         return {p: t for p, t in zip(params, generic_args)}
+
+    def validate_args(self, args: tuple['Arg', ...], params: tuple['Param', ...]):
+        if not self.has_greedy(params):
+            success, err = self.verify_params_length(args, len(params))
+            if not success:
+                return success, err, None
+        
+        for arg, param in zip(args, params):
+            param_type = param.type
+            if param_type.c_type == 'any':
+                continue # if the parameter type can be anything, don't bother to check it
+            elif param.name == self.GREEDY or param_type.c_type == self.GREEDY:
+                return True, '', None # no need to continue if there is a variadic 
+
+            arg_type, arg_pos = arg.value.type, arg.value.position
+            if arg_type != param_type:
+                return False, f'Expected type \'{param_type}\', got \'{arg_type}\'', arg_pos
+
+        return True, '', None
 
     def call_func(
         self, codegen, args: tuple['Arg', ...], f: FunctionType, call_position: Position,
@@ -481,29 +535,27 @@ args = {args_name};
             # if the normal params worked, the correct arguments are the non-overloaded function params
             params = f.params
             
-            # the overloads don't need to be checked since they are guaranteed to be correct
+            # the parameters don't need to be checked since they are guaranteed to be correct
             # but the parameters are still not guaranteed to be correct
             success, err, position = self.validate_args(args, tuple(params))
             if not success:
                 (position or call_position).error_here(err)
         
         return f.call(codegen, call_position, overload, args, **generic_dict)
-
-    def validate_args(self, args: tuple['Arg', ...], params: tuple['Param', ...]):
-        if not self.has_greedy(params):
-            success, err = self.verify_params_length(args, len(params))
-            if not success:
-                return success, err, None
+    
+    def call_type(
+        self, codegen, args: tuple['Arg', ...], func_info: tuple[tuple['Type', ...], 'Type', str],
+        call_position: Position
+    ) -> Object | None:
+        param_types, return_type, func_name = func_info
+        params = [Param(f'param{i}', type_) for i, type_ in enumerate(param_types)]
+        args, pos = self.handle_args(codegen, args, tuple(params), call_position)
+        if pos is not None:
+            pos.error_here(args)
         
-        for arg, param in zip(args, params):
-            param_type = param.type
-            if param_type.c_type == 'any':
-                continue # if the parameter type can be anything, don't bother to check it
-            elif param.name == self.GREEDY or param_type.c_type == self.GREEDY:
-                return True, '', None # no need to continue if there is a variadic 
-
-            arg_type, arg_pos = arg.value.type, arg.value.position
-            if arg_type != param_type:
-                return False, f'Expected type \'{param_type}\', got \'{arg_type}\'', arg_pos
-
-        return True, '', None
+        success, err, pos = self.validate_args(args, tuple(params))
+        if not success:
+            (pos or call_position).error_here(err)
+        
+        f = UserFunction(func_name, return_type, params)
+        return f.call(codegen, call_position, None, args)

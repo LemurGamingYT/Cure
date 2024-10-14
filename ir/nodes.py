@@ -52,6 +52,13 @@ class TypeNode(Node):
     array_type: Union['TypeNode', None] = field(default=None)
     dict_types: tuple['TypeNode', 'TypeNode'] | None = field(default=None)
     is_optional: bool = field(default=False)
+    func_type: Union['FuncType', None] = field(default=None)
+    tuple_types: list['TypeNode'] | None = field(default=None)
+
+@dataclass(**kwargs)
+class FuncType(Node):
+    return_type: TypeNode
+    params: list['TypeNode'] = field(default_factory=list)
 
 @dataclass(**kwargs)
 class ParamNode(Node):
@@ -247,3 +254,14 @@ class AnonymousFunc(Node):
     body: Body
     params: list[ParamNode] = field(default_factory=list)
     return_type: TypeNode | None = field(default=None)
+
+@dataclass(**kwargs)
+class CreateTuple(Node):
+    elements: list[Node] = field(default_factory=list)
+
+@dataclass(**kwargs)
+class RangeFor(Node):
+    loop_name: str
+    start: Node
+    end: Node
+    body: Body

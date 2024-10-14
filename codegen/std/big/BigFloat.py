@@ -3,23 +3,27 @@ from codegen.c_manager import c_dec
 
 
 class BigFloat:
-    def __init__(self) -> None:
-        @c_dec(is_method=True, is_static=True, add_to_class=self)
-        def _BigFloat_type(_, call_position: Position) -> Object:
-            return Object('"BigFloat"', Type('string'), call_position)
+    def __init__(self, codegen) -> None:
+        codegen.c_manager.init_class(self, 'BigFloat', Type('BigFloat'))
+        codegen.add_toplevel_code("""typedef struct {
+    BigInt integer_part;
+    BigInt fractional_part;
+    int exponent;
+} BigFloat;
+""")
         
         @c_dec(param_types=(Param('bf', Type('BigFloat')),), is_method=True, add_to_class=self)
         def _BigFloat_to_string(codegen, call_position: Position, bf: Object) -> Object:
             codegen.c_manager.include('<string.h>', codegen)
             
             buf_free = Free()
-            buf: TempVar = codegen.create_temp_var(Type('string'), call_position, free=buf_free)
+            buf: TempVar = codegen.create_temp_var(Type('string'), call_position, free=buf_free,
+                                                   default_expr='NULL')
             int_part: TempVar = codegen.create_temp_var(Type('string'), call_position)
             frac_part: TempVar = codegen.create_temp_var(Type('string'), call_position)
             total_length: TempVar = codegen.create_temp_var(Type('int'), call_position)
             
-            codegen.prepend_code(f"""string {buf} = NULL;
-string {int_part} = {codegen.call('BigInt_to_string',
+            codegen.prepend_code(f"""string {int_part} = {codegen.call('BigInt_to_string',
     [Arg(Object(f'({bf}).integer_part', Type('BigInt'), call_position))], call_position
 )};
 string {frac_part} = {codegen.call('BigInt_to_string',

@@ -9,8 +9,14 @@ from ir.nodes import (
     Program, Body, TypeNode, ParamNode, ArgNode, Call, Return, Foreach, While,
     If, Use, VarDecl, Value, Identifier, Array, Dict, Brackets, BinOp, UOp, Attribute, New,
     Ternary, Position, Node, Break, Continue, FuncDecl, Nil, Index, DollarString, Cast, Enum,
-    ClassProperty, ClassMethod, Class, AttrAssign
+    ClassProperty, ClassMethod, Class, AttrAssign, CreateTuple, RangeFor
 )
+
+
+op_map = {
+    '+': 'add', '-': 'sub', '*': 'mul', '/': 'div', '%': 'mod', '==': 'eq', '!=': 'neq',
+    '<': 'lt', '>': 'gt', '<=': 'lte', '>=': 'gte', '&&': 'and', '||': 'or', '!': 'not'
+}
 
 
 def to_pos(ctx) -> Position:
@@ -52,18 +58,25 @@ class IRBuilder(CureVisitor):
     
     def visitType(self, ctx: CureParser.TypeContext) -> TypeNode:
         pos = to_pos(ctx)
-        name = ctx.ID().getText()
-        if len(ctx.type_()) == 0:
-            node = TypeNode(pos, name)
-        elif len(ctx.type_()) == 1:
-            node = TypeNode(pos, name, self.visitType(ctx.type_(0)))
-        elif len(ctx.type_()) == 2:
-            node = TypeNode(
-                pos, name, None,
-                (self.visitType(ctx.type_(0)), self.visitType(ctx.type_(1)))
-            )
+        if ctx.LPAREN() is not None:
+            types = [self.visitType(t) for t in ctx.type_()]
+            node = TypeNode(pos, 'tuple', tuple_types=types)
+            # param_types = [self.visitType(param) for param in ctx.type_()[1:]]
+            # return_type = self.visitType(ctx.type_()[-1])
+            # return TypeNode(pos, 'function', func_type=FuncType(pos, return_type, param_types))
         else:
-            pos.error_here(f'Invalid type \'{ctx.getText()}\'')
+            name = ctx.ID().getText()
+            if len(ctx.type_()) == 0:
+                node = TypeNode(pos, name)
+            elif len(ctx.type_()) == 1:
+                node = TypeNode(pos, name, self.visitType(ctx.type_(0)))
+            elif len(ctx.type_()) == 2:
+                node = TypeNode(
+                    pos, name, None,
+                    (self.visitType(ctx.type_(0)), self.visitType(ctx.type_(1)))
+                )
+            else:
+                pos.error_here(f'Invalid type \'{ctx.getText()}\'')
         
         if ctx.QUESTION() is not None:
             node.is_optional = True
@@ -93,6 +106,12 @@ class IRBuilder(CureVisitor):
     def visitForeachStmt(self, ctx: CureParser.ForeachStmtContext) -> Foreach:
         return Foreach(
             to_pos(ctx), ctx.ID().getText(), self.visitExpr(ctx.expr()),
+            self.visitBody(ctx.body())
+        )
+    
+    def visitRangeStmt(self, ctx: CureParser.RangeStmtContext) -> RangeFor:
+        return RangeFor(
+            to_pos(ctx), ctx.ID().getText(), self.visitExpr(ctx.expr(0)), self.visitExpr(ctx.expr(1)),
             self.visitBody(ctx.body())
         )
     
@@ -242,7 +261,7 @@ class IRBuilder(CureVisitor):
         elif ctx.ID() is not None:
             return Identifier(to_pos(ctx), ctx.ID().getText())
         elif ctx.LBRACE() is not None:
-            if len(ctx.dict_element()) > 0:
+            if len(ctx.dict_element()) > 0 or len(ctx.type_()) == 2:
                 return Dict(
                     to_pos(ctx),
                     self.visitType(ctx.type_(0)) if ctx.type_(0) is not None else None,
@@ -252,13 +271,13 @@ class IRBuilder(CureVisitor):
                         for element in ctx.dict_element()
                     }
                 )
-            else:
+            elif len(ctx.dict_element()) == 0 and len(ctx.type_()) in {0, 1}:
                 return Array(
                     to_pos(ctx), self.visitType(ctx.type_(0)) if ctx.type_(0) is not None else None,
                     self.visitArgs(ctx.args())
                 )
-        else:
-            to_pos(ctx).error_here('Invalid atom')
+        
+        to_pos(ctx).error_here('Invalid atom')
     
     def visitGenericArgs(self, ctx: CureParser.GenericArgsContext) -> list[TypeNode]:
         return [self.visitType(t) for t in ctx.type_()]
@@ -309,7 +328,10 @@ class IRBuilder(CureVisitor):
         #         self.visitType(ctx.type_()) if ctx.type_() is not None else None
         #     )
         elif ctx.LPAREN() is not None:
-            return Cast(to_pos(ctx), self.visitExpr(ctx.expr(0)), self.visitType(ctx.type_()))
+            if ctx.type_() is not None:
+                return Cast(to_pos(ctx), self.visitExpr(ctx.expr(0)), self.visitType(ctx.type_()))
+            else:
+                return CreateTuple(to_pos(ctx), [self.visitExpr(expr) for expr in ctx.expr()])
         # elif ctx.LBRACE() is not None:
         #     return ArrayComprehension(
         #         to_pos(ctx), self.visitExpr(ctx.expr(0)), ctx.ID().getText(),

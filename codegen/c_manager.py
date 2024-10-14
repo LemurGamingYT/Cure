@@ -103,12 +103,16 @@ def c_dec(
         name = func_name_override if func_name_override is not None else func.__name__[1:]
         cname = name if name.startswith('_') else f'_{name}'
         
+        def get_kwargs(args: tuple[Object, ...]) -> dict:
+            return {k.name: v for k, v in zip(param_types, args)}
+        
         setattr(func, 'name', cname)
         setattr(func, 'is_method', is_method)
         setattr(func, 'is_static', is_static)
         setattr(func, 'is_property', is_property)
         setattr(func, 'return_type', return_type)
         setattr(func, 'can_user_call', can_user_call)
+        setattr(func, 'get_kwargs', get_kwargs)
         setattr(func, 'object', BuiltinFunction(
             func, return_type, list(param_types), overloads,
             generic_params=list(generic_params) if generic_params is not None else []
@@ -309,6 +313,7 @@ class CManager:
         vars_str = '' if vars_str == '' else ', ' + vars_str
         content = fix(fr'{self.codegen.pos.get_print_content(Fore.RED, f'{fmt}\\n')}')
         return f"""printf("{content}"{vars_str});
+{self.codegen.get_end_code()}
 exit(1);
 """
     
@@ -423,14 +428,20 @@ if ({length} > 1) {{
         
         return array
     
-    def wrap_struct_properties(self, struct_name: str, struct: Type, names: list[Param]) -> None:
+    def wrap_struct_properties(self, struct_name: str, struct: Type, names: list[Param],
+                               sub_field: str | None = None) -> None:
         """Wrap properties from a struct into the programming language.
 
         Args:
             struct_name (str): The struct's name.
             struct (Type): The struct type.
             names (list[Param]): The struct's fields to wrap.
+            sub_field (str, optional): The field to get the struct properties from. For example,
+                struct.a.b (`a` would be this parameter here). You also need to add the `->` or
+                `.` after the field name `->` if the field is a pointer and `.` if not.
         """
+        
+        sub_field = '' if sub_field is None else f'{sub_field}'
         
         for name in names:
             @c_dec(
@@ -438,7 +449,33 @@ if ({length} > 1) {{
                 func_name_override=f'{struct.c_type}_{name.name}'
             )
             def _(_, call_position: Position, obj: Object, n=name) -> Object:
-                return Object(f'(({n.type.c_type})(({obj}).{n.name}))', n.type, call_position)
+                return Object(
+                    f'(({n.type.c_type})(({obj}).{sub_field}{n.name}))',
+                    n.type, call_position
+                )
+    
+    def init_class(self, parent, name: str, type: Type) -> None:
+        """Initialises the default type and to_string methods on a class type.
+
+        Args:
+            parent (type): The class to add the c declarations to.
+            name (str): The name of the class.
+            type (Type): The type of the class.
+        """
+        
+        @c_dec(
+            is_method=True, is_static=True, add_to_class=parent,
+            func_name_override=f'{type.c_type}_type'
+        )
+        def _(_, call_position: Position) -> Object:
+            return Object(f'"{type}"', Type('string'), call_position)
+        
+        @c_dec(
+            param_types=(Param(name.lower(), type),), is_method=True, add_to_class=parent,
+            func_name_override=f'{type.c_type}_to_string'
+        )
+        def _(_, call_position: Position, _instance: Object) -> Object:
+            return Object(f'"class \'{type}\'"', Type('string'), call_position)
     
     
     def __init__(self, codegen) -> None:
@@ -510,10 +547,7 @@ if ({length} > 1) {{
             if type_method is None:
                 call_position.error_here(f'Type representation for \'{x.type}\' is not defined')
             
-            return Object(
-                str(type_method(codegen, call_position)),
-                Type('string'), call_position
-            )
+            return type_method(codegen, call_position)
         
         @c_dec(param_types=(Param('x', Type('any')),), can_user_call=True, add_to_class=self)
         def _to_string(codegen, call_position: Position, x: Object) -> Object:
@@ -521,10 +555,7 @@ if ({length} > 1) {{
             if repr_method is None:
                 call_position.error_here(f'String representation for \'{x.type}\' is not defined')
 
-            return Object(
-                str(repr_method(codegen, call_position, x)),
-                Type('string'), call_position
-            )
+            return repr_method(codegen, call_position, x)
         
         def _input_no_prompt(codegen, call_position: Position) -> Object:
             return _input(codegen, call_position, None)
@@ -568,14 +599,11 @@ while (({c} = getchar()) != '\\n' && {c} != EOF) {{
             if bool_method is None:
                 call_position.error_here(f'Boolean conversion for \'{x.type}\' is not defined')
 
-            return Object(
-                str(bool_method(codegen, call_position, x)),
-                Type('bool'), call_position
-            )
+            return bool_method(codegen, call_position, x)
         
         @c_dec(param_types=(Param('object', Type('any')),), can_user_call=True, add_to_class=self)
         def _sizeof(_, call_position: Position, object: Object) -> Object:
-            return Object(f'sizeof({object})', Type('int'), call_position)
+            return Object(f'(sizeof({object}))', Type('int'), call_position)
         
         @c_dec(param_types=(Param('code', Type('string')),), can_user_call=True, add_to_class=self)
         def _insert_c_code(codegen, call_position: Position, code: Object) -> Object:
@@ -750,6 +778,10 @@ static char {char}[2];
         def _Timer_type(_, call_position: Position) -> Object:
             return Object('"Timer"', Type('string'), call_position)
         
+        @c_dec(is_method=True, is_static=True, add_to_class=self)
+        def _Logger_type(_, call_position: Position) -> Object:
+            return Object('"Logger"', Type('string'), call_position)
+        
         
         @c_dec(param_types=(Param('value', Type('int')),), is_method=True, add_to_class=self)
         def _int_to_string(codegen, call_position: Position, value: Object) -> Object:
@@ -868,6 +900,24 @@ snprintf({temp_var}, 47, "%f", ({value}));
             code, buf_free = self.fmt_length(
                 codegen, call_position, '"Timer(is_running=%s)"',
                 f'({value}).is_running'
+            )
+            
+            codegen.prepend_code(code)
+            return Object.STRINGBUF(buf_free, call_position)
+        
+        @c_dec(param_types=(Param('logger', Type('Logger')),), is_method=True, add_to_class=self)
+        def _Logger_to_string(codegen, call_position: Position, value: Object) -> Object:
+            path: TempVar = codegen.create_temp_var(Type('string'), call_position)
+            codegen.prepend_code(f"""string {path} = NULL;
+if (({value}).path == NULL) {{
+    {path} = "stdout";
+}} else {{
+    {path} = ({value}).path;
+}}
+""")
+            code, buf_free = self.fmt_length(
+                codegen, call_position, '"Logger(path=%s)"',
+                str(path)
             )
             
             codegen.prepend_code(code)

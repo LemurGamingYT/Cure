@@ -1,4 +1,5 @@
 #include <string.h>
+#include <stdlib.h>
 #include <time.h>
 
 #include "../include/genann/genann.h"

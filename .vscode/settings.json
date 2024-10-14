@@ -43,7 +43,10 @@
         "xlocbuf": "c",
         "curl.h": "c",
         "curl_hmac.h": "c",
-        "escape.h": "c"
+        "escape.h": "c",
+        "xlocale": "c",
+        "genann.h": "c",
+        "miniui.h": "c"
     },
     "python.REPL.enableREPLSmartSend": false
 }

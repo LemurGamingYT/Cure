@@ -7,13 +7,12 @@ DEFAULT_CAPACITY = 10
 
 class ArrayManager:
     def __init__(self, codegen) -> None:
-        self.defined_types: list[str] = []
-        
         self.codegen = codegen
+        codegen.metadata.setdefault('array_types', [])
     
     def define_array(self, type: Type) -> Type:
         array_type = Type(f'array[{type}]', f'{type.c_type}_array')
-        if type.type in self.defined_types:
+        if type.type in self.codegen.metadata['array_types']:
             return array_type
         
         self.codegen.add_toplevel_code(f"""typedef struct {{
@@ -26,6 +25,7 @@ class ArrayManager:
         c_manager: CManager = self.codegen.c_manager
         c_manager.reserve(array_type.c_type)
         
+        c_manager.init_class(self, str(array_type), array_type)
         c_manager.wrap_struct_properties('arr', array_type, [
             Param('length', Type('int')), Param('capacity', Type('int'))
         ])
@@ -43,10 +43,11 @@ class ArrayManager:
 )};
 for (size_t {i} = 0; {i} < {a}.length; {i}++) {{
 """)
+            value: Object = codegen.c_manager._to_string(
+                codegen, call_position, Object(f'{a}.elements[{i}]', type, call_position)
+            )
             codegen.prepend_code(f"""{codegen.c_manager._StringBuilder_add(
-codegen, call_position, builder, codegen.c_manager._to_string(
-    codegen, call_position, Object(f'{a}.elements[{i}]', type, call_position)
-)
+codegen, call_position, builder, value
 )};
 if ({i} < {a}.length - 1) {{
 """)
@@ -54,14 +55,24 @@ if ({i} < {a}.length - 1) {{
 codegen, call_position, builder, Object('", "', Type('string'), call_position)
 )};
 }}
+{value.free.code if value.free is not None else ''}
 }}
 """)
+            if value.free is not None:
+                codegen.scope.remove_free(value.free)
+            
             codegen.prepend_code(f"""{codegen.c_manager._StringBuilder_add(
     codegen, call_position, builder, Object('"}"', Type('string'), call_position)
 )};
 """)
             
-            return codegen.c_manager._StringBuilder_str(codegen, call_position, builder)
+            obj: Object = codegen.c_manager._StringBuilder_str(codegen, call_position, builder)
+            # StringBuilder_str duplicates the builder's buffer and so now the builder is not needed
+            if builder.free is not None:
+                codegen.prepend_code(builder.free.code)
+                codegen.scope.remove_free(builder.free)
+            
+            return obj
         
         @c_dec(add_to_class=c_manager, func_name_override=f'{array_type.c_type}_make')
         def array_make(codegen, call_position: Position) -> Object:
@@ -206,6 +217,9 @@ if ({idx} < 0) {{
 """)
 
             return Object.NULL(call_position)
+        
+        # TODO: change all of the array.elements[index] == element to use the eq method for each of
+        # the types, e.g. int_eq_int by using the codegen.c_manager, same with the lt and gt
         
         @c_dec(
             param_types=(Param('arr', array_type),), is_method=True,
@@ -514,5 +528,5 @@ for (size_t {i} = 0; {i} < ({a}).length; {i}++) {{
         def index_array(codegen, call_position: Position, arr: Object, index: Object) -> Object:
             return array_get(codegen, call_position, arr, index)
         
-        self.defined_types.append(type.type)
+        self.codegen.metadata['array_types'].append(type.type)
         return array_type

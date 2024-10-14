@@ -44,6 +44,8 @@ typedef struct {{
         
         c_manager: CManager = self.codegen.c_manager
         
+        c_manager.init_class(c_manager, str(pair_type), pair_type)
+        c_manager.init_class(c_manager, str(dict_type), dict_type)
         c_manager.wrap_struct_properties('pair', pair_type, [
             Param('key', key_type), Param('value', value_type)
         ])

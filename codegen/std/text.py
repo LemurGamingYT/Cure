@@ -6,7 +6,7 @@ from codegen.c_manager import c_dec
 class text:
     def __init__(self, codegen) -> None:
         codegen.c_manager.reserve(('setlocale', 'localeconv', 'lconv'))
-        codegen.add_type('LocaleConv')
+        codegen.type_checker.add_type('LocaleConv')
         codegen.add_toplevel_code("""#ifndef CURE_TEXT_H
 #include <locale.h>
 typedef struct {
@@ -24,14 +24,8 @@ typedef struct {
         codegen.add_toplevel_constant('LC_TIME', Type('int'), 'LC_TIME', False)
         codegen.add_toplevel_constant('LC_MAX', Type('int'), 'LC_MAX', False)
         codegen.add_toplevel_constant('LC_MIN', Type('int'), 'LC_MIN', False)
-    
-        @c_dec(is_method=True, is_static=True, add_to_class=self)
-        def _LocaleConv_type(_, call_position: Position) -> Object:
-            return Object('"LocaleConv"', Type('string'), call_position)
         
-        @c_dec(param_types=(Param('conv', Type('LocaleConv')),), is_method=True, add_to_class=self)
-        def _LocaleConv_to_string(_, call_position: Position, _localeconv: Object) -> Object:
-            return Object('"class \'LocaleConv\'"', Type('string'), call_position)
+        codegen.c_manager.init_class(self, 'LocaleConv', Type('LocaleConv'))
         
         def _set_locale_category(codegen, call_position: Position, category: Object) -> Object:
             return _set_locale(codegen, call_position, category, None)

@@ -1,0 +1,38 @@
+// 'ui' is a library that provides a simply way to create a GUI.
+// It also uses the 'color' library.
+use "ui"
+
+
+// Create a function that will be called when a button is clicked.
+func click_me() {
+    print("You clicked me!")
+}
+
+
+func main() -> int {
+    // Create a window with a near-black background color and a size of 800x600 that is not resizable.
+    window = new Window("Test Window", 800, 600, new Color(24, 24, 24), resizable: false)
+
+    // Create a frame with a gray background color and a size of 600x500.
+    frame = new Frame(
+        window, bg_color: new Color(50, 50, 50), width: 600, height: 500
+    )
+    frame.place(400, 275) // Place the frame at the center of the window.
+
+    // Create a label with a white text color and a size of 250x50.
+    label = new Label(
+        window, bg_color: new Color(50, 50, 50), text: "This is a test", width: 250, height: 50,
+        font: new Font("Arial", 50), text_color: new Color(255, 255, 255)
+    )
+    label.place(400, 100) // Place the label slightly above the center of the window.
+
+    // Create a button with a gray background color, a white text color, and a size of 200x50.
+    btn = new Button(
+        window, bg_color: new Color(60, 60, 60), text: "Click me!", width: 200, height: 50,
+        font: new Font("Arial", 40), text_color: new Color(255, 255, 255), clicked: click_me
+    )
+    btn.place(400, 200) // Place the button at the center of the window.
+
+    window.run() // Show and run the main loop of the window.
+    return 0
+}

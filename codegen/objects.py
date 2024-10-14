@@ -25,6 +25,9 @@ class Param:
     default: Union['Object', None] = field(default=None)
     
     def __str__(self) -> str:
+        if self.type.function_info is not None:
+            return self.type.c_type
+        
         return f'{self.get_type()} {self.name}'
     
     def get_type(self) -> str:
@@ -38,6 +41,8 @@ class Type:
     type: str
     c_type: str = field(default='')
     compatible_types: tuple[str, ...] = field(default_factory=tuple[str, ...])
+    function_info: tuple[tuple['Type', ...], 'Type', str] | None = field(default=None)
+    tuple_types: list['Type'] | None = field(default=None)
     
     def __post_init__(self) -> None:
         if self.c_type == '':

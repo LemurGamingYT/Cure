@@ -3,18 +3,8 @@ use "color"
 
 
 func main() -> int {
-    // Create a new RGB color
-    test_rgb = new RGB(255, 255, 255)
-    print(test_rgb) // prints: RGB(255, 255, 255)
-
-    // Convert the RGB color to HSV
-    test_hsv = test_rgb.to_hsv
-    print(test_hsv)
-    print(test_hsv.to_rgb) // Convert back to RGB
-
-    // Create a new HSV color
-    test_hex = new HexTriplet("#ffff00")
-    print(test_hex) // prints: HexTriplet(#ffff00)
-    print(test_hex.to_rgb) // Convert to RGB
+    // Instead of having multiple colors, you now just have one!
+    test_color = new Color(255, 255, 255) // You can also create a new Color using a hex string
+    print(test_color) // Print out the RGB color
     return 0
 }

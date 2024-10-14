@@ -4,16 +4,13 @@ from codegen.c_manager import c_dec
 
 class Pointer:
     def __init__(self, codegen) -> None:
-        codegen.add_toplevel_code("""#ifndef CURE_LL_H
-typedef struct {
+        codegen.add_toplevel_code("""typedef struct {
     void* data;
 } Pointer;
-#endif
 """)
-    
-        @c_dec(is_method=True, is_static=True, add_to_class=self)
-        def _Pointer_type(_, call_position: Position) -> Object:
-            return Object('"Pointer"', Type('string'), call_position)
+        
+        codegen.c_manager.init_class(self, 'Pointer', Type('Pointer'))
+        codegen.type_checker.add_type('Pointer')
         
         @c_dec(param_types=(Param('ptr', Type('Pointer')),), is_method=True, add_to_class=self)
         def _Pointer_to_string(codegen, call_position: Position, ptr: Object) -> Object:

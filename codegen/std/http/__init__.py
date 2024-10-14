@@ -4,6 +4,7 @@ from codegen.c_manager import c_dec
 
 class http:
     def __init__(self, codegen) -> None:
+        codegen.type_checker.add_type('HTTPResponse')
         codegen.add_toplevel_code("""#ifndef CURE_HTTP_H
 #define CURE_HTTP_H
 
@@ -20,13 +21,10 @@ void free_HTTPResponse(HTTPResponse* response) {
 #endif
 """)
         
+        codegen.c_manager.init_class(self, 'HTTPResponse', Type('HTTPResponse'))
         codegen.c_manager.wrap_struct_properties(
             'response', Type('HTTPResponse'), [Param('status_code', Type('int'))]
         )
-        
-        @c_dec(is_method=True, is_static=True, add_to_class=self)
-        def _HTTPResponse_type(_, call_position: Position) -> Object:
-            return Object('"HTTPResponse"', Type('string'), call_position)
         
         @c_dec(
             param_types=(Param('response', Type('HTTPResponse')),),
@@ -63,7 +61,7 @@ void free_HTTPResponse(HTTPResponse* response) {
             can_user_call=True, add_to_class=self
         )
         def _get_req(codegen, call_position: Position, host: Object, path: Object) -> Object:
-            codegen.use('http/sockets', call_position)
+            codegen.dependency_manager.use('http/sockets', call_position)
             
             socket_configs = [
                 codegen.c_manager._SocketFamily_AF_INET(codegen, call_position),
@@ -77,7 +75,8 @@ void free_HTTPResponse(HTTPResponse* response) {
             )
             response_free = Free(free_name='free_HTTPResponse')
             response: TempVar = codegen.create_temp_var(
-                Type('HTTPResponse'), call_position, free=response_free
+                Type('HTTPResponse'), call_position, free=response_free,
+                default_expr='{ .headers = NULL, .body = NULL, .sb = NULL }',
             )
             response_free.object_name = f'&{response}'
             
@@ -144,11 +143,12 @@ int {status_code} = -1;
 """)
             double_new_line: TempVar = codegen.create_temp_var(Type('string'), call_position)
             hlen: TempVar = codegen.create_temp_var(Type('int', 'size_t'), call_position)
-            codegen.prepend_code(f"""sscanf({
-    codegen.c_manager._StringBuilder_str(codegen, call_position, sb)
-}, "HTTP/1.1 %d", &{temp_status});
+            sb_str: Object = codegen.c_manager._StringBuilder_str(codegen, call_position, sb)
+            codegen.scope.remove_free(sb_str.free)
+            codegen.prepend_code(f"""sscanf({sb_str}, "HTTP/1.1 %d", &{temp_status});
 
 {status_code} = {temp_status};
+free({sb_str});
 }}
 }}
 
@@ -177,7 +177,7 @@ if ({double_new_line}) {{
             
             codegen.prepend_code(f"""}}
 
-{response.type.c_type} {response} = {{
+{response} = ({response.type.c_type}){{
     .headers = &{headers}, .body = &{body}, .sb = &{sb}, .status_code = {status_code}
 }};
 """)

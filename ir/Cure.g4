@@ -2,11 +2,15 @@ grammar Cure;
 
 parse: stmt* EOF;
 
-type: ID (LBRACK type (COLON type)? RBRACK)? QUESTION?;
+type
+    : ID (LBRACK type (COLON type)? RBRACK)? QUESTION?
+    | LPAREN (type (COMMA type)*)? RPAREN
+    // | LPAREN (type (COMMA type)*)? RPAREN RETURNS type
+    ;
 
 stmt
     : varAssign | funcAssign | classAssign | enumAssign
-    | foreachStmt | whileStmt | ifStmt | useStmt
+    | foreachStmt | whileStmt | ifStmt | useStmt | rangeStmt
     | expr
     ;
 
@@ -17,6 +21,7 @@ ifStmt: IF expr body elseifStmt* elseStmt?;
 elseifStmt: ELSE IF expr body;
 elseStmt: ELSE body;
 whileStmt: WHILE expr body;
+rangeStmt: FOR ID IN expr DOUBLEDOT expr body;
 foreachStmt: FOREACH ID IN expr body;
 useStmt: USE STRING;
 
@@ -49,8 +54,8 @@ dict_element: expr COLON expr;
 genericArgs: LBRACK type (COMMA type)* RBRACK;
 call: ID genericArgs? LPAREN args? RPAREN;
 atom
-    : type? LBRACE args? RBRACE
-    | (LBRACK type COLON type RBRACK)? LBRACE (dict_element (COMMA dict_element)*)? RBRACE
+    : (LBRACK type COLON type RBRACK)? LBRACE (dict_element (COMMA dict_element)*)? RBRACE
+    | type? LBRACE args? RBRACE
     | INT
     | FLOAT
     | STRING
@@ -67,6 +72,7 @@ expr
     | LPAREN type RPAREN expr
     | expr DOT ID genericArgs? (LPAREN args? RPAREN)?
     | expr IF expr ELSE expr
+    | LPAREN (expr (COMMA expr)*)+ RPAREN
     // | LBRACE expr COLON ID IN expr RBRACE
     | NEW ID LPAREN args? RPAREN
     | expr LBRACK expr RBRACK
@@ -83,6 +89,7 @@ IF: 'if';
 IN: 'in';
 NEW: 'new';
 USE: 'use';
+FOR: 'for';
 ENUM: 'enum';
 ELSE: 'else';
 FUNC: 'func';
@@ -124,6 +131,7 @@ AND: '&&';
 OR: '||';
 NOT: '!';
 
+DOUBLEDOT: '..';
 DOT: '.';
 COMMA: ',';
 COLON: ':';

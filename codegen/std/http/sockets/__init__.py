@@ -15,7 +15,7 @@ class sockets:
             codegen.extra_compile_args.append('-lws2_32')
             codegen.add_toplevel_code('#pragma comment(lib, "Ws2_32.lib")')
         
-        codegen.add_type(('Socket', 'AddrInfo'))
+        codegen.type_checker.add_type(('Socket', 'AddrInfo'))
         
         codegen.c_enum(
             'SocketFamily', [
@@ -44,7 +44,7 @@ class sockets:
 } Socket;
 
 typedef struct {
-    const string host, port;
+    string host, port;
     struct addrinfo* hints, *result;
     int return_code;
 } AddrInfo;
@@ -66,11 +66,13 @@ if ({res} != 0) {{
 }}
 """
         
+        codegen.c_manager.init_class(self, 'Socket', Type('Socket'))
         codegen.c_manager.wrap_struct_properties('socket', Type('Socket'), [
             Param('family', Type('SocketFamily')), Param('type', Type('SocketType')),
             Param('protocol', Type('SocketProtocol'))
         ])
         
+        codegen.c_manager.init_class(self, 'AddrInfo', Type('AddrInfo'))
         codegen.c_manager.wrap_struct_properties('info', Type('AddrInfo'), [
             Param('port', Type('string')), Param('host', Type('string'))
         ])
@@ -86,14 +88,6 @@ if ({res} != 0) {{
         @c_dec(is_method=True, is_static=True, add_to_class=self)
         def _SocketProtocol_type(_, call_position: Position) -> Object:
             return Object('"SocketProtocol"', Type('string'), call_position)
-
-        @c_dec(is_method=True, is_static=True, add_to_class=self)
-        def _Socket_type(_, call_position: Position) -> Object:
-            return Object('"Socket"', Type('string'), call_position)
-        
-        @c_dec(is_method=True, is_static=True, add_to_class=self)
-        def _AddrInfo_type(_, call_position: Position) -> Object:
-            return Object('"AddrInfo"', Type('string'), call_position)
         
         @c_dec(param_types=(Param('family', Type('SocketFamily')),), is_method=True, add_to_class=self)
         def _SocketFamily_to_string(codegen, call_position: Position, family: Object) -> Object:
@@ -150,7 +144,8 @@ if ({res} != 0) {{
         def _AddrInfo_new(codegen, call_position: Position, host: Object, port: Object,
                           family: Object, type: Object, protocol: Object) -> Object:
             info_free = Free(free_name='freeaddrinfo')
-            info: TempVar = codegen.create_temp_var(Type('AddrInfo'), call_position, free=info_free)
+            info: TempVar = codegen.create_temp_var(Type('AddrInfo'), call_position, free=info_free,
+                                                    default_expr='{ .result = NULL }')
             info_free.object_name = f'{info}.result'
             result: TempVar = codegen.create_temp_var(Type('struct addrinfo*'), call_position)
             hints: TempVar = codegen.create_temp_var(Type('struct addrinfo'), call_position)
@@ -167,7 +162,7 @@ if ({ret} != 0) {{
     {codegen.c_manager.err('getaddrinfo failed: error code %d', str(ret))}
 }}
 
-AddrInfo {info} = {{
+{info} = ({info.type.c_type}){{
     .return_code = {ret}, .host = {host}, .port = {port}, .hints = &{hints}, .result = {result}
 }};
 """)

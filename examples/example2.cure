@@ -56,12 +56,12 @@ func main() -> int {
     foreach i in arr {
         // Save each element of the array to the Serialization object
         // each element is saved as the index of the element in the array
-        writer.write_int(to_string(i), i)
+        writer.write[int](to_string(i), i)
     }
 
     foreach i in arr {
         // Read each element of the array from the Serialization object
-        print(writer.read_int(to_string(i)))
+        print(writer.read[int](to_string(i)))
     }
 
     writer.to_file("test.bin")
@@ -70,11 +70,11 @@ func main() -> int {
     use "parsers"
 
     json = new JSONParser() // Create an empty JSONParser object
-    json.write_string("name", "Douglas")
-    json.write_string("surname", "Crockford")
-    json.write_string("fullname", $"{json.read_string('name')} {json.read_string('surname')}")
-    json.write_string("city", "San Francisco")
-    json.write_int("age", 69)
+    json.write[string]("name", "Douglas")
+    json.write[string]("surname", "Crockford")
+    json.write[string]("fullname", $"{json.read[string]('name')} {json.read[string]('surname')}")
+    json.write[string]("city", "San Francisco")
+    json.write[int]("age", 69)
     
     // Save the JSONParser object to a file
     json.to_file("biography.json")

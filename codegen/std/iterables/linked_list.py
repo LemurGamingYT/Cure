@@ -6,7 +6,7 @@ from ir.nodes import TypeNode
 class LinkedList:
     def __init__(self, codegen) -> None:
         self.codegen = codegen
-        setattr(codegen, 'LinkedList_type', self.ll_type)
+        setattr(codegen.type_checker, 'LinkedList_type', self.ll_type)
         
         self.defined_types: list[str] = []
         
@@ -43,18 +43,13 @@ typedef struct {{
         
         c_manager = self.codegen.c_manager
         
+        c_manager.init_class(self, str(list_type), list_type)
+        
         @c_dec(add_to_class=c_manager, func_name_override=f'{list_type.c_type}_make')
         def make_ll(codegen, call_position: Position) -> Object:
             ll: TempVar = codegen.create_temp_var(list_type, call_position)
             codegen.prepend_code(f'{list_type.c_type} {ll} = {{ .head = NULL }};')
             return ll.OBJECT()
-        
-        @c_dec(
-            add_to_class=c_manager, func_name_override=f'{list_type.c_type}_type',
-            is_method=True, is_static=True
-        )
-        def type_(_, call_position: Position) -> Object:
-            return Object(f'"{list_type}"', Type('string'), call_position)
         
         @c_dec(
             param_types=(Param('ll', list_type),), is_method=True,
