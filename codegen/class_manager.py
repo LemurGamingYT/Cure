@@ -34,9 +34,7 @@ class ClassManager:
 }} {class_name};
 """
 
-    def property_to_code(
-        self, property: ClassProperty, cls_type: Type, class_: Class
-    ) -> None:
+    def property_to_code(self, property: ClassProperty, cls_type: Type, class_: Class) -> None:
         typ: Type = self.codegen.visit_TypeNode(property.type)
         default = self.codegen.visit(property.value) if property.value is not None else None
         class_.fields.append(Field(property.name, typ, default, property.public))
@@ -74,9 +72,7 @@ class ClassManager:
             
             return Object.NULL(call_position)
 
-    def method_to_code(
-        self, method: ClassMethod, cls_type: Type, class_: Class
-    ) -> str:
+    def method_to_code(self, method: ClassMethod, cls_type: Type, class_: Class) -> str:
         def eval_body(**kwargs) -> Object:
             return self.codegen.visit_Body(method.body, params=params, **kwargs)
         
@@ -202,20 +198,6 @@ class ClassManager:
         
         if (type_method := self.has_method('type', members)) is not None:
             type_method.pos.error_here('Type method cannot be defined in a class')
-        
-        @c_dec(
-            is_method=True, is_static=True,
-            func_name_override=f'{class_name}_type', add_to_class=self.codegen.c_manager
-        )
-        def _(_, call_position: Position) -> Object:
-            return Object('"class"', Type('string'), call_position)
-        
-        @c_dec(
-            param_types=(Param('obj', cls_type),), is_method=True,
-            func_name_override=f'{class_name}_to_string', add_to_class=self.codegen.c_manager
-        )
-        def _(_, call_position: Position, _obj: Object) -> Object:
-            return Object(f'"class \'{class_name}\'"', Type('string'), call_position)
         
         without_properties = []
         for member in members:

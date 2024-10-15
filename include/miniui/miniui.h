@@ -20,6 +20,7 @@ extern "C" {
 
 typedef char* string;
 typedef void (*click_callback)();
+typedef void (*text_changed_callback)(string new_text);
 
 #define CLASS_NAME "MiniUI"
 
@@ -32,7 +33,7 @@ typedef struct {
 } Font;
 
 typedef enum {
-    WLABEL, WBUTTON, WFRAME
+    WLABEL, WBUTTON, WFRAME, WTEXTBOX
 } WidgetType;
 
 typedef struct {
@@ -46,6 +47,8 @@ typedef struct {
     Font* font;
     click_callback on_click;
     int corner_radius;
+    float relx, rely, relwidth, relheight;
+    text_changed_callback on_text_changed;
 } Widget;
 
 typedef struct {
@@ -66,11 +69,13 @@ bool destroy_window(Window* window);
 void run_window(Window* window);
 
 bool init_widget(
-    Widget* widget, WidgetType type, const string text, const int width, const int height,
-    const int x, const int y, Window* parent, COLORREF bg_color, COLORREF text_color,
-    Font* font, click_callback on_click, int corner_radius
+    Widget* widget, WidgetType type, const string text, int width, int height,
+    int x, int y, Window* parent, COLORREF bg_color, COLORREF text_color,
+    Font* font, click_callback on_click, int corner_radius, float relx, float rely,
+    float relwidth, float relheight, text_changed_callback on_text_changed
 );
 bool add_widget(Window* window, Widget* widget);
+string get_textbox_text(Widget* widget);
 
 bool init_font(
     Font* font, const int size, const string family,

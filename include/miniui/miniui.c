@@ -1,6 +1,15 @@
 #include "./miniui.h"
 
 
+static int relative_x(Window* window, float percentage) {
+    return (int)(window->width * (percentage / 100.0f));
+}
+
+static int relative_y(Window* window, float percentage) {
+    return (int)(window->height * (percentage / 100.0f));
+}
+
+
 LRESULT CALLBACK WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
     Window* window = (Window*)GetWindowLongPtr(hwnd, GWLP_USERDATA);
     switch (msg) {
@@ -14,8 +23,12 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             if (hitTest != HTCLIENT) break;
 
             Widget* widget = (Widget*)GetWindowLongPtr(hWnd, GWLP_USERDATA);
-            if (widget != NULL && widget->type == WBUTTON) {
+            if (widget == NULL) return FALSE;
+
+            if (widget->type == WBUTTON) {
                 SetCursor(LoadCursor(NULL, IDC_HAND));
+            } else if (widget->type == WTEXTBOX) {
+                SetCursor(LoadCursor(NULL, IDC_IBEAM));
             } else {
                 SetCursor(LoadCursor(NULL, IDC_ARROW));
             }
@@ -26,10 +39,22 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
     case WM_COMMAND:
         {
             Widget* widget = (Widget*)GetWindowLongPtr((HWND)lParam, GWLP_USERDATA);
-            if (widget != NULL && HIWORD(wParam) == BN_CLICKED) {
-                if (widget->type == WBUTTON && widget->on_click != NULL) {
-                    widget->on_click(widget);
-                }
+            if (widget == NULL) return FALSE;
+
+            if (
+                HIWORD(wParam) == EN_CHANGE && widget->type == WTEXTBOX
+                && widget->on_text_changed != NULL
+            ) {
+                string text = get_textbox_text(widget);
+                widget->on_text_changed(text);
+                free(text);
+            }
+
+            if (
+                HIWORD(wParam) == BN_CLICKED && widget->type == WBUTTON
+                && widget->on_click != NULL
+            ) {
+                widget->on_click(widget);
             }
         } break;
     case WM_PAINT:
@@ -41,7 +66,18 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             RECT rect;
             GetClientRect(hwnd, &rect);
             ExtTextOut(hdc, 0, 0, ETO_OPAQUE, &rect, NULL, 0, NULL);
+            DeleteDC(hdc);
             EndPaint(hwnd, &ps);
+        } break;
+    case WM_CTLCOLOREDIT:
+        {
+            HDC hdc = (HDC)wParam;
+            Widget* widget = (Widget*)GetWindowLongPtr((HWND)lParam, GWLP_USERDATA);
+            if (widget != NULL) {
+                SetBkColor(hdc, widget->bg_color);
+                SetTextColor(hdc, widget->text_color);
+                return (INT_PTR)CreateSolidBrush(widget->bg_color);
+            }
         } break;
     case WM_CTLCOLORSTATIC:
         {
@@ -49,7 +85,9 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             Widget* widget = (Widget*)GetWindowLongPtr((HWND)lParam, GWLP_USERDATA);
             if (widget != NULL) {
                 SetBkColor(hdc, widget->bg_color);
-                SetTextColor(hdc, widget->text_color);
+                if (widget->type == WLABEL)
+                    SetTextColor(hdc, widget->text_color);
+                
                 return (INT_PTR)CreateSolidBrush(widget->bg_color);
             }
         } break;
@@ -135,25 +173,33 @@ void run_window(Window* window) {
 bool init_widget(
     Widget* widget, WidgetType type, const string text, const int width, const int height,
     const int x, const int y, Window* parent, COLORREF bg_color, COLORREF text_color,
-    Font* font, click_callback on_click, int corner_radius
+    Font* font, click_callback on_click, int corner_radius, float relx, float rely,
+    float relwidth, float relheight, text_changed_callback on_text_changed
 ) {
     if (widget == NULL) return false;
+    if (parent == NULL) return false;
+    if (parent->hwnd == NULL) return false;
 
     widget->x = x;
     widget->y = y;
+    widget->relx = relx;
+    widget->rely = rely;
     widget->font = font;
     widget->type = type;
     widget->text = text;
-    widget->width = width;
-    widget->height = height;
-    widget->parent = (struct Window*)parent;
-    widget->bg_color = bg_color;
-    widget->text_color = text_color;
     widget->font = font;
     widget->next = NULL;
     widget->hwnd = NULL;
+    widget->width = width;
+    widget->height = height;
     widget->on_click = on_click;
+    widget->bg_color = bg_color;
+    widget->relwidth = relwidth;
+    widget->relheight = relheight;
+    widget->text_color = text_color;
     widget->corner_radius = corner_radius;
+    widget->parent = (struct Window*)parent;
+    widget->on_text_changed = on_text_changed;
     return true;
 }
 
@@ -162,6 +208,11 @@ bool add_widget(Window* window, Widget* widget) {
     if (widget == NULL) return false;
 
     if ((Window*)widget->parent != window) return false;
+
+    if (widget->relx != 0.0f && widget->rely != 0.0f) {
+        widget->x = relative_x(window, widget->relx);
+        widget->y = relative_y(window, widget->rely);
+    }
 
     switch (widget->type) {
     case WLABEL:
@@ -173,7 +224,7 @@ bool add_widget(Window* window, Widget* widget) {
         break;
     case WBUTTON:
         widget->hwnd = CreateWindow(
-            "BUTTON", widget->text, WS_CHILD | WS_VISIBLE | BS_DEFPUSHBUTTON | BS_OWNERDRAW,
+            "BUTTON", widget->text, WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON | BS_OWNERDRAW,
             widget->x - (widget->width / 2), widget->y - (widget->height / 2),
             widget->width, widget->height, window->hwnd, NULL, GetModuleHandle(NULL), NULL
         );
@@ -184,6 +235,14 @@ bool add_widget(Window* window, Widget* widget) {
             widget->x - (widget->width / 2), widget->y - (widget->height / 2),
             widget->width, widget->height, window->hwnd, NULL, GetModuleHandle(NULL), NULL
         );
+        break;
+    case WTEXTBOX:
+        widget->hwnd = CreateWindow(
+            "EDIT", widget->text, WS_CHILD | WS_VISIBLE | ES_LEFT | ES_AUTOHSCROLL | ES_AUTOVSCROLL,
+            widget->x - (widget->width / 2), widget->y - (widget->height / 2),
+            widget->width, widget->height, window->hwnd, NULL, GetModuleHandle(NULL), NULL
+        );
+        break;
     }
 
     if (widget->hwnd == NULL) return false;
@@ -205,6 +264,19 @@ bool add_widget(Window* window, Widget* widget) {
     }
 
     return true;
+}
+
+string get_textbox_text(Widget* widget) {
+    if (widget == NULL) return "";
+    if (widget->hwnd == NULL) return "";
+    if (widget->type != WTEXTBOX) return "";
+
+    int bufferSize = SendMessage(widget->hwnd, WM_GETTEXTLENGTH, 0, 0);
+    string buffer = (string)malloc(bufferSize + 1);
+    if (buffer == NULL) return "";
+
+    SendMessage(widget->hwnd, WM_GETTEXT, bufferSize + 1, (LPARAM)buffer);
+    return buffer;
 }
 
 bool init_font(

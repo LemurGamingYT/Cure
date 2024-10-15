@@ -1,0 +1,45 @@
+use "ui"
+
+
+func on_button_click() {
+    print("Hello, world!")
+}
+
+
+func main() -> int {
+    window = new Window("Mini UI", 800, 600, bg_color: new Color(24, 24, 24))
+
+    frame = new Frame(window, 600, 200, bg_color: new Color(30, 30, 30))
+    frame.place(400, 115)
+
+    frame2 = new Frame(window, 600, 200, bg_color: new Color(30, 30, 30))
+    frame2.place(400, 400)
+
+    label_font = new Font("Arial", 40, bold: true, underline: true)
+    label = new Label(
+        window, 225, 50, bg_color: new Color(35, 35, 35), text_color: Color.WHITE, font: label_font,
+        text: "Mini UI"
+    )
+    label.place(400, 50)
+
+    label2 = new Label(
+        window, 350, 50, bg_color: new Color(35, 35, 35), text_color: Color.WHITE, font: label_font,
+        text: "Enter your password"
+    )
+    label2.place(400, 350)
+
+    btn_font = new Font("Arial", 30)
+    btn = new Button(
+        window, 150, 50, bg_color: new Color(35, 35, 35), text_color: Color.WHITE, font: btn_font,
+        text: "Click Me!", on_click: on_button_click
+    )
+    btn.place(400, 150)
+
+    textbox = new Textbox(
+        window, 350, 50, bg_color: new Color(35, 35, 35), text_color: Color.WHITE, font: btn_font
+    )
+    textbox.place(350, 50)
+
+    window.run()
+    return 0
+}

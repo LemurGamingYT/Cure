@@ -3,6 +3,7 @@ from codegen.std.ui.widget import Widget
 from codegen.std.ui.button import Button
 from codegen.std.ui.label import Label
 from codegen.std.ui.frame import Frame
+from codegen.c_manager import INCLUDES
 from codegen.std.ui.font import Font
 from codegen.target import Target
 
@@ -11,6 +12,7 @@ class ui:
     def __init__(self, codegen) -> None:
         if codegen.target == Target.WINDOWS:
             codegen.extra_compile_args.append('-lgdi32')
+            # codegen.extra_compile_args.extend((INCLUDES / 'miniui/*.c', '-lgdi32'))
         else:
             codegen.pos.warn_here('\'ui\' is only supported on windows')
         
@@ -19,6 +21,8 @@ class ui:
 #define CURE_UI_H
 #pragma comment(lib, "gdi32.lib")
 """)
+        
+        # codegen.c_manager.include(f'<{INCLUDES / "miniui/miniui.h"}>', codegen)
         
         codegen.c_manager.add_objects(Font(codegen), self)
         

@@ -6,7 +6,7 @@ from ir.nodes import TypeNode
 class OptionalManager:
     def __init__(self, codegen) -> None:
         self.codegen = codegen
-        setattr(codegen, 'optional_type', self.optional_type)
+        setattr(codegen.type_checker, 'optional_type', self.optional_type)
         
         self.defined_optionals: list[Type] = []
     

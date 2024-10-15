@@ -1,5 +1,8 @@
 # Update Log
 
+### Version 0.0.51 (Oct 15, 2024)
+- Quick bug fixes
+
 ### Version 0.0.5 (Oct 14, 2024)
 - Tuples
 - Bug fixes

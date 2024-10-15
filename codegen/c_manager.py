@@ -491,10 +491,9 @@ if ({length} > 1) {{
         self.includes.add('<io.h>')
         self.includes.add('<shlobj.h>')
         self.includes.add('<unistd.h>')
+        self.includes.add('<ws2tcpip.h>')
+        self.includes.add('<fcntl.h>')
         
-        self.init(codegen)
-    
-    def init(self, codegen) -> None:
         from codegen.StringBuilder import StringBuilder
         from codegen.strings import strings
         from codegen.System import System
@@ -1427,6 +1426,10 @@ printf("Time spent to execute '{func_obj.name}': %fms\\n", {res} / 1e6);
             cache_key = f'cacheof_{func_obj.name}'
             global_scope = codegen.scope.toplevel
             previously_called = global_scope.env.get(cache_key) is not None
+            res_field = 'res'
+            while any(param.name == res_field for param in func_params):
+                res_field = f'_{res_field}'
+            
             if not previously_called:
                 codegen.c_manager.reserve((cache_key, cache_struct_type.c_type))
                 global_scope.env[cache_key] = EnvItem(
@@ -1434,7 +1437,8 @@ printf("Time spent to execute '{func_obj.name}': %fms\\n", {res} / 1e6);
                 )
                 
                 codegen.add_toplevel_code(f"""typedef struct {{
-    {func_obj.return_type.c_type} res;
+    {func_obj.return_type.c_type} {res_field};
+    
     {'\n'.join(str(param) + ';' for param in func_params)}
 }} {cache_struct_type.c_type};
 """)
@@ -1484,14 +1488,14 @@ if ({cache_key} == NULL) {{
     Arg(cache_signature.OBJECT())
 ], call_position)};
     if ({idx} != -1) {{
-        {res} = {cache_key}->elements[{idx}].res;
+        {res} = {cache_key}->elements[{idx}].{res_field};
         {has_cached} = true;
     }}
 }}
 
 if (!{has_cached}) {{
     {res} = {func_obj.name}({", ".join(str(arg.value) for arg in args)});
-    {cache_signature}.res = {res};
+    {cache_signature}.{res_field} = {res};
 """)
             codegen.prepend_code(f"""{codegen.call(
         f'{array_type.c_type}_add',

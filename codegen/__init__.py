@@ -55,6 +55,9 @@ class CodeGen(IRVisitor):
         self.top_code = CodeType()
         self.scope = scope or Scope()
         
+        self.preprocessor = Preprocessor(self)
+        self.type_checker = TypeChecker(self)
+        
         self.extra_compile_args: list[str] = []
         self.target = get_current_target()
         
@@ -91,9 +94,6 @@ void deinit() {{
 #define _CURE_INITIALISED
 #endif
 """)
-        
-        self.preprocessor = Preprocessor(self)
-        self.type_checker = TypeChecker(self)
     
     def is_number_constant(self, value: Object | str) -> bool:
         """Checks whether a value is a string constant, i.e. is a number and nothing else e.g. 42.

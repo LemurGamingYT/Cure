@@ -21,6 +21,21 @@ typedef struct {
         ])
         
         
+        def create_from_ints(codegen, pos: Position, r: int, g: int, b: int) -> Object:
+            return _Color_new(
+                codegen, pos, Object(str(r), Type('int'), pos), Object(str(g), Type('int'), pos),
+                Object(str(b), Type('int'), pos)
+            )
+        
+        def define_color(name: str, r: int, g: int, b: int) -> None:
+            @c_dec(
+                is_property=True, is_static=True, add_to_class=self,
+                func_name_override=f'Color_{name.upper()}'
+            )
+            def _(codegen, call_position: Position, r=r, g=g, b=b) -> Object:
+                return create_from_ints(codegen, call_position, r, g, b)
+        
+        
         @c_dec(
             param_types=(Param('color', Type('Color')),), is_method=True, add_to_class=self
         )
@@ -90,3 +105,21 @@ Color {color} = {{ .r = {_r}, .g = {_g}, .b = {_b} }};
 """)
 
             return color.OBJECT()
+
+        define_color('white', 255, 255, 255)
+        define_color('black', 0, 0, 0)
+        define_color('blue', 0, 0, 255)
+        define_color('red', 255, 0, 0)
+        define_color('green', 0, 255, 0)
+        define_color('yellow', 255, 255, 0)
+        define_color('cyan', 0, 255, 255)
+        define_color('magenta', 255, 0, 255)
+        define_color('gray', 128, 128, 128)
+        define_color('dark_gray', 64, 64, 64)
+        define_color('light_gray', 192, 192, 192)
+        define_color('orange', 255, 165, 0)
+        define_color('purple', 128, 0, 128)
+        define_color('brown', 165, 42, 42)
+        define_color('pink', 255, 192, 203)
+        define_color('maroon', 128, 0, 0)
+        define_color('navy', 0, 0, 128)
