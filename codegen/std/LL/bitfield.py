@@ -4,7 +4,6 @@ from codegen.c_manager import c_dec
 
 BITS_PER_WORD = 32
 
-
 class BitField:
     def __init__(self, codegen) -> None:
         codegen.type_checker.add_type('BitField')

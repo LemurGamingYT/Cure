@@ -5,18 +5,11 @@ from codegen.target import Target
 
 
 def stat(codegen, call_position: Position, path: str) -> Object:
-    if codegen.target != Target.WINDOWS:
-        call_position.warn_here('stat() is only supported on Windows')
-    
-    st: TempVar = codegen.create_temp_var(Type('Stat', 'struct stat'), call_position)
-    codegen.prepend_code(f"""#ifdef OS_WINDOWS
-    struct stat {st};
-    if (stat({path}, &{st}) != 0) {{
-        {codegen.c_manager.err('stat() failed')}
-    }}
-#else
-{codegen.c_manager.symbol_not_supported('stat()')}
-#endif
+    st: TempVar = codegen.create_temp_var(Type('struct stat'), call_position)
+    codegen.prepend_code(f"""struct stat {st};
+if (stat({path}, &{st}) != 0) {{
+    {codegen.c_manager.err('stat() failed')}
+}}
 """)
     
     return st.OBJECT()
@@ -153,15 +146,14 @@ if ({extension} == NULL) {{
         
         @c_dec(param_types=(Param('file', Type('File')),), is_property=True, add_to_class=self)
         def _File_readonly(codegen, call_position: Position, file: Object) -> Object:
+            if codegen.target != Target.WINDOWS:
+                call_position.not_supported_err('File.readonly')
+            
             attributes: TempVar = codegen.create_temp_var(Type('DWORD'), call_position)
-            codegen.prepend_code(f"""#ifdef OS_WINDOWS
-DWORD {attributes} = GetFileAttributes(({file}).path);
+            codegen.prepend_code(f"""DWORD {attributes} = GetFileAttributes(({file}).path);
 if ({attributes} == INVALID_FILE_ATTRIBUTES) {{
     {codegen.c_manager.err('Failed to get file attributes: %s', f'({file}).path')}
 }}
-#else
-{codegen.c_manager.symbol_not_supported('File.readonly')}
-#endif
 """)
             
             return Object(f'({attributes} & FILE_ATTRIBUTE_READONLY != 0)', Type('bool'), call_position)
@@ -171,9 +163,11 @@ if ({attributes} == INVALID_FILE_ATTRIBUTES) {{
             is_method=True, add_to_class=self
         )
         def _File_set_readonly(codegen, call_position: Position, file: Object, value: Object) -> Object:
+            if codegen.target != Target.WINDOWS:
+                call_position.not_supported_err('File.set_readonly()')
+            
             attributes: TempVar = codegen.create_temp_var(Type('DWORD'), call_position)
-            codegen.prepend_code(f"""#ifdef OS_WINDOWS
-if ({value}) {{
+            codegen.prepend_code(f"""if ({value}) {{
     if (SetFileAttributes(({file}).path, FILE_ATTRIBUTE_READONLY) != 0) {{
         {codegen.c_manager.err('Failed to set file attributes: %s', f'({file}).path')}
     }}
@@ -188,14 +182,11 @@ if ({value}) {{
         {codegen.c_manager.err('Failed to set file attributes: %s', f'({file}).path')}
     }}
 }}
-#else
-{codegen.c_manager.symbol_not_supported('File.set_readonly()')}
-#endif
 """)
             
             return Object.NULL(call_position)
         
-        @c_dec(param_types=(Param('file', Type('File')),), is_method=True, add_to_class=self)
+        @c_dec(param_types=(Param('file', Type('File')),), is_method=True)#, add_to_class=self)
         def _File_get_files(codegen, call_position: Position, file: Object) -> Object:
             if codegen.target != Target.WINDOWS:
                 call_position.warn_here('File.get_files() is only supported on Windows')
@@ -306,35 +297,55 @@ fflush(({file}).fp);
 fclose(({file}).fp);
 ({file}).fp = NULL;
 """)
+            
             return Object.NULL(call_position)
         
+        
+        @c_dec(
+            param_types=(Param('path', Type('string')), Param('mode', Type('string'))),
+            is_method=True, is_static=True, add_to_class=self
+        )
+        def _File_create(codegen, call_position: Position, path: Object, mode: Object) -> Object:
+            fp: TempVar = codegen.create_temp_var(Type('FILE*'), call_position)
+            f: TempVar = codegen.create_temp_var(Type('File'), call_position)
+            codegen.prepend_code(f"""FILE* {fp} = fopen({path}, "w");
+if ({fp} == NULL) {{
+    {codegen.c_manager.err('Failed to open file: %s', str(path))}
+}}
+
+if (({mode}) != "w") {{
+    {fp} = fopen({path}, {mode});
+    if ({fp} == NULL) {{
+        {codegen.c_manager.err('Failed to open file: %s', str(path))}
+    }}
+}}
+
+File {f} = {{ .fp = {fp}, .mode = {mode}, .path = {path} }};
+""")
+            
+            return f.OBJECT()
         
         @c_dec(
             param_types=(Param('path', Type('string')),), is_method=True, is_static=True,
             add_to_class=self
         )
         def _File_dir(codegen, call_position: Position, path: Object) -> Object:
+            if codegen.target != Target.WINDOWS:
+                call_position.not_supported_err('File.dir()')
+            
             f: TempVar = codegen.create_temp_var(
                 Type('File'), call_position,
                 default_expr=f'{{ .fp = NULL, .mode = NULL, .path = {path} }}'
             )
-            codegen.prepend_code(f"""#if OS_WINDOWS
-    if (!{_File_is_dir(codegen, call_position, f.OBJECT())}) {{
-        {codegen.c_manager.err('Path is not a directory: %s', str(path))}
+            codegen.prepend_code(f"""if (CreateDirectory({path}, NULL) != 0) {{
+    if (GetLastError() == ERROR_ALREADY_EXISTS) {{
+        {codegen.c_manager.err('Directory already exists: %s', str(path))}
+    }} else if (GetLastError() == ERROR_PATH_NOT_FOUND) {{
+        {codegen.c_manager.err('Invalid path to create directory: %s', str(path))}
+    }} else {{
+        {codegen.c_manager.err('Failed to create directory: %s', str(path))}
     }}
-
-    if (CreateDirectory({path}, NULL) != 0) {{
-        if (GetLastError() == ERROR_ALREADY_EXISTS) {{
-            {codegen.c_manager.err('Directory already exists: %s', str(path))}
-        }} else if (GetLastError() == ERROR_PATH_NOT_FOUND) {{
-            {codegen.c_manager.err('Invalid path to create directory: %s', str(path))}
-        }} else {{
-            {codegen.c_manager.err('Failed to create directory: %s', str(path))}
-        }}
-    }}
-#else
-{codegen.c_manager.symbol_not_supported('create_directory')}
-#endif
+}}
 """)
             
             return f.OBJECT()
@@ -367,19 +378,8 @@ if ({f}.fp == NULL) {{
                 default_expr=f'{{ .fp = NULL, .mode = NULL, .path = {path} }}'
             )
             codegen.prepend_code(f"""if ({_File_is_dir(codegen, call_position, f.OBJECT())}) {{
-#if OS_WINDOWS
-    if (CreateDirectory({path}, NULL) != 0) {{
-        if (GetLastError() == ERROR_ALREADY_EXISTS) {{
-            {codegen.c_manager.err('Directory already exists: %s', str(path))}
-        }} else if (GetLastError() == ERROR_PATH_NOT_FOUND) {{
-            {codegen.c_manager.err('Invalid path to create directory: %s', str(path))}
-        }} else {{
-            {codegen.c_manager.err('Failed to create directory: %s', str(path))}
-        }}
-    }}
-#else
-{codegen.c_manager.symbol_not_supported('create_directory')}
-#endif
+""")
+            codegen.prepend_code(f"""{f} = {_File_dir(codegen, call_position, path)};
 }} else {{
     {f}.fp = fopen({path}, {mode});
     if ({f}.fp == NULL) {{

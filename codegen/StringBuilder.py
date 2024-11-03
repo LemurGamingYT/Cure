@@ -1,12 +1,25 @@
 from codegen.objects import Object, Type, Param, Position, TempVar, Free
 from codegen.c_manager import c_dec
+from codegen.target import Target
 
 
 STRINGBUILDER_CAPACITY = 50
 
-
 class StringBuilder:
     def __init__(self, c_manager) -> None:
+        platform_specific_fields: str
+        if c_manager.codegen.target == Target.WINDOWS:
+            platform_specific_fields = 'HANDLE hRead, hWrite;'
+        else:
+            platform_specific_fields = ''
+        
+        c_manager.codegen.add_toplevel_code(f"""typedef struct {{
+    string buf;
+    size_t length, capacity;
+    int saved_stdout_fd;
+    {platform_specific_fields}
+}} StringBuilder;
+""")
         c_manager.wrap_struct_properties('builder', Type('StringBuilder'), [
             Param('length', Type('int')), Param('capacity', Type('int'))
         ])
@@ -24,7 +37,7 @@ class StringBuilder:
             
             return buf.OBJECT()
         
-        # TODO: make this StringBuilder.len_add an overload of StringBuilder.add
+        # TODO: make StringBuilder.len_add an overload of StringBuilder.add
         @c_dec(
             param_types=(
                 Param('builder', Type('StringBuilder')), Param('s', Type('string')),
@@ -66,11 +79,13 @@ memcpy(({builder}).buf + ({builder}).length, {s}, {lvar});
         )
         def _StringBuilder_capture_stdout(codegen, call_position: Position,
                                           builder: Object) -> Object:
+            if codegen.target != Target.WINDOWS:
+                call_position.not_supported_err('StringBuilder.capture_stdout()')
+            
             pipe_write_fd: TempVar = codegen.create_temp_var(Type('int'), call_position)
             hwrite: TempVar = codegen.create_temp_var(Type('HANDLE'), call_position)
             hread: TempVar = codegen.create_temp_var(Type('HANDLE'), call_position)
-            codegen.prepend_code(f"""#if OS_WINDOWS
-HANDLE {hwrite}, {hread};
+            codegen.prepend_code(f"""HANDLE {hwrite}, {hread};
 if (!CreatePipe(&{hread}, &{hwrite}, NULL, 0)) {{
     {codegen.c_manager.err('Failed to create pipe')}
 }}
@@ -81,7 +96,6 @@ _dup2({pipe_write_fd}, _fileno(stdout));
 
 ({builder}).hRead = {hread};
 ({builder}).hWrite = {hwrite};
-#endif
 """)
             
             return Object.NULL(call_position)
@@ -92,9 +106,11 @@ _dup2({pipe_write_fd}, _fileno(stdout));
         )
         def _StringBuilder_release_stdout(codegen, call_position: Position,
                                           builder: Object) -> Object:
+            if codegen.target != Target.WINDOWS:
+                call_position.not_supported_err('StringBuilder.release_stdout()')
+            
             bytes_read: TempVar = codegen.create_temp_var(Type('DWORD'), call_position)
-            codegen.prepend_code(f"""#if OS_WINDOWS
-fflush(stdout);
+            codegen.prepend_code(f"""fflush(stdout);
 _dup2(({builder}).saved_stdout_fd, _fileno(stdout));
 close(({builder}).saved_stdout_fd);
 
@@ -110,7 +126,6 @@ CloseHandle(({builder}).hWrite);
 ({builder}).saved_stdout_fd = 0;
 ({builder}).hRead = NULL;
 ({builder}).hWrite = NULL;
-#endif
 """)
             
             return Object.NULL(call_position)

@@ -7,9 +7,17 @@ INIPARSER_PATH = INCLUDES / 'iniparser'
 class ini:
     def __init__(self, codegen) -> None:
         codegen.c_manager.include(f'"{(INIPARSER_PATH / 'iniparser.h').as_posix()}"', codegen)
-        codegen.extra_compile_args.extend((
-            (INIPARSER_PATH / 'iniparser.c').as_posix(),
-            (INIPARSER_PATH / 'dictionary.c').as_posix()
+        codegen.extra_compile_args.append((INIPARSER_PATH / '*.c').as_posix())
+        codegen.c_manager.reserve((
+            'iniparser_set_error_callback', 'iniparser_getnsec', 'iniparser_getsecname',
+            'iniparser_dump_ini', 'iniparser_dumpsection_ini', 'iniparser_dump',
+            'iniparser_getseckeys', 'iniparser_getsecnkeys', 'iniparser_getseckeys',
+            'iniparser_getstring', 'iniparser_getint', 'iniparser_getlongint', 'iniparser_getint64',
+            'iniparser_getuint64', 'iniparser_getdouble', 'iniparser_getboolean', 'iniparser_set',
+            'iniparser_unset', 'iniparser_find_entry', 'iniparser_load', 'iniparser_load_file',
+            'iniparser_freedict', 'dictionary', 'dictionary_hash', 'dictionary_new',
+            'dictionary_del', 'dictionary_get', 'dictionary_set', 'dictionary_unset',
+            'dictionary_dump'
         ))
         
         codegen.add_toplevel_code("""typedef struct {

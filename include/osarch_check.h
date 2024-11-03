@@ -20,11 +20,11 @@ extern "C" {
 #endif
 
 #if defined(_M_X64) || defined(__x86_64__)
-#define ARCH_x86_64 1
+#define ARCH_x86_64 true
 #elif defined(_M_IX86) || defined(__i386__)
-#define ARCH_x86 1
+#define ARCH_x86 true
 #elif defined(_M_ARM64) || defined(__aarch64__)
-#define ARCH_arm64 1
+#define ARCH_arm64 true
 #else
 #error "Unsupported architecture"
 #endif

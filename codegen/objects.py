@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
+from typing import Union, Any, TypeAlias
 from re import compile as re_compile
-from typing import Union, Any
 
 from ir.nodes import Position, ClassMembers
 
@@ -9,6 +9,7 @@ from ir.nodes import Position, ClassMembers
 ID_REGEX = re_compile(r'(\w+)|(\*\(\w+\))')
 INT_REGEX = re_compile(r'\d+')
 POS_ZERO = Position(0, 0, '')
+Stringable: TypeAlias = Union[str, 'TempVar', 'Object']
 
 kwargs = {'slots': True, 'unsafe_hash': True}
 
@@ -25,23 +26,33 @@ class Param:
     default: Union['Object', None] = field(default=None)
     
     def __str__(self) -> str:
-        if self.type.function_info is not None:
-            return self.type.c_type
-        
         return f'{self.get_type()} {self.name}'
     
     def get_type(self) -> str:
-        return f'{self.type.c_type}{"*" if self.ref else ""}'
+        type_str = self.type.c_type
+        if self.type.function_info is not None:
+            type_str = self.type.function_info.typedef_name
+        
+        return f'{type_str}{"*" if self.ref else ""}'
     
     def USE(self) -> str:
         return f'*({self.name})' if self.ref else self.name
+
+@dataclass(**kwargs)
+class FunctionInfo:
+    return_type: 'Type'
+    param_types: tuple['Type', ...] = field(default_factory=tuple['Type', ...])
+    typedef_name: str = field(default='')
+    
+    def as_type(self) -> 'Type':
+        return Type('function', self.typedef_name, function_info=self)
 
 @dataclass(**kwargs)
 class Type:
     type: str
     c_type: str = field(default='')
     compatible_types: tuple[str, ...] = field(default_factory=tuple[str, ...])
-    function_info: tuple[tuple['Type', ...], 'Type', str] | None = field(default=None)
+    function_info: FunctionInfo | None = field(default=None)
     tuple_types: list['Type'] | None = field(default=None)
     
     def __post_init__(self) -> None:
@@ -204,6 +215,20 @@ class Object:
     def STRINGBUF(buf_free: Free, pos: Position) -> 'Object':
         return Object(buf_free.object_name, Type('string'), pos, free=buf_free)
     
+    def _clone(self) -> 'Object':
+        return Object(self.code, self.type, self.position, self.free)
+    
+    def cast(self, new_type: Type) -> 'Object':
+        obj = self._clone()
+        obj.code = f'({new_type.c_type})({obj.code})'
+        return obj
+    
+    def attr(self, attr: str, pointer_object: bool = False) -> 'Object':
+        access_symbol = '->' if pointer_object else '.'
+        obj = self._clone()
+        obj.code = f'(({obj.code}){access_symbol}{attr})'
+        return obj
+    
     def __str__(self) -> str:
         return self.code
 
@@ -223,6 +248,7 @@ class Class:
     fields: list[Field] = field(default_factory=list)
     members: ClassMembers = field(default_factory=ClassMembers)
     free_members: list[Free] = field(default_factory=list)
+    destructor_methods: list[str] = field(default_factory=list)
 
 @dataclass(**kwargs)
 class EnvItem:
@@ -234,7 +260,6 @@ class EnvItem:
     free: Free | None = field(default=None)
     is_const: bool = field(default=False)
     class_: Class | None = field(default=None)
-    added_by_preprocessor: bool = field(default=False)
 
 @dataclass(**kwargs)
 class TempVar:
@@ -251,3 +276,6 @@ class TempVar:
     
     def REFERENCE(self) -> Object:
         return Object(f'&({self.name})', self.type, self.created_at, free=self.free)
+    
+    def DEREFERENCE(self) -> Object:
+        return Object(f'*({self.name})', self.type, self.created_at, free=self.free)

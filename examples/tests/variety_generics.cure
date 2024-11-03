@@ -2,7 +2,7 @@ func add[T](T a, T b) -> T {
     return a + b
 }
 
-func test[T, V](T a, V b) -> T {
+func test1[T, V](T a, V b) -> T {
     return a + b
 }
 
@@ -15,8 +15,8 @@ func main() -> int {
     assert(add(1.0, 2.0) == 3.0)
     assert(add("1", "2") == "12")
 
-    assert(test(1, 2.0) == 3)
-    assert(test(1.0, 2) == 3.0)
+    assert(test1(1, 2.0) == 3)
+    assert(test1(1.0, 2) == 3.0)
 
     assert(mul(2, 2) == 4)
     assert(mul(2.5, 5) == 12.5)

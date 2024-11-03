@@ -1,5 +1,6 @@
 from codegen.objects import Object, Position, Type, Param, TempVar
-from codegen.function_manager import OverloadKey, OverloadValue
+# from codegen.function_manager import OverloadKey, OverloadValue
+from codegen.array_manager import get_index
 from codegen.c_manager import c_dec
 
 
@@ -7,7 +8,7 @@ class buffer:
     def __init__(self, codegen) -> None:
         self.codegen = codegen
         
-        self.defined_types: list[tuple[str, int]] = []
+        codegen.metadata.setdefault('buffer_types', [])
         
         @c_dec(
             param_types=(Param('size', Type('int')),),
@@ -23,7 +24,7 @@ class buffer:
     
     def define_buffer_type(self, type: Type, size: Object) -> Type:
         buf_type = Type(f'{str(type).title()}Buffer[{size}]', f'{type.c_type}_buffer{size}')
-        if (type.type, int(str(size))) in self.defined_types:
+        if (type.type, int(str(size))) in self.codegen.metadata['buffer_types']:
             return buf_type
         
         self.codegen.add_toplevel_code(f"""typedef struct {{
@@ -92,37 +93,21 @@ if ({i} < ({buf}).length - 1) {{
             is_method=True, func_name_override=f'{buf_type.c_type}_get', add_to_class=c_manager
         )
         def get(codegen, call_position: Position, buf: Object, i: Object) -> Object:
-            codegen.prepend_code(f"""if ({i} < 0 || {i} >= ({buf}).length) {{
-    {codegen.c_manager.err('Index out of bounds')}
-}}
-""")
+            code, idx = get_index(codegen, call_position, i, f'({buf}).length')
             
-            return Object(f'({buf}).elements[{i}]', type, call_position)
-        
-        def insert(codegen, call_position: Position, buf: Object, i: Object, value: Object) -> Object:
-            codegen.prepend_code(f"""if ({i} < 0 || {i} > ({buf}).length) {{
-    {codegen.c_manager.err('Index out of bounds')}
-}} else if (({buf}).length >= {size}) {{
-    {codegen.c_manager.err('Buffer overflow')}
-}}
+            codegen.prepend_code(code)
+            return Object(f'({buf}).elements[{idx}]', type, call_position)
 
-for (size_t {i} = ({buf}).length; {i} > {i}; {i}--) {{
-    ({buf}).elements[{i}] = ({buf}).elements[{i} - 1];
-}}
-({buf}).elements[{i}] = {value};
-({buf}).length++;
-""")
-
-            return Object.NULL(call_position)
+        # TODO: reimplement buffer insert
         
         @c_dec(
             param_types=(Param('buf', buf_type), Param('value', type)),
             is_method=True, func_name_override=f'{buf_type.c_type}_add', add_to_class=c_manager,
-            overloads={
-                OverloadKey(Type('nil'),
-                    (Param('buf', buf_type), Param('i', Type('int')), Param('value', type)),
-                ): OverloadValue(insert)
-            }
+            # overloads={
+            #     OverloadKey(Type('nil'),
+            #         (Param('buf', buf_type), Param('i', Type('int')), Param('value', type)),
+            #     ): OverloadValue(insert)
+            # }
         )
         def add(codegen, call_position: Position, buf: Object, value: Object) -> Object:
             codegen.prepend_code(f"""if (({buf}).length >= {size}) {{
@@ -135,5 +120,5 @@ for (size_t {i} = ({buf}).length; {i} > {i}; {i}--) {{
 
             return Object.NULL(call_position)
         
-        self.defined_types.append((type.type, int(str(size))))
+        self.codegen.metadata['buffer_types'].append((type.type, int(str(size))))
         return buf_type

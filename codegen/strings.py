@@ -4,6 +4,21 @@ from codegen.c_manager import c_dec
 
 class strings:
     def __init__(self, _) -> None:
+        @c_dec(
+            param_types=(Param('size', Type('int')),), is_method=True, add_to_class=self,
+            is_static=True
+        )
+        def _string_new(codegen, call_position: Position, size: Object) -> Object:
+            string_free = Free()
+            string: TempVar = codegen.create_temp_var(Type('string'), call_position, free=string_free)
+            i: TempVar = codegen.create_temp_var(Type('int'), call_position)
+            codegen.prepend_code(f"""string {string} = (string)malloc({size} * sizeof(char) + 1);
+for (size_t {i} = 0; {i} < {size}; {i}++)
+    {string}[{i}] = ' ';
+{string}[{size}] = '\\0';
+""")
+            return string.OBJECT()
+        
         @c_dec(param_types=(Param('s', Type('string')),), is_property=True, add_to_class=self)
         def _string_length(codegen, call_position: Position, s: Object) -> Object:
             codegen.c_manager.include('<string.h>', codegen)
@@ -69,6 +84,42 @@ for (int {i} = 0; {i} < {_string_length(codegen, call_position, s)}; {i}++) {{
             codegen.prepend_code(f"""bool {res} = true;
 for (int {i} = 0; {i} < {_string_length(codegen, call_position, s)}; {i}++) {{
     if (!isupper(({s})[{i}])) {{
+        {res} = false;
+        break;
+    }}
+}}
+""")
+            
+            return res.OBJECT()
+        
+        @c_dec(param_types=(Param('s', Type('string')),), is_property=True, add_to_class=self)
+        def _string_is_alpha(codegen, call_position: Position, s: Object) -> Object:
+            codegen.c_manager.include('<string.h>', codegen)
+            codegen.c_manager.include('<ctype.h>', codegen)
+
+            i: TempVar = codegen.create_temp_var(Type('int'), call_position)
+            res: TempVar = codegen.create_temp_var(Type('bool'), call_position)
+            codegen.prepend_code(f"""bool {res} = true;
+for (int {i} = 0; {i} < {_string_length(codegen, call_position, s)}; {i}++) {{
+    if (!isalpha(({s})[{i}])) {{
+        {res} = false;
+        break;
+    }}
+}}
+""")
+            
+            return res.OBJECT()
+        
+        @c_dec(param_types=(Param('s', Type('string')),), is_property=True, add_to_class=self)
+        def _string_is_alnum(codegen, call_position: Position, s: Object) -> Object:
+            codegen.c_manager.include('<string.h>', codegen)
+            codegen.c_manager.include('<ctype.h>', codegen)
+            
+            i: TempVar = codegen.create_temp_var(Type('int'), call_position)
+            res: TempVar = codegen.create_temp_var(Type('bool'), call_position)
+            codegen.prepend_code(f"""bool {res} = true;
+for (int {i} = 0; {i} < {_string_length(codegen, call_position, s)}; {i}++) {{
+    if (!isalnum(({s})[{i}])) {{
         {res} = false;
         break;
     }}

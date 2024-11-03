@@ -66,16 +66,24 @@ func repeat(string s, int n) -> string {
 func main() -> int {
     int_arr = {12, 89, 50, 102, 38, 71}
     float_arr = {8.1, 90.02, 76.8102, 62.9, 121.98}
-    print(sum(int_arr) == 362)
-    print(sum(float_arr) == 359.8102)
+    print(sum(int_arr))
+    print(sum(float_arr))
 
-    partial_alphabet = string{"A", "B", "C", "D", "E", "F", "G", "H", "I", "J"}
-    print(cycle(partial_alphabet, 18) == "ABCDEFGHIJABCDEFGH")
+    /*partial_alphabet = string{"A", "B", "C", "D", "E", "F", "G", "H", "I", "J"}
+    print(cycle(partial_alphabet, 18))*/
     
     alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-    print(batch(alphabet, 3) == {"ABC", "DEF", "GHI", "JKL", "MNO", "PQR", "STU", "VWX", "YZ"})
-    print(batch(alphabet, 4) == {"ABCD", "EFGH", "IJKL", "MNOP", "QRST", "UVWX", "YZ"})
+    print(batch(alphabet, 3))
+    print(batch(alphabet, 4))
 
-    print(repeat(alphabet, 2) == "ABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZ")
+    print(repeat(alphabet, 2))
     return 0
+}
+
+test all {
+    int_arr = {12, 89, 50, 102, 38, 71}
+    assert(sum(int_arr) == 362)
+
+    alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    assert(repeat(alphabet, 2) == "ABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZ")
 }

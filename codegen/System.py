@@ -1,21 +1,25 @@
 from codegen.objects import Object, Type, Param, Position, TempVar, EnvItem
 from codegen.function_manager import OverloadKey, OverloadValue
 from codegen.c_manager import c_dec
+from codegen.target import Target
 
 
 class System:
-    def __init__(self, _) -> None:
+    def __init__(self, c_manager) -> None:
+        c_manager.codegen.add_toplevel_code("""typedef struct {
+    byte _;
+} System;
+
+typedef struct {
+    time_t t;
+    struct tm *ti;
+} Time;
+""")
+        
         @c_dec(is_property=True, is_static=True, add_to_class=self)
         def _System_pid(codegen, call_position: Position) -> Object:
-            pid_var: TempVar = codegen.create_temp_var(Type('int'), call_position)
-            codegen.prepend_code(f"""#ifdef OS_WINDOWS
-int {pid_var} = (int)GetCurrentProcessId();
-#else
-int {pid_var} = (int)getpid();
-#endif
-""")
-            
-            return pid_var.OBJECT()
+            return Object('((int)GetCurrentProcessId())' if codegen.target == Target.WINDOWS else\
+                '((int)getpid())', Type('int'), call_position)
         
         @c_dec(is_property=True, is_static=True, add_to_class=self)
         def _System_os(_, call_position: Position) -> Object:
@@ -31,13 +35,12 @@ int {pid_var} = (int)getpid();
         
         @c_dec(is_property=True, is_static=True, add_to_class=self)
         def _System_processor_count(codegen, call_position: Position) -> Object:
+            if codegen.target != Target.WINDOWS:
+                call_position.not_supported_err('System.processor_count')
+            
             sysinfo: TempVar = codegen.create_temp_var(Type('SystemInfo'), call_position)
-            codegen.prepend_code(f"""#ifdef OS_WINDOWS
-SYSTEM_INFO {sysinfo};
+            codegen.prepend_code(f"""SYSTEM_INFO {sysinfo};
 GetSystemInfo(&{sysinfo});
-#else
-{codegen.c_manager.symbol_not_supported('System.processor_count')}
-#endif
 """)
             
             return Object(f'((int){sysinfo}.dwNumberOfProcessors)', Type('int'), call_position)
@@ -45,16 +48,16 @@ GetSystemInfo(&{sysinfo});
         @c_dec(is_property=True, is_static=True, add_to_class=self)
         def _System_cwd(codegen, call_position: Position) -> Object:
             cwd_var: TempVar = codegen.create_temp_var(Type('string'), call_position)
+            error_condition: str
+            if codegen.target == Target.WINDOWS:
+                error_condition = f'GetCurrentDirectory(sizeof({cwd_var}), {cwd_var}) == 0'
+            else:
+                error_condition = f'getcwd({cwd_var}, sizeof({cwd_var})) == NULL'
+            
             codegen.prepend_code(f"""char {cwd_var}[1024];
-#ifdef OS_WINDOWS
-if (GetCurrentDirectory(sizeof({cwd_var}), {cwd_var}) == 0) {{
+if ({error_condition}) {{
     {codegen.c_manager.err('Failed to get current working directory')}
 }}
-#else
-if (getcwd({cwd_var}, sizeof({cwd_var})) == NULL) {{
-    {codegen.c_manager.err('Failed to get current working directory')}
-}}
-#endif
 """)
             
             return cwd_var.OBJECT()
@@ -67,13 +70,12 @@ if (getcwd({cwd_var}, sizeof({cwd_var})) == NULL) {{
         
         @c_dec(is_property=True, is_static=True, add_to_class=self)
         def _System_cursor_pos(codegen, call_position: Position) -> Object:
+            if codegen.target != Target.WINDOWS:
+                call_position.not_supported_err('System.cursor_pos')
+            
             point: TempVar = codegen.create_temp_var(Type('POINT'), call_position)
-            codegen.prepend_code(f"""#ifdef OS_WINDOWS
-POINT {point};
+            codegen.prepend_code(f"""POINT {point};
 GetCursorPos(&{point});
-#else
-{codegen.c_manager.symbol_not_supported('System.cursor_pos')}
-#endif
 """)
             
             return codegen.c_manager._Math_vec2(
@@ -188,14 +190,15 @@ GetCursorPos(&{point});
             is_method=True, is_static=True, add_to_class=self
         )
         def _System_sleep(codegen, call_position: Position, milliseconds: Object) -> Object:
-            codegen.prepend_code(f"""#ifdef OS_WINDOWS
-Sleep({milliseconds});
-#elif defined(OS_LINUX) | defined(OS_MACOS)
-usleep({milliseconds} * 1000);
-#else
-{codegen.c_manager.symbol_not_supported('System.sleep')}
-#endif
-""")
+            code: str
+            if codegen.target == Target.WINDOWS:
+                code = f'Sleep({milliseconds});'
+            elif codegen.target == Target.LINUX or codegen.target == Target.MAC:
+                code = f'usleep({milliseconds} * 1000);'
+            else:
+                call_position.not_supported_err('System.sleep()')
+            
+            codegen.prepend_code(code)
             return Object.NULL(call_position)
         
         @c_dec(
@@ -236,28 +239,28 @@ void {void_func}() {{ {func}(); }}
         
         @c_dec(is_method=True, is_static=True, add_to_class=self)
         def _System_block_keyboard(codegen, call_position: Position) -> Object:
-            codegen.prepend_code(f"""#ifdef OS_WINDOWS
-if (!IS_ADMIN) {{
+            if codegen.target != Target.WINDOWS:
+                call_position.not_supported_err('System.block_keyboard()')
+            
+            codegen.prepend_code(f"""if (!IS_ADMIN) {{
     {codegen.c_manager.err('Blocking keyboard requires administrator permissions')}
 }}
+
 BlockInput(TRUE);
-#else
-{codegen.c_manager.symbol_not_supported('System.block_keyboard')}
-#endif
 """)
             
             return Object.NULL(call_position)
         
         @c_dec(is_method=True, is_static=True, add_to_class=self)
         def _System_unblock_keyboard(codegen, call_position: Position) -> Object:
-            codegen.prepend_code(f"""#ifdef OS_WINDOWS
-if (!IS_ADMIN) {{
+            if codegen.target != Target.WINDOWS:
+                call_position.not_supported_err('System.unblock_keyboard()')
+            
+            codegen.prepend_code(f"""if (!IS_ADMIN) {{
     {codegen.c_manager.err('Unblocking keyboard requires administrator permissions')}
 }}
+
 BlockInput(FALSE);
-#else
-{codegen.c_manager.symbol_not_supported('System.unblock_keyboard')}
-#endif
 """)
             
             return Object.NULL(call_position)
@@ -267,31 +270,28 @@ BlockInput(FALSE);
             is_method=True, is_static=True, add_to_class=self
         )
         def _System_is_key_pressed(codegen, call_position: Position, char: Object) -> Object:
-            is_pressed: TempVar = codegen.create_temp_var(Type('bool'), call_position)
+            if codegen.target != Target.WINDOWS:
+                call_position.not_supported_err('System.is_key_pressed()')
+            
             codegen.prepend_code(f"""if (!{
     codegen.c_manager._string_is_char(codegen, call_position, char)
 }) {{
     {codegen.c_manager.err('Key must be a single character')}
 }}
-
-#ifdef OS_WINDOWS
-bool {is_pressed} = (bool)(GetAsyncKeyState((int)({char})[0] & 0x8000));
-#else
-{codegen.c_manager.symbol_not_supported('System.is_key_pressed')}
-#endif
 """)
             
-            return is_pressed.OBJECT()
+            return Object(
+                f'(bool)(GetAsyncKeyState((int)({char})[0] & 0x8000))',
+                Type('bool'), call_position
+            )
         
+        # System set cursor position with int, int
         def Sscp_intint(codegen, call_position: Position,
                                         x: Object, y: Object) -> Object:
-            codegen.prepend_code(f"""#ifdef OS_WINDOWS
-SetCursorPos({x}, {y});
-#else
-{codegen.c_manager.symbol_not_supported('System.set_cursor_pos')}
-#endif
-""")
+            if codegen.target != Target.WINDOWS:
+                call_position.not_supported_err('System.set_cursor_pos()')
             
+            codegen.prepend_code(f'SetCursorPos({x}, {y});')
             return Object.NULL(call_position)
         
         @c_dec(
@@ -303,15 +303,75 @@ SetCursorPos({x}, {y});
             }
         )
         def _System_set_cursor_pos(codegen, call_position: Position, vec: Object) -> Object:
-            codegen.prepend_code(f"""#ifdef OS_WINDOWS
-SetCursorPos(({vec}).x, ({vec}).y);
-#else
-{codegen.c_manager.symbol_not_supported('System.set_cursor_pos')}
-#endif
+            if codegen.target != Target.WINDOWS:
+                call_position.not_supported_err('System.set_cursor_pos()')
+            
+            codegen.prepend_code(f'SetCursorPos(({vec}).x, ({vec}).y);')
+            return Object.NULL(call_position)
+        
+        @c_dec(
+            param_types=(Param('time', Type('string')),),
+            is_method=True, is_static=True, add_to_class=self
+        )
+        def _System_time_from_string(codegen, call_position: Position, time: Object) -> Object:
+            year: TempVar = codegen.create_temp_var(Type('int'), call_position)
+            month: TempVar = codegen.create_temp_var(Type('int'), call_position)
+            day: TempVar = codegen.create_temp_var(Type('int'), call_position)
+            hour: TempVar = codegen.create_temp_var(Type('int'), call_position)
+            minute: TempVar = codegen.create_temp_var(Type('int'), call_position)
+            second: TempVar = codegen.create_temp_var(Type('int'), call_position)
+            result: TempVar = codegen.create_temp_var(Type('time_t'), call_position)
+            breakdown: TempVar = codegen.create_temp_var(Type('struct tm'), call_position)
+            obj: TempVar = codegen.create_temp_var(Type('Time'), call_position)
+            
+            codegen.prepend_code(f"""time_t {result} = 0;
+int {year} = 0, {month} = 0, {day} = 0, {hour} = 0, {minute} = 0, {second} = 0;
+if (sscanf({time}, "%4d.%2d.%2d %2d:%2d:%2d", &{year}, &{month}, &{day}, &{hour}, &{minute},
+    &{second}) != 6) {{
+    {codegen.c_manager.err('Invalid date format, expected: YYYY.MM.DD HH:MM:SS')}
+}}
+
+struct tm {breakdown} = {{0}};
+{breakdown}.tm_year = {year};
+{breakdown}.tm_mon = {month};
+{breakdown}.tm_mday = {day};
+{breakdown}.tm_hour = {hour};
+{breakdown}.tm_min = {minute};
+{breakdown}.tm_sec = {second};
+
+if (({result} = mktime(&{breakdown})) == (time_t)-1) {{
+    {codegen.c_manager.err('Could not convert time input to time_t')}
+}}
+
+Time {obj} = {{ .t = {result}, .ti = &{breakdown} }};
 """)
             
-            return Object.NULL(call_position)
+            return obj.OBJECT()
 
+
+        @c_dec(param_types=(Param('a', Type('Time')), Param('b', Type('Time'))), add_to_class=self)
+        def _Time_eq_Time(_, call_position: Position, a: Object, b: Object) -> Object:
+            return Object(f'({a.attr("t")} == {b.attr("t")})', Type('bool'), call_position)
+        
+        @c_dec(param_types=(Param('a', Type('Time')), Param('b', Type('Time'))), add_to_class=self)
+        def _Time_neq_Time(_, call_position: Position, a: Object, b: Object) -> Object:
+            return Object(f'({a.attr("t")} != {b.attr("t")})', Type('bool'), call_position)
+        
+        @c_dec(param_types=(Param('a', Type('Time')), Param('b', Type('Time'))), add_to_class=self)
+        def _Time_gt_Time(_, call_position: Position, a: Object, b: Object) -> Object:
+            return Object(f'({a.attr("t")} > {b.attr("t")})', Type('bool'), call_position)
+        
+        @c_dec(param_types=(Param('a', Type('Time')), Param('b', Type('Time'))), add_to_class=self)
+        def _Time_lt_Time(_, call_position: Position, a: Object, b: Object) -> Object:
+            return Object(f'({a.attr("t")} < {b.attr("t")})', Type('bool'), call_position)
+        
+        @c_dec(param_types=(Param('a', Type('Time')), Param('b', Type('Time'))), add_to_class=self)
+        def _Time_gte_Time(_, call_position: Position, a: Object, b: Object) -> Object:
+            return Object(f'({a.attr("t")} >= {b.attr("t")})', Type('bool'), call_position)
+        
+        @c_dec(param_types=(Param('a', Type('Time')), Param('b', Type('Time'))), add_to_class=self)
+        def _Time_lte_Time(_, call_position: Position, a: Object, b: Object) -> Object:
+            return Object(f'({a.attr("t")} <= {b.attr("t")})', Type('bool'), call_position)
 
         @c_dec(param_types=(Param('time', Type('Time')),), is_property=True, add_to_class=self)
         def _Time_second(_, call_position: Position, time: Object) -> Object:

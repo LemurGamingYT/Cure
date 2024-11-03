@@ -69,10 +69,6 @@ void free_HTTPResponse(HTTPResponse* response) {
                 codegen.c_manager._SocketProtocol_IPPROTO_TCP(codegen, call_position)
             ]
             
-            info: Object = codegen.c_manager._AddrInfo_new(
-                codegen, call_position, host, Object('"80"', Type('string'), call_position),
-                *socket_configs
-            )
             response_free = Free(free_name='free_HTTPResponse')
             response: TempVar = codegen.create_temp_var(
                 Type('HTTPResponse'), call_position, free=response_free,
@@ -83,7 +79,9 @@ void free_HTTPResponse(HTTPResponse* response) {
             req: TempVar = codegen.create_temp_var(Type('string'), call_position)
             
             sock: Object = codegen.c_manager._Socket_new(codegen, call_position, *socket_configs)
-            ret: Object = codegen.c_manager._Socket_connect(codegen, call_position, sock, info)
+            ret: Object = codegen.c_manager._Socket_connect(
+                codegen, call_position, sock, host, Object('"80"', Type('string'), call_position)
+            )
             codegen.prepend_code(f"""if ({ret} == SOCKET_ERROR) {{
     {codegen.c_manager.err('connection failed')}
 }}
@@ -98,10 +96,7 @@ snprintf(
 );
 """)
             
-            ret = codegen.c_manager._Socket_send(
-                codegen, call_position, sock, req.OBJECT(),
-                codegen.c_manager._string_length(codegen, call_position, req.OBJECT())
-            )
+            ret = codegen.c_manager._Socket_send(codegen, call_position, sock, req.OBJECT())
             codegen.prepend_code(f"""if ({ret} == SOCKET_ERROR) {{
     {codegen.c_manager.err('send failed')}
 }}

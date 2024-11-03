@@ -9,7 +9,7 @@ from ir.nodes import (
     Program, Body, TypeNode, ParamNode, ArgNode, Call, Return, Foreach, While,
     If, Use, VarDecl, Value, Identifier, Array, Dict, Brackets, BinOp, UOp, Attribute, New,
     Ternary, Position, Node, Break, Continue, FuncDecl, Nil, Index, DollarString, Cast, Enum,
-    ClassProperty, ClassMethod, Class, AttrAssign, CreateTuple, RangeFor
+    ClassProperty, ClassMethod, Class, AttrAssign, CreateTuple, RangeFor, Extern, Test, FuncType
 )
 
 
@@ -61,9 +61,10 @@ class IRBuilder(CureVisitor):
         if ctx.LPAREN() is not None:
             types = [self.visitType(t) for t in ctx.type_()]
             node = TypeNode(pos, 'tuple', tuple_types=types)
-            # param_types = [self.visitType(param) for param in ctx.type_()[1:]]
-            # return_type = self.visitType(ctx.type_()[-1])
-            # return TypeNode(pos, 'function', func_type=FuncType(pos, return_type, param_types))
+            if ctx.RETURNS() is not None:
+                param_types = [self.visitType(param) for param in ctx.type_()[1:]]
+                return_type = self.visitType(ctx.type_()[-1])
+                return TypeNode(pos, 'function', func_type=FuncType(pos, return_type, param_types))
         else:
             name = ctx.ID().getText()
             if len(ctx.type_()) == 0:
@@ -91,35 +92,38 @@ class IRBuilder(CureVisitor):
         return Use(pos, ctx.STRING().getText()[1:-1])
     
     def visitIfStmt(self, ctx: CureParser.IfStmtContext) -> If:
-        cond = self.visitExpr(ctx.expr())
+        cond = self.visit(ctx.expr())
         body = self.visitBody(ctx.body())
         else_body = self.visitBody(ctx.elseStmt().body()) if ctx.elseStmt() is not None else None
         elseifs = []
         for elseif in ctx.elseifStmt():
-            elseifs.append((self.visitExpr(elseif.expr()), self.visitBody(elseif.body())))
+            elseifs.append((self.visit(elseif.expr()), self.visitBody(elseif.body())))
         
         return If(to_pos(ctx), cond, body, else_body, elseifs)
     
     def visitWhileStmt(self, ctx: CureParser.WhileStmtContext) -> While:
-        return While(to_pos(ctx), self.visitExpr(ctx.expr()), self.visitBody(ctx.body()))
+        return While(to_pos(ctx), self.visit(ctx.expr()), self.visitBody(ctx.body()))
 
     def visitForeachStmt(self, ctx: CureParser.ForeachStmtContext) -> Foreach:
         return Foreach(
-            to_pos(ctx), ctx.ID().getText(), self.visitExpr(ctx.expr()),
+            to_pos(ctx), ctx.ID().getText(), self.visit(ctx.expr()),
             self.visitBody(ctx.body())
         )
     
     def visitRangeStmt(self, ctx: CureParser.RangeStmtContext) -> RangeFor:
         return RangeFor(
-            to_pos(ctx), ctx.ID().getText(), self.visitExpr(ctx.expr(0)), self.visitExpr(ctx.expr(1)),
+            to_pos(ctx), ctx.ID().getText(), self.visit(ctx.expr(0)), self.visit(ctx.expr(1)),
             self.visitBody(ctx.body())
         )
+    
+    def visitExternStmt(self, ctx: CureParser.ExternStmtContext) -> Extern:
+        return Extern(to_pos(ctx), ctx.STRING().getText()[1:-1])
     
     def visitBodyStmts(self, ctx: CureParser.BodyStmtsContext) -> Node:
         if ctx.stmt() is not None:
             return self.visitStmt(ctx.stmt())
         elif ctx.RETURN() is not None:
-            return Return(to_pos(ctx), self.visitExpr(ctx.expr()))
+            return Return(to_pos(ctx), self.visit(ctx.expr()))
         elif ctx.BREAK() is not None:
             return Break(to_pos(ctx))
         elif ctx.CONTINUE() is not None:
@@ -142,18 +146,21 @@ class IRBuilder(CureVisitor):
         if ctx.DOT() is not None:
             return AttrAssign(
                 pos, Identifier(pos, ctx.ID(0).getText()), [ctx.ID(1).getText()],
-                self.visitExpr(ctx.expr()), op.text if op is not None else None
+                self.visit(ctx.expr()), op.text if op is not None else None
             )
         
         return VarDecl(
-            pos, ctx.ID(0).getText(), self.visitExpr(ctx.expr()),
+            pos, ctx.ID(0).getText(), self.visit(ctx.expr()),
             op.text if op is not None else None,
             self.visitType(ctx.type_()) if ctx.type_() is not None else None,
             ctx.CONST() is not None
         )
     
     def visitFuncModifications(self, ctx: CureParser.FuncModificationsContext) -> Call:
-        return Call(to_pos(ctx), ctx.ID().getText(), self.visitArgs(ctx.args()))
+        return Call(
+            to_pos(ctx), Identifier(to_pos(ctx), ctx.ID().getText()),
+            self.visitArgs(ctx.args())
+        )
     
     def visitFuncAssign(self, ctx: CureParser.FuncAssignContext) -> FuncDecl:
         returns = None
@@ -175,13 +182,25 @@ class IRBuilder(CureVisitor):
         return ClassProperty(
             to_pos(ctx), ctx.ID().getText(),
             self.visitType(ctx.type_()),
-            self.visitExpr(ctx.expr()) if ctx.expr() is not None else None,
+            self.visit(ctx.expr()) if ctx.expr() is not None else None,
             ctx.PRIVATE() is None
         )
     
+    def visitMethodName(self, ctx: CureParser.MethodNameContext) -> str:
+        if ctx.opname is not None:
+            return ctx.opname.text
+
+        ident = ctx.ID().getText()
+        if ctx.TILDE() is not None:
+            return '~' + ident
+        
+        return ident
+    
     def visitClassMethod(self, ctx: CureParser.ClassMethodContext) -> ClassMethod:
+        pos = to_pos(ctx)
+        name = self.visitMethodName(ctx.methodName())
         return ClassMethod(
-            to_pos(ctx), ctx.ID().getText(), self.visitBody(ctx.body()),
+            pos, name, self.visitBody(ctx.body()),
             self.visitParams(ctx.params()) if ctx.params() is not None else [],
             self.visitType(ctx.type_()) if ctx.type_() is not None else None,
             [], [], None,
@@ -204,6 +223,9 @@ class IRBuilder(CureVisitor):
             [ident.getText() for ident in ctx.ID()[1:]]
         )
     
+    def visitTestAssign(self, ctx: CureParser.TestAssignContext) -> Test:
+        return Test(to_pos(ctx), ctx.ID().getText(), self.visitBody(ctx.body()))
+    
     def visitParam(self, ctx: CureParser.ParamContext) -> ParamNode:
         return ParamNode(
             to_pos(ctx), ctx.ID().getText(), self.visitType(ctx.type_()),
@@ -215,13 +237,13 @@ class IRBuilder(CureVisitor):
     
     def visitArg(self, ctx: CureParser.ArgContext) -> ArgNode:
         return ArgNode(
-            to_pos(ctx), self.visitExpr(ctx.expr()),
+            to_pos(ctx), self.visit(ctx.expr()),
             ctx.ID().getText() if ctx.ID() is not None else None
         )
     
     def visitArgs(self, ctx: CureParser.ArgsContext) -> list[ArgNode]:
         return [self.visitArg(arg) for arg in ctx.arg()] if ctx is not None else []
-    
+
     def visitAtom(self, ctx: CureParser.AtomContext) -> Node:
         if ctx.INT() is not None:
             return Value(to_pos(ctx), ctx.getText(), 'int')
@@ -257,7 +279,7 @@ class IRBuilder(CureVisitor):
         elif ctx.NIL() is not None:
             return Nil(to_pos(ctx))
         elif ctx.expr() is not None:
-            return Brackets(to_pos(ctx), self.visitExpr(ctx.expr()))
+            return Brackets(to_pos(ctx), self.visit(ctx.expr()))
         elif ctx.ID() is not None:
             return Identifier(to_pos(ctx), ctx.ID().getText())
         elif ctx.LBRACE() is not None:
@@ -267,7 +289,7 @@ class IRBuilder(CureVisitor):
                     self.visitType(ctx.type_(0)) if ctx.type_(0) is not None else None,
                     self.visitType(ctx.type_(1)) if ctx.type_(1) is not None else None,
                     {
-                        self.visitExpr(element.expr(0)) : self.visitExpr(element.expr(1))
+                        self.visit(element.expr(0)) : self.visit(element.expr(1))
                         for element in ctx.dict_element()
                     }
                 )
@@ -281,61 +303,65 @@ class IRBuilder(CureVisitor):
     
     def visitGenericArgs(self, ctx: CureParser.GenericArgsContext) -> list[TypeNode]:
         return [self.visitType(t) for t in ctx.type_()]
-    
+
     def visitCall(self, ctx: CureParser.CallContext) -> Call:
         return Call(
-            to_pos(ctx), ctx.ID().getText(), self.visitArgs(ctx.args()),
+            to_pos(ctx), self.visit(ctx.expr()), self.visitArgs(ctx.args()),
             self.visitGenericArgs(ctx.genericArgs()) if ctx.genericArgs() is not None else []
         )
     
-    def visitExpr(self, ctx: CureParser.ExprContext) -> Node:
-        if ctx.atom() is not None:
-            return self.visitAtom(ctx.atom())
-        elif ctx.call() is not None:
-            return self.visitCall(ctx.call())
-        elif ctx.op is not None:
-            return BinOp(
-                to_pos(ctx), self.visitExpr(ctx.expr(0)), ctx.op.text,
-                self.visitExpr(ctx.expr(1))
-            )
-        elif ctx.uop is not None:
-            return UOp(to_pos(ctx), self.visitExpr(ctx.expr(0)), ctx.uop.text)
-        elif ctx.DOT() is not None:
-            args = None
-            if ctx.LPAREN() is not None:
-                args = self.visitArgs(ctx.args())
-            
-            return Attribute(
-                to_pos(ctx), self.visitExpr(ctx.expr(0)), ctx.ID().getText(),
-                args, self.visitGenericArgs(ctx.genericArgs()) if ctx.genericArgs() is not None else []
-            )
-        elif ctx.NEW() is not None:
-            return New(
-                to_pos(ctx), Identifier(to_pos(ctx), ctx.ID().getText()),
-                self.visitArgs(ctx.args())
-            )
-        elif ctx.IF() is not None:
-            return Ternary(
-                to_pos(ctx), self.visitExpr(ctx.expr(1)), self.visitExpr(ctx.expr(0)),
-                self.visitExpr(ctx.expr(2))
-            )
-        elif ctx.LBRACK() is not None:
-            return Index(to_pos(ctx), self.visitExpr(ctx.expr(0)), self.visitExpr(ctx.expr(1)))
-        # elif ctx.FUNC() is not None:
-        #     return AnonymousFunc(
-        #         to_pos(ctx), self.visitBody(ctx.body()),
-        #         self.visitParams(ctx.params()) if ctx.params() is not None else [],
-        #         self.visitType(ctx.type_()) if ctx.type_() is not None else None
-        #     )
-        elif ctx.LPAREN() is not None:
-            if ctx.type_() is not None:
-                return Cast(to_pos(ctx), self.visitExpr(ctx.expr(0)), self.visitType(ctx.type_()))
-            else:
-                return CreateTuple(to_pos(ctx), [self.visitExpr(expr) for expr in ctx.expr()])
-        # elif ctx.LBRACE() is not None:
-        #     return ArrayComprehension(
-        #         to_pos(ctx), self.visitExpr(ctx.expr(0)), ctx.ID().getText(),
-        #         self.visitExpr(ctx.expr(1))
-        #     )
-        else:
-            to_pos(ctx).error_here('Invalid expression')
+    def visitCast(self, ctx: CureParser.CastContext) -> Cast:
+        return Cast(to_pos(ctx), self.visit(ctx.expr()), self.visitType(ctx.type_()))
+    
+    def visitAttr(self, ctx: CureParser.AttrContext) -> Attribute:
+        args = None
+        if ctx.LPAREN() is not None:
+            args = self.visitArgs(ctx.args())
+        
+        return Attribute(
+            to_pos(ctx), self.visit(ctx.expr()), ctx.ID().getText(),
+            args, self.visitGenericArgs(ctx.genericArgs()) if ctx.genericArgs() is not None else []
+        )
+    
+    def visitTernary(self, ctx: CureParser.TernaryContext) -> Ternary:
+        return Ternary(
+            to_pos(ctx), self.visit(ctx.expr(1)), self.visit(ctx.expr(0)),
+            self.visit(ctx.expr(2))
+        )
+    
+    def visitTuple_create(self, ctx: CureParser.Tuple_createContext) -> CreateTuple:
+        return CreateTuple(to_pos(ctx), [self.visit(expr) for expr in ctx.expr()])
+
+    def visitNew(self, ctx: CureParser.NewContext) -> New:
+        return New(
+            to_pos(ctx), Identifier(to_pos(ctx), ctx.ID().getText()),
+            self.visitArgs(ctx.args())
+        )
+    
+    def visitIndex(self, ctx: CureParser.IndexContext) -> Index:
+        return Index(to_pos(ctx), self.visit(ctx.expr(0)), self.visit(ctx.expr(1)))
+    
+    def binop(self, ctx) -> BinOp:
+        return BinOp(
+            to_pos(ctx), self.visit(ctx.expr(0)), ctx.op.text,
+            self.visit(ctx.expr(1))
+        )
+    
+    def visitMultiplication(self, ctx: CureParser.MultiplicationContext) -> BinOp:
+        return self.binop(ctx)
+    
+    def visitAddition(self, ctx: CureParser.AdditionContext) -> BinOp:
+        return self.binop(ctx)
+    
+    def visitRelational(self, ctx: CureParser.RelationalContext) -> BinOp:
+        return self.binop(ctx)
+    
+    def visitLogical(self, ctx: CureParser.LogicalContext):
+        return self.binop(ctx)
+    
+    def visitUnary(self, ctx: CureParser.UnaryContext) -> UOp:
+        pos = to_pos(ctx)
+        if ctx.uop is None:
+            pos.error_here('Unary operator is missing')
+        
+        return UOp(pos, self.visit(ctx.expr()), ctx.uop.text)

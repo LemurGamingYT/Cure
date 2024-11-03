@@ -8,7 +8,7 @@ class Queue:
         self.codegen = codegen
         setattr(codegen.type_checker, 'Queue_type', self.queue_type)
         
-        self.defined_types: list[str] = []
+        self.codegen.metadata.setdefault('queue_types', [])
         
         @c_dec(
             param_types=(Param('size', Type('int')),),
@@ -26,7 +26,7 @@ class Queue:
     
     def define_queue_type(self, type: Type) -> Type:
         queue_type = Type(f'Queue[{type}]', f'{type.c_type}_queue')
-        if type.c_type in self.defined_types:
+        if type.c_type in self.codegen.metadata['queue_types']:
             return queue_type
         
         self.codegen.add_toplevel_code(f"""typedef struct {{
@@ -148,5 +148,5 @@ if ({i} < ({queue}).length - 1) {{
             
             return item.OBJECT()
 
-        self.defined_types.append(type.c_type)
+        self.codegen.metadata['queue_types'].append(type.c_type)
         return queue_type

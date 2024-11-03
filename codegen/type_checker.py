@@ -1,6 +1,6 @@
 from typing import Iterable
 
-from codegen.objects import Type, POS_ZERO, EnvItem
+from codegen.objects import Type, POS_ZERO, EnvItem, FunctionInfo
 from ir.nodes import TypeNode
 
 
@@ -13,21 +13,29 @@ class TypeChecker:
             Type('System'), Type('Time'), Type('Cure'), Type('Fraction'), Type('Vector2'), Type('hex'),
             Type('StringBuilder'), Type('Timer'), Type('Logger')
         }
-    
-    def array_type(self, node: TypeNode) -> Type | None:
-        if node.array_type is None:
-            return None
         
-        return self.codegen.array_manager.define_array(self.codegen.visit_TypeNode(node.array_type))
+        # codegen.metadata.setdefault('function_info_name_map', {})
     
-    def dict_type(self, node: TypeNode) -> Type | None:
-        if node.dict_types is None:
-            return None
+    def make_function_info(self, return_type: Type, param_types: Iterable[Type]) -> FunctionInfo:
+        # seems to bring more problems than it solves
+        # for info in self.codegen.metadata['function_info_name_map'].values():
+        #     if info.return_type == return_type and info.param_types == tuple(param_types):
+        #         return info
         
-        return self.codegen.dict_manager.define_dict(
-            self.codegen.visit_TypeNode(node.dict_types[0]),
-            self.codegen.visit_TypeNode(node.dict_types[1])
-        )
+        info = FunctionInfo(return_type, tuple(param_types))
+        self.typedef_function_ptr(info)
+        
+        # self.codegen.metadata['function_info_name_map'][info.typedef_name] = info
+        return info
+    
+    def typedef_function_ptr(self, function_info: FunctionInfo) -> None:
+        temp_name = self.codegen.get_unique_name()
+        self.codegen.c_manager.reserve(temp_name)
+        function_info.typedef_name = str(temp_name)
+        
+        return_type = function_info.return_type.c_type
+        param_types = ', '.join(param_type.c_type for param_type in function_info.param_types)
+        self.codegen.add_toplevel_code(f'typedef {return_type} (*{temp_name})({param_types});')
     
     def function_type(self, node: TypeNode) -> Type | None:
         if node.func_type is None:
@@ -35,7 +43,7 @@ class TypeChecker:
         
         param_types = tuple(self.codegen.visit_TypeNode(param) for param in node.func_type.params)
         return_type = self.codegen.visit_TypeNode(node.func_type.return_type)
-        return self.codegen.function_manager.make_function_type(return_type, param_types, node.pos)
+        return self.make_function_info(return_type, param_types).as_type()
     
     def get_type(self, type_: Type | str) -> Type:
         """Get the type of the given type. Handles generic types.

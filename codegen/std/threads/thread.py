@@ -41,7 +41,7 @@ class Thread:
         arg: TempVar = codegen.create_temp_var(Type('any', 'void*'), call_position)
         
         codegen.add_toplevel_code(f"""
-{fn.return_type.c_type} {fn.name}({", ".join(str(param) for param in fn.params)});
+{fn.return_type.c_type} {fn.name}({', '.join(str(param) for param in fn.params)});
 static int {thread_fn}(void* {arg}) {{
 (({struct_t}*){arg})->{result_struct_field} = {name}({
     ', '.join(f'(({struct_t}*){arg})->{p.name}' for p in fn.params)
@@ -97,21 +97,28 @@ if (!thrd_create(&{thread}.t, (thrd_start_t){thread_fn}, &{arg})) {{
         @c_dec(param_types=(Param('thread', Type('Thread')),), is_property=True, add_to_class=self)
         def _Thread_id(codegen, call_position: Position, thread: Object) -> Object:
             if codegen.target != Target.WINDOWS:
-                call_position.warn_here('Thread.id is only supported on Windows')
+                call_position.not_supported_err('Thread.id')
             
-            id: TempVar = codegen.create_temp_var(Type('int'), call_position)
-            codegen.prepend_code(f"""#ifdef OS_WINDOWS
-int {id} = GetThreadId(({thread}).t);
-#else
-{codegen.c_manager.symbol_not_supported('Thread.id')}
-#endif
-""")
-            
-            return id.OBJECT()
+            return Object(f'((int)GetThreadId(({thread}).t))', Type('int'), call_position)
         
         @c_dec(param_types=(Param('thread', Type('Thread')),), is_method=True, add_to_class=self)
         def _Thread_join(codegen, call_position: Position, thread: Object) -> Object:
-            codegen.prepend_code(f'thrd_join(({thread}).t, NULL);')
+            codegen.prepend_code(f"""if (thrd_join(({thread}).t, NULL) != thrd_success) {{
+    {codegen.c_manager.err('Thread.join() failed')}
+}}
+""")
+            
+            return Object.NULL(call_position)
+        
+        @c_dec(
+            param_types=(Param('thread', Type('Thread')),), is_method=True, add_to_class=self
+        )
+        def _Thread_close(codegen, call_position: Position, thread: Object) -> Object:
+            codegen.prepend_code(f"""if (thrd_detach(({thread}).t) != thrd_success) {{
+    {codegen.c_manager.err('Thread.close() failed')}
+}}
+""")
+            
             return Object.NULL(call_position)
         
         @c_dec(

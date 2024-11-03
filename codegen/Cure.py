@@ -3,7 +3,12 @@ from codegen.c_manager import c_dec
 
 
 class Cure:
-    def __init__(self, _) -> None:
+    def __init__(self, c_manager) -> None:
+        c_manager.codegen.add_toplevel_code("""typedef struct {
+    byte _;
+} Cure;
+""")
+        
         @c_dec(is_property=True, is_static=True, add_to_class=self)
         def _Cure_version(_, call_position: Position) -> Object:
             return Object('VERSION', Type('string'), call_position)
@@ -23,8 +28,8 @@ class Cure:
             ])
         
         @c_dec(
-            param_types=(Param('src', Type('string')),),
-            is_method=True, is_static=True, add_to_class=self
+            param_types=(Param('src', Type('string')),), is_method=True, is_static=True,
+            add_to_class=self
         )
         def _Cure_compile(codegen, call_position: Position, src: Object) -> Object:
             from codegen import str_to_c
@@ -33,4 +38,15 @@ class Cure:
             
             _, code = str_to_c(str(src)[1:-1], codegen.scope)
             codegen.prepend_code(code)
+            return Object.NULL(call_position)
+        
+        @c_dec(
+            param_types=(Param('arg', Type('string')),), is_method=True, is_static=True,
+            add_to_class=self
+        )
+        def _Cure_add_compile_arg(codegen, call_position: Position, arg: Object) -> Object:
+            if not codegen.is_string_literal(str(arg)):
+                call_position.error_here('Argument must be a string literal')
+
+            codegen.extra_compile_args.append(str(arg)[1:-1])
             return Object.NULL(call_position)

@@ -1,16 +1,27 @@
 from codegen.objects import Object, Position, Free, Type, TempVar, Param, Arg
 from codegen.array_manager import DEFAULT_CAPACITY
 from codegen.c_manager import CManager, c_dec
+from ir.nodes import TypeNode
 
 
 class DictManager:
     def __init__(self, codegen) -> None:
-        self.defined_types: list[tuple[str, str]] = []
-        
         self.codegen = codegen
+        
+        setattr(codegen.type_checker, 'dict_type', self.dict_type)
+        codegen.metadata.setdefault('dict_types', {})
     
-    def has_type(self, key_type: str, value_type: str) -> bool:
-        for k, v in self.defined_types:
+    def dict_type(self, node: TypeNode) -> Type | None:
+        if node.dict_types is None:
+            return None
+        
+        return self.codegen.dict_manager.define_dict(
+            self.codegen.visit_TypeNode(node.dict_types[0]),
+            self.codegen.visit_TypeNode(node.dict_types[1])
+        )
+    
+    def has_type(self, key_type: Type, value_type: Type) -> bool:
+        for k, v in self.codegen.metadata['dict_types'].items():
             if k == key_type and v == value_type:
                 return True
         
@@ -22,7 +33,7 @@ class DictManager:
             f'{key_type.c_type}_{value_type.c_type}_dict'
         )
         
-        if self.has_type(key_type.type, value_type.type):
+        if self.has_type(key_type, value_type):
             return dict_type
         
         pair_type = Type(
@@ -58,7 +69,10 @@ typedef struct {{
         def pair_type_(_, call_position: Position) -> Object:
             return Object(f'"{pair_type}"', Type('string'), call_position)
         
-        @c_dec(func_name_override=f'{pair_type.c_type}_to_string', add_to_class=c_manager, is_method=True)
+        @c_dec(
+            param_types=(Param('pair', pair_type),), is_method=True,
+            func_name_override=f'{pair_type.c_type}_to_string', add_to_class=c_manager
+        )
         def pair_to_string(codegen, call_position: Position, pair_obj: Object) -> Object:
             code, buf_free = codegen.fmt_length(
                 codegen, call_position,
@@ -77,6 +91,48 @@ typedef struct {{
             
             codegen.prepend_code(code)
             return Object.STRINGBUF(buf_free, call_position)
+        
+        @c_dec(
+            param_types=(Param('a', pair_type), Param('b', pair_type)),
+            func_name_override=f'{pair_type.c_type}_eq_{pair_type.c_type}', add_to_class=c_manager
+        )
+        def pair_eq(codegen, call_position: Position, a: Object, b: Object) -> Object:
+            keys_are_equal = codegen.call(
+                f'{key_type.c_type}_eq_{key_type.c_type}', [
+                    Arg(Object(f'({a}).key', key_type, call_position)),
+                    Arg(Object(f'({b}).key', key_type, call_position))
+                ], call_position
+            )
+            
+            values_are_equal = codegen.call(
+                f'{value_type.c_type}_eq_{value_type.c_type}', [
+                    Arg(Object(f'({a}).value', value_type, call_position)),
+                    Arg(Object(f'({b}).value', value_type, call_position))
+                ], call_position
+            )
+            
+            return Object(f'({keys_are_equal}) && ({values_are_equal})', Type('bool'), call_position)
+        
+        @c_dec(
+            param_types=(Param('a', pair_type), Param('b', pair_type)),
+            func_name_override=f'{pair_type.c_type}_neq_{pair_type.c_type}', add_to_class=c_manager
+        )
+        def pair_neq(codegen, call_position: Position, a: Object, b: Object) -> Object:
+            keys_are_equal = codegen.call(
+                f'{key_type.c_type}_neq_{key_type.c_type}', [
+                    Arg(Object(f'({a}).key', key_type, call_position)),
+                    Arg(Object(f'({b}).key', key_type, call_position))
+                ], call_position
+            )
+            
+            values_are_equal = codegen.call(
+                f'{value_type.c_type}_neq_{value_type.c_type}', [
+                    Arg(Object(f'({a}).value', value_type, call_position)),
+                    Arg(Object(f'({b}).value', value_type, call_position))
+                ], call_position
+            )
+            
+            return Object(f'({keys_are_equal}) && ({values_are_equal})', Type('bool'), call_position)
         
         @c_dec(func_name_override=f'{dict_type.c_type}_make', add_to_class=c_manager)
         def dict_make(codegen, call_position: Position) -> Object:
@@ -101,15 +157,23 @@ typedef struct {{
             value: TempVar = codegen.create_temp_var(value_type, call_position)
             d = f'({dict_obj})'
             i: TempVar = codegen.create_temp_var(Type('int'), call_position)
-            codegen.prepend_code(f"""{value_type.c_type}* {value} = NULL;
+            found: TempVar = codegen.create_temp_var(Type('bool'), call_position)
+            codegen.prepend_code(f"""{value_type.c_type} {value};
+bool {found} = false;
 for (size_t {i} = 0; {i} < {d}.length; {i}++) {{
-    if ({d}.elements[{i}].key == ({key})) {{
-        *{value} = {d}.elements[{i}].value;
+""")
+            codegen.prepend_code(f"""if ({codegen.call(
+    f'{key_type.c_type}_eq_{key_type.c_type}',
+    [Arg(Object(f'{d}.elements[{i}].key', key_type, call_position)), Arg(key)],
+    call_position
+)}) {{
+        {value} = {d}.elements[{i}].value;
+        {found} = true;
         break;
     }}
 }}
 
-if ({value} == NULL) {{
+if (!{found}) {{
     {codegen.c_manager.err('Key not found')}
 }}
 """)
@@ -126,7 +190,12 @@ if ({value} == NULL) {{
             has: TempVar = codegen.create_temp_var(Type('bool'), call_position)
             codegen.prepend_code(f"""bool {has} = false;
 for (size_t {i} = 0; {i} < {d}.length; {i}++) {{
-    if ({d}.elements[{i}].key == ({key})) {{
+""")
+            codegen.prepend_code(f"""if ({codegen.call(
+    f'{key_type.c_type}_eq_{key_type.c_type}',
+    [Arg(Object(f'{d}.elements[{i}].key', key_type, call_position)), Arg(key)],
+    call_position
+)}) {{
         {has} = true;
         break;
     }}
@@ -144,7 +213,12 @@ for (size_t {i} = 0; {i} < {d}.length; {i}++) {{
             d = f'({dict_obj})'
             codegen.prepend_code(f"""if ({dict_has(codegen, call_position, dict_obj, key)}) {{
     for (size_t {i} = 0; {i} < {d}.length; {i}++) {{
-        if ({d}.elements[{i}].key == ({key})) {{
+""")
+            codegen.prepend_code(f"""if ({codegen.call(
+    f'{key_type.c_type}_eq_{key_type.c_type}',
+    [Arg(Object(f'{d}.elements[{i}].key', key_type, call_position)), Arg(key)],
+    call_position
+)}) {{
             {d}.elements[{i}].value = {value};
             break;
         }}
@@ -231,12 +305,10 @@ if ({i} < {d}.length - 1) {{
 for (size_t {i} = 0; {i} < {d}.length; {i}++) {{
     """)
             codegen.prepend_code(f"""{codegen.call(
-    f'{key_arr_type.c_type}_add',
-    [
+    f'{key_arr_type.c_type}_add', [
         Arg(keys.OBJECT()),
         Arg(Object(f'{d}.elements[{i}].key', key_type, call_position))
-    ],
-    call_position
+    ], call_position
 )};
 }}""")
             
@@ -257,12 +329,10 @@ for (size_t {i} = 0; {i} < {d}.length; {i}++) {{
 for (size_t {i} = 0; {i} < {d}.length; {i}++) {{
     """)
             codegen.prepend_code(f"""{codegen.call(
-    f'{val_arr_type.c_type}_add',
-    [
+    f'{val_arr_type.c_type}_add', [
         Arg(values.OBJECT()),
         Arg(Object(f'{d}.elements[{i}].value', value_type, call_position))
-    ],
-    call_position
+    ], call_position
 )};
 }}""")
             
@@ -277,7 +347,12 @@ for (size_t {i} = 0; {i} < {d}.length; {i}++) {{
             i: TempVar = codegen.create_temp_var(Type('int'), call_position)
             codegen.prepend_code(f"""bool {res} = true;
 for (size_t {i} = 0; {i} < ({a}).length; {i}++) {{
-    if (({a}).elements[{i}] != ({b}).elements[{i}]) {{
+""")
+            codegen.prepend_code(f"""if ({pair_neq(
+    codegen, call_position,
+    Object(f'({a}).elements[{i}]', pair_type, call_position),
+    Object(f'({b}).elements[{i}]', pair_type, call_position)
+)}) {{
         {res} = false;
         break;
     }}
@@ -295,7 +370,12 @@ for (size_t {i} = 0; {i} < ({a}).length; {i}++) {{
             i: TempVar = codegen.create_temp_var(Type('int'), call_position)
             codegen.prepend_code(f"""bool {res} = false;
 for (size_t {i} = 0; {i} < ({a}).length; {i}++) {{
-    if (({a}).elements[{i}] == ({b}).elements[{i}]) {{
+""")
+            codegen.prepend_code(f"""if ({pair_eq(
+    codegen, call_position,
+    Object(f'({a}).elements[{i}]', pair_type, call_position),
+    Object(f'({b}).elements[{i}]', pair_type, call_position)
+)}) {{
         {res} = true;
         break;
     }}
@@ -319,5 +399,5 @@ for (size_t {i} = 0; {i} < ({a}).length; {i}++) {{
         def iter_dict(_, call_position: Position, dict_obj: Object, i: Object) -> Object:
             return Object(f'(({dict_obj}).elements[{i}])', pair_type, call_position)
         
-        self.defined_types.append((key_type.type, value_type.type))
+        self.codegen.metadata[key_type] = value_type
         return dict_type

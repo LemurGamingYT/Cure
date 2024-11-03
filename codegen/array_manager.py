@@ -1,18 +1,46 @@
-from codegen.objects import Position, Object, Free, Type, Arg, TempVar, Param
+from codegen.objects import Position, Object, Free, Type, Arg, TempVar, Param, Stringable
 from codegen.function_manager import OverloadKey, OverloadValue
 from codegen.c_manager import CManager, c_dec
+from ir.nodes import TypeNode
+
 
 DEFAULT_CAPACITY = 10
 
+def element_index(
+    iterable: Stringable, index: Stringable, iterable_type: Type,
+    pos: Position
+) -> Object:
+    return Object(f'({iterable}).elements[{index}]', iterable_type, pos)
+
+def get_index(codegen, call_position: Position, index: Stringable, max_length: Stringable):
+    idx: TempVar = codegen.create_temp_var(Type('int'), call_position)
+    return f"""int {idx} = {index};
+if ({idx} < 0) {{
+    {idx} = ({max_length}) + {idx};
+    if (abs({idx}) > ({max_length})) {{
+        {codegen.c_manager.err('Index out of range')}
+    }}
+}} else if ({idx} >= ({max_length})) {{
+    {codegen.c_manager.err('Index out of range')}
+}}
+""", idx
 
 class ArrayManager:
     def __init__(self, codegen) -> None:
         self.codegen = codegen
+        
+        setattr(codegen.type_checker, 'array_type', self.array_type)
         codegen.metadata.setdefault('array_types', [])
+    
+    def array_type(self, node: TypeNode) -> Type | None:
+        if node.array_type is None:
+            return None
+        
+        return self.codegen.array_manager.define_array(self.codegen.visit_TypeNode(node.array_type))
     
     def define_array(self, type: Type) -> Type:
         array_type = Type(f'array[{type}]', f'{type.c_type}_array')
-        if type.type in self.codegen.metadata['array_types']:
+        if type in self.codegen.metadata['array_types']:
             return array_type
         
         self.codegen.add_toplevel_code(f"""typedef struct {{
@@ -35,7 +63,7 @@ class ArrayManager:
             add_to_class=c_manager, func_name_override=f'{array_type.c_type}_to_string',
         )
         def array_string(codegen, call_position: Position, arr: Object) -> Object:
-            i: TempVar = codegen.create_temp_var(Type('int', 'size_t'), call_position)
+            i: TempVar = codegen.create_temp_var(Type('size_t'), call_position)
             builder: Object = codegen.c_manager._StringBuilder_new(codegen, call_position)
             a = f'({arr})'
             codegen.prepend_code(f"""{codegen.c_manager._StringBuilder_add(
@@ -99,12 +127,9 @@ codegen, call_position, builder, Object('", "', Type('string'), call_position)
         def array_insert(codegen, call_position: Position,
                          arr: Object, index: Object, element: Object) -> Object:
             a = f'({arr})'
-            i = f'({index})'
-            codegen.prepend_code(f"""if ({i} < 0 || {i} >= {a}.length) {{
-    {codegen.c_manager.err('Index out of bounds')}
-}}
-
-{a}.elements[{i}] = {element};
+            code, idx = get_index(codegen, call_position, index, f'{a}.length')
+            codegen.prepend_code(f"""{code}
+{a}.elements[{idx}] = {element};
 """)
             
             return Object.NULL(call_position)
@@ -155,11 +180,9 @@ codegen, call_position, builder, Object('", "', Type('string'), call_position)
         def array_set(codegen, call_position: Position, arr: Object, index: Object,
                       element: Object) -> Object:
             a = f'({arr})'
-            i = f'({index})'
-            codegen.prepend_code(f"""if ({i} < 0 || {i} >= {a}.length) {{
-    {codegen.c_manager.err('Index out of bounds')}
-}}
-{a}.elements[{i}] = {element};
+            code, idx = get_index(codegen, call_position, index, f'{a}.length')
+            codegen.prepend_code(f"""{code}
+{a}.elements[{idx}] = {element};
 """)
             return Object.NULL(call_position)
         
@@ -169,20 +192,9 @@ codegen, call_position, builder, Object('", "', Type('string'), call_position)
         )
         def array_get(codegen, call_position: Position, arr: Object, index: Object) -> Object:
             a = f'({arr})'
-            i = f'({index})'
-            idx: TempVar = codegen.create_temp_var(Type('int'), call_position)
-            codegen.prepend_code(f"""int {idx} = {i};
-if ({idx} < 0) {{
-    {idx} = {a}.length + {idx};
-    if (abs({idx}) > {a}.length) {{
-        {codegen.c_manager.err('Index out of range')}
-    }}
-}} else if ({idx} >= {a}.length) {{
-    {codegen.c_manager.err('Index out of range')}
-}}
-""")
-            
-            return Object(f'{a}.elements[{idx}]', type, call_position)
+            code, idx = get_index(codegen, call_position, index, f'{a}.length')
+            codegen.prepend_code(code)
+            return element_index(arr, idx, type, call_position)
         
         @c_dec(
             param_types=(Param('arr', array_type), Param('element', type)), is_method=True,
@@ -232,7 +244,13 @@ if ({idx} < 0) {{
             temp: TempVar = codegen.create_temp_var(type, call_position)
             codegen.prepend_code(f"""for (size_t {i} = 0; {i} < {a}.length; {i}++) {{
     for (size_t {j} = 0; {j} < {a}.length - 1; {j}++) {{
-        if ({a}.elements[{j}] > {a}.elements[{j} + 1]) {{
+""")
+            codegen.prepend_code(f"""if ({codegen.call(
+    f'{type.c_type}_gt_{type.c_type}', [
+        Arg(element_index(arr, j, type, call_position)),
+        Arg(element_index(arr, f'{j} + 1', type, call_position))
+    ], call_position
+)}) {{
             {type.c_type} {temp} = {a}.elements[{j}];
             {a}.elements[{j}] = {a}.elements[{j} + 1];
             {a}.elements[{j} + 1] = {temp};
@@ -251,7 +269,12 @@ if ({idx} < 0) {{
             i: TempVar = codegen.create_temp_var(Type('int'), call_position)
             j: TempVar = codegen.create_temp_var(Type('int'), call_position)
             codegen.prepend_code(f"""for (size_t {i} = 0; {i} < {a}.length; {i}++) {{
-    if ({a}.elements[{i}] == ({element})) {{
+""")
+            codegen.prepend_code(f"""if ({codegen.call(
+    f'{type.c_type}_eq_{type.c_type}', [
+        Arg(element_index(arr, i, type, call_position)), Arg(element)
+    ], call_position
+)}) {{
         for (size_t {j} = {i}; {j} < {a}.length - 1; {j}++) {{
             {a}.elements[{j}] = {a}.elements[{j} + 1];
         }}
@@ -269,12 +292,10 @@ if ({idx} < 0) {{
         def array_remove_at(codegen, call_position: Position,
                             arr: Object, index: Object) -> Object:
             a = f'({arr})'
-            i = f'({index})'
+            code, idx = get_index(codegen, call_position, index, f'{a}.length')
             j: TempVar = codegen.create_temp_var(Type('int'), call_position)
-            codegen.prepend_code(f"""if ({i} >= {a}.length || {i} < 0) {{
-    {codegen.c_manager.err('Index out of range')}
-}}
-for (size_t {j} = {i}; {j} < {a}.length - 1; {j}++) {{
+            codegen.prepend_code(f"""{code}
+for (size_t {j} = {idx}; {j} < {a}.length - 1; {j}++) {{
     {a}.elements[{j}] = {a}.elements[{j} + 1];
     {a}.length--;
 }}
@@ -297,7 +318,12 @@ for (size_t {j} = {i}; {j} < {a}.length - 1; {j}++) {{
 }}
 {type.c_type}* {temp} = NULL;
 for (size_t {i} = 0; {i} < {a}.length; {i}++) {{
-    if ({a}.elements[{i}] == ({elem})) {{
+""")
+            codegen.prepend_code(f"""if ({codegen.call(
+    f'{type.c_type}_eq_{type.c_type}',
+    [Arg(element_index(arr, i, type, call_position), Arg(elem))],
+    call_position
+)}) {{
         *{temp} = {a}.elements[{i}];
         for (size_t {j} = {i}; {j} < {a}.length - 1; {j}++) {{
             {a}.elements[{j}] = {a}.elements[{j} + 1];
@@ -321,18 +347,17 @@ if (!{temp}) {{
         )
         def array_pop_at(codegen, call_position: Position, arr: Object, index: Object) -> Object:
             a = f'({arr})'
-            i = f'({index})'
+            code, idx = get_index(codegen, call_position, index, f'{a}.length')
             popped: TempVar = codegen.create_temp_var(type, call_position)
             j: TempVar = codegen.create_temp_var(Type('int'), call_position)
-            codegen.prepend_code(f"""if ({i} >= {a}.length || {i} < 0) {{
-    {codegen.c_manager.err('Index out of range')}
-}}
+            codegen.prepend_code(f"""{code}
 {type.c_type} {popped};
-{popped} = {a}.elements[{i}];
-for (size_t {j} = {i}; {j} < {a}.length - 1; {j}++) {{
+{popped} = {a}.elements[{idx}];
+for (size_t {j} = {idx}; {j} < {a}.length - 1; {j}++) {{
     {a}.elements[{j}] = {a}.elements[{j} + 1];
-    {a}.length--;
 }}
+
+{a}.length--;
 """)
             
             return popped.OBJECT()
@@ -364,7 +389,7 @@ for (size_t {j} = {i}; {j} < {a}.length - 1; {j}++) {{
 for (size_t {i} = 0; {i} < {a}.length; {i}++) {{
 """)
             codegen.prepend_code(f"""if ({codegen.c_manager._to_bool(
-    codegen, call_position, Object(f'{a}.elements[{i}]', type, call_position)
+    codegen, call_position, element_index(a, i, type, call_position)
 )}) {{
     {res} = true;
     break;
@@ -386,7 +411,7 @@ for (size_t {i} = 0; {i} < {a}.length; {i}++) {{
 for (size_t {i} = 0; {i} < {a}.length; {i}++) {{
 """)
             codegen.prepend_code(f"""if (!({codegen.c_manager._to_bool(
-    codegen, call_position, Object(f'{a}.elements[{i}]', type, call_position),
+    codegen, call_position, element_index(a, i, type, call_position)
 )})) {{
     {res} = false;
     break;
@@ -420,7 +445,7 @@ for (size_t {i} = 0; {i} < {a}.length; {i}++) {{
 """)
             codegen.prepend_code(f"""if ({codegen.call(
     f'{type.c_type}_eq_{type.c_type}',
-    [Arg(Object(f'{a}.elements[{i}]', type, call_position)), Arg(value)], call_position
+    [Arg(element_index(arr, i, type, call_position)), Arg(value)], call_position
 )}) {{
         {idx} = {i};
         break;
@@ -459,7 +484,13 @@ for (size_t {i} = ({start}); {i} < ({to}); {i}++) {{
             i: TempVar = codegen.create_temp_var(Type('int'), call_position)
             codegen.prepend_code(f"""bool {res} = true;
 for (size_t {i} = 0; {i} < ({a}).length; {i}++) {{
-    if (({a}).elements[{i}] != ({b}).elements[{i}]) {{
+""")
+            codegen.prepend_code(f"""if ({codegen.call(
+    f'{type.c_type}_neq_{type.c_type}', [
+        Arg(element_index(a, i, type, call_position)),
+        Arg(element_index(b, i, type, call_position))
+    ], call_position
+)}) {{
         {res} = false;
         break;
     }}
@@ -477,7 +508,13 @@ for (size_t {i} = 0; {i} < ({a}).length; {i}++) {{
             i: TempVar = codegen.create_temp_var(Type('int'), call_position)
             codegen.prepend_code(f"""bool {res} = true;
 for (size_t {i} = 0; {i} < ({a}).length; {i}++) {{
-    if (({a}).elements[{i}] != ({b}).elements[{i}]) {{
+""")
+            codegen.prepend_code(f"""if ({codegen.call(
+    f'{type.c_type}_eq_{type.c_type}', [
+        Arg(element_index(a, i, type, call_position)),
+        Arg(element_index(b, i, type, call_position))
+    ], call_position
+)}) {{
         {res} = false;
         break;
     }}
@@ -518,8 +555,8 @@ for (size_t {i} = 0; {i} < ({a}).length; {i}++) {{
             param_types=(Param('arr', array_type), Param('index', Type('int'))), return_type=type,
             add_to_class=c_manager, func_name_override=f'iter_{array_type.c_type}'
         )
-        def iter_array(codegen, call_position: Position, arr: Object, index: Object) -> Object:
-            return array_get(codegen, call_position, arr, index)
+        def iter_array(_, call_position: Position, arr: Object, index: Object) -> Object:
+            return element_index(arr, index, type, call_position)
         
         @c_dec(
             param_types=(Param('arr', array_type), Param('index', Type('int'))),
@@ -528,5 +565,5 @@ for (size_t {i} = 0; {i} < ({a}).length; {i}++) {{
         def index_array(codegen, call_position: Position, arr: Object, index: Object) -> Object:
             return array_get(codegen, call_position, arr, index)
         
-        self.codegen.metadata['array_types'].append(type.type)
+        self.codegen.metadata['array_types'].append(type)
         return array_type

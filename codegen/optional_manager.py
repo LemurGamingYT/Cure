@@ -8,7 +8,7 @@ class OptionalManager:
         self.codegen = codegen
         setattr(codegen.type_checker, 'optional_type', self.optional_type)
         
-        self.defined_optionals: list[Type] = []
+        codegen.metadata.setdefault('optional_types', [])
     
     def optional_type(self, node: TypeNode) -> Type | None:
         if node.array_type is None:
@@ -21,14 +21,14 @@ class OptionalManager:
             f'optional[{type}]', f'{type.c_type}_optional',
             #compatible_types=(type.type, 'nil')
         )
-        if type in self.defined_optionals:
+        if type in self.codegen.metadata['optional_types']:
             return opt_t
         
         self.codegen.add_toplevel_code(f"""typedef struct {{
     {type.c_type}* value;
 }} {opt_t.c_type};
 """)
-        self.defined_optionals.append(type)
+        self.codegen.metadata['optional_types'].append(type)
         
         c_manager = self.codegen.c_manager
         c_manager.reserve(opt_t.c_type)

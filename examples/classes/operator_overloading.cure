@@ -1,0 +1,22 @@
+// Create a class that multiplies a value by a value
+class Multiplier {
+    int value // The value to multiply
+
+    // Constructor
+    func Multiplier(int value) {
+        this.value = value
+    }
+
+    // Overload the multiply operator, syntactic sugar for 'mul_int'
+    func *(int other) -> int {
+        return this.value * other // Return the value multiplied by the other value
+    }
+}
+
+
+func main() -> int {
+    // Create a new Multiplier with the value 2
+    doubler = new Multiplier(2)
+    print(doubler * 3) // Prints 6
+    return 0
+}

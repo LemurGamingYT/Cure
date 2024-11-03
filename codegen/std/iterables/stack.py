@@ -8,7 +8,7 @@ class Stack:
         self.codegen = codegen
         setattr(codegen.type_checker, 'Stack_type', self.stack_type)
         
-        self.defined_types: list[str] = []
+        codegen.metadata.setdefault('stack_types', [])
         
         @c_dec(
             param_types=(Param('size', Type('int')),),
@@ -27,7 +27,7 @@ class Stack:
     
     def define_stack_type(self, type: Type) -> Type:
         stack_type = Type(f'stack[{type}]', f'{type.c_type}Stack')
-        if type.type in self.defined_types:
+        if type.type in self.codegen.metadata['stack_types']:
             return stack_type
         
         self.codegen.add_toplevel_code(f"""typedef struct {{
@@ -146,5 +146,5 @@ if ({i} < ({stack}).length - 1) {{
 
             return Object(f'(({stack}).data[({stack}).length])', type, call_position)
         
-        self.defined_types.append(type.type)
+        self.codegen.metadata['stack_types'].append(type.type)
         return stack_type

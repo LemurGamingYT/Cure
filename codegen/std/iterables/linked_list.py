@@ -1,4 +1,5 @@
 from codegen.objects import Object, Position, Type, TempVar, Param
+from codegen.array_manager import get_index
 from codegen.c_manager import c_dec
 from ir.nodes import TypeNode
 
@@ -8,7 +9,7 @@ class LinkedList:
         self.codegen = codegen
         setattr(codegen.type_checker, 'LinkedList_type', self.ll_type)
         
-        self.defined_types: list[str] = []
+        codegen.metadata.setdefault('linked_list_types', [])
         
         @c_dec(
             can_user_call=True, add_to_class=self, generic_params=('T',),
@@ -28,7 +29,7 @@ class LinkedList:
         node_type = Type(f'LinkedList[{type}]', f'{type.c_type}LinkedListNode')
         list_type = Type(f'LinkedList[{type}]', f'{type.c_type}LinkedList')
         
-        if type.type in self.defined_types:
+        if type.type in self.codegen.metadata['linked_list_types']:
             return list_type
     
         self.codegen.add_toplevel_code(f"""typedef struct {{
@@ -139,14 +140,16 @@ while ({node}->next != NULL) {{
             current: TempVar = codegen.create_temp_var(node_type, call_position)
             i = codegen.create_temp_var(Type('int'), call_position)
             list_ = f'({ll})'
-            codegen.prepend_code(f"""{node_type.c_type} {new_node};
+            code, idx = get_index(codegen, call_position, index, count(codegen, call_position, ll))
+            codegen.prepend_code(f"""{code}
+{node_type.c_type} {new_node};
 {new_node}.data = {value};
-if (({index}) == 0 || {list_}.head == NULL) {{
+if ({idx} == 0 || {list_}.head == NULL) {{
     {new_node}.next = {list_}.head;
     {list_}.head = &{new_node};
 }} else {{
     {node_type}* {current} = {list_}.head;
-    for (int {i} = 0; {i} < ({index}) - 1 && {current}->next != NULL; {i}++) {{
+    for (int {i} = 0; {i} < {idx} - 1 && {current}->next != NULL; {i}++) {{
         {current} = ({node_type}*){current}->next;
     }}
     
@@ -227,6 +230,5 @@ if ({current} != NULL) {{
 }}
 """)
         
-        self.defined_types.append(type.type)
-        
+        self.codegen.metadata['linked_list_types'].append(type.type)
         return list_type

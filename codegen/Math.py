@@ -5,6 +5,19 @@ from codegen.c_manager import c_dec
 
 class Math:
     def __init__(self, c_manager) -> None:
+        c_manager.codegen.add_toplevel_code("""typedef struct {
+    byte _;
+} Math;
+
+typedef struct {
+    int top, bottom;
+} Fraction;
+
+typedef struct {
+    float x, y;
+} Vector2;
+""")
+        
         @c_dec(
             param_types=(Param('a', Type('Fraction')), Param('b', Type('Fraction'))),
             add_to_class=self

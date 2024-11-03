@@ -1,5 +1,5 @@
-// Create a new function 'test' with two parameters, one of them with a default value of '10'
-func test(int a, int b = 10) -> int {
+// Create a new function 'test1' with two parameters, one of them with a default value of '10'
+func test1(int a, int b = 10) -> int {
     return a + b
 }
 
@@ -10,8 +10,8 @@ func test2(string s, int i = 0, int j = 1) -> string {
 }
 
 func main() -> int {
-    print(test(10)) // Only 'a' is given, 'b' filled with the default value '10'
-    print(test(70, 30)) // 'b' can also be passed too
+    print(test1(10)) // Only 'a' is given, 'b' filled with the default value '10'
+    print(test1(70, 30)) // 'b' can also be passed too
 
     print(test2("hello world")) // both 'i' and 'j' are given immediately
     print(test2("abc", 1))

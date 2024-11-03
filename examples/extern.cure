@@ -1,0 +1,11 @@
+// Similar to #include <stdio.h> in C (not the same)
+extern "stdio.h"
+
+
+func main() -> int {
+    // Use the C standard library's fopen, fwrite and fclose functions
+    fp = fopen("test.txt", "w")
+    fwrite("Hello World!\n", 13, 1, fp)
+    fclose(fp)
+    return 0
+}

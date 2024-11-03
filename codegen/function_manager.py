@@ -2,9 +2,9 @@ from dataclasses import dataclass, field
 from typing import Union, Callable, Any
 from copy import deepcopy
 
-from ir.nodes import Body, FuncDecl, Call
+from ir.nodes import Body, FuncDecl, Call, Identifier
 from codegen.objects import (
-    Type, Object, Position, POS_ZERO, kwargs, Param, Arg, EnvItem, Free, TempVar
+    Type, Object, Position, POS_ZERO, kwargs, Param, Arg, EnvItem, Free, FunctionInfo
 )
 
 
@@ -126,19 +126,35 @@ class FunctionManager:
     def is_main_function(self, func_name: str) -> bool:
         return func_name == 'main'
     
-    def is_preprocessed_function(self, func_name: str) -> bool:
-        return (fn := self.codegen.scope.env[func_name]) is not None and fn.added_by_preprocessor
+    # def make_function_type(
+    #     self, return_type: Type, param_types: tuple[Type, ...], pos: Position
+    # ) -> Type:
+    #     temp_func_name: TempVar = self.codegen.create_temp_var(Type('function'), pos)
+    #     return Type(
+    #         f'({", ".join(str(param) for param in param_types)}) -> {return_type}',
+    #         f'{return_type} (*{temp_func_name})({", ".join(str(param) for param in param_types)})',
+    #         ('function',),
+    #         (tuple(param_types), return_type, str(temp_func_name))
+    #     )
     
-    def make_function_type(
-        self, return_type: Type, param_types: tuple[Type, ...], pos: Position
-    ) -> Type:
-        temp_func_name: TempVar = self.codegen.create_temp_var(Type('function'), pos)
-        return Type(
-            f'({", ".join(str(param) for param in param_types)}) -> {return_type}',
-            f'{return_type} (*{temp_func_name})({", ".join(str(param) for param in param_types)})',
-            ('function',),
-            (tuple(param_types), return_type, str(temp_func_name))
-        )
+    def main_body_code(self, body: Object | str | None) -> str:
+        if body is None:
+            body = ''
+        
+        basic_code = f"""{self.codegen.main_init_code}
+{body}
+"""
+        if len(self.codegen.preprocessor.tests) == 0:
+            return basic_code
+        
+        return f"""#ifndef TEST
+{self.codegen.main_init_code}
+{body}
+#else
+{'\n'.join(f"{test.name}_test();" for test in self.codegen.preprocessor.tests)};
+return 0;
+#endif
+"""
     
     def get_definition_signature(
         self, name: str, return_type: Type, params: list[Param], body: Object | str | None
@@ -146,12 +162,16 @@ class FunctionManager:
         is_main_function = self.is_main_function(name)
         params_str = self.params_str(tuple(params))
         
-        if body is None or body == '':
+        if body is None:
             return f'{return_type.c_type} {name}({params_str});'
         
+        if is_main_function:
+            return f"""{return_type.c_type} {name}({params_str}) {{
+{self.main_body_code(body)}
+}}
+"""
+        
         return f"""{return_type.c_type} {name}({params_str}) {{
-{'init();' if is_main_function else ''}
-{self.codegen.main_init_code if is_main_function else ''}
 {body}
 }}
 """
@@ -167,6 +187,9 @@ class FunctionManager:
     
     @staticmethod
     def params_str(params: tuple['Param', ...]):
+        if len(params) == 0:
+            return 'void'
+        
         return ', '.join(str(param) for param in params)
     
     @staticmethod
@@ -183,11 +206,16 @@ class FunctionManager:
     ):
         callables = []
         for mod in modifications:
-            modification = self.codegen.c_manager.get_object(mod.name)
+            if isinstance(mod.callee, Identifier):
+                callee = mod.callee.name
+            else:
+                mod.callee.pos.error_here('Invalid function modification')
+            
+            modification = self.codegen.c_manager.get_object(callee)
             if modification is not None:
                 callables.append((mod, modification))
             elif modification is None:
-                mod.pos.error_here(f'Unknown function modification \'{mod.name}\'')
+                mod.pos.error_here(f'Unknown function modification \'{callee}\'')
         
         return callables
     
@@ -199,8 +227,7 @@ class FunctionManager:
         
         original_name = name
         overload_args: list | None = None
-        if (fn := self.codegen.scope.env.get(name)) is not None and\
-            not self.is_preprocessed_function(name):
+        if (fn := self.codegen.scope.env.get(name)) is not None:
             if len(callables) > 0:
                 pos.error_here('Function modification overloads are not supported')
             
@@ -217,7 +244,7 @@ class FunctionManager:
             func = UserFunction(name, return_type, params, body, generic_params=generic_params)
             for mod, modification in callables:
                 func.add_modification(
-                    self.codegen, mod.name, mod.pos, modification,
+                    self.codegen, mod.callee.name, mod.pos, modification,
                     tuple(self.codegen.visit_ArgNode(arg) for arg in mod.args)
                 )
             
@@ -225,7 +252,7 @@ class FunctionManager:
         
         return overload_args, name, original_name, func,\
             lambda key: self.codegen.scope.env.update({
-            key: EnvItem(name, Type('function'), pos, func)
+            key: EnvItem(original_name, Type('function'), pos, func)
         })
     
     def define_function(self, node: FuncDecl) -> Object:
@@ -246,16 +273,20 @@ class FunctionManager:
         
         kwargs: dict[str, Any] = {'params': params}
         if self.is_main_function(name):
+            if self.codegen.scope.env.get(name) is not None:
+                node.pos.error_here('Main function already defined')
+            
             if len(params) > 0:
                 node.pos.warn_here('Overriding main function parameters')
             
             params = [Param('argc', Type('int')), Param('argv', Type('string*'))]
-            kwargs['ending_code'] = f'{self.codegen.main_end_code};\ndeinit();\n'
-            code, args_name = self.codegen.c_manager.array_from_c_array(
-                self.codegen, POS_ZERO, Type('string'), 'argv', 'argc'
-            )
-            
-            self.codegen.main_init_code += f"""{code}
+            if self.codegen.optimizer.uses_args:
+                kwargs['ending_code'] = f'{self.codegen.main_end_code};'
+                code, args_name = self.codegen.c_manager.array_from_c_array(
+                    self.codegen, POS_ZERO, Type('string'), 'argv', 'argc'
+                )
+                
+                self.codegen.main_init_code += f"""{code}
 args = {args_name};
 """
         
@@ -544,11 +575,10 @@ args = {args_name};
         return f.call(codegen, call_position, overload, args, **generic_dict)
     
     def call_type(
-        self, codegen, args: tuple['Arg', ...], func_info: tuple[tuple['Type', ...], 'Type', str],
+        self, codegen, args: tuple['Arg', ...], func_info: FunctionInfo, func_name: str,
         call_position: Position
     ) -> Object | None:
-        param_types, return_type, func_name = func_info
-        params = [Param(f'param{i}', type_) for i, type_ in enumerate(param_types)]
+        params = [Param(f'param{i}', type_) for i, type_ in enumerate(func_info.param_types)]
         args, pos = self.handle_args(codegen, args, tuple(params), call_position)
         if pos is not None:
             pos.error_here(args)
@@ -557,5 +587,5 @@ args = {args_name};
         if not success:
             (pos or call_position).error_here(err)
         
-        f = UserFunction(func_name, return_type, params)
+        f = UserFunction(func_name, func_info.return_type, params)
         return f.call(codegen, call_position, None, args)

@@ -1,12 +1,12 @@
-// Add the 'Warn' modification to the 'test' function
+// Add the 'Warn' modification to the 'test1' function
 // This is a deprecated function, so it will print a warning when compiling
 [Warn("This function is deprecated, please use 'test2' instead.")]
-func test() -> int {
+func test1() -> int {
     a = 10 + 2
     return a
 }
 
-// This is the new function that replaces 'test'
+// This is the new function that replaces 'test1'
 func test2() -> int {
     return 10 + 2
 }
@@ -49,7 +49,7 @@ func transformed(int x, int y) -> int {
 
 
 func main() -> int {
-    print(test())
+    print(test1())
     print(test2())
 
     // Benchmark will print out the time spent to execute the function in seconds (will not return)

@@ -57,25 +57,14 @@ typedef struct {
             codegen.prepend_code(f"""string {hexvar} = {hex};
 if (*{hexvar} == '#') {hexvar}++;
 if ({codegen.c_manager._string_length(codegen, call_position, hexvar.OBJECT())} != 6) {{
-    {codegen.c_manager.err('Invalid hex string %s', hexvar.OBJECT())}
+    {codegen.c_manager.err('Invalid hex string %s', str(hexvar.OBJECT()))}
 }}
 
-static char {r}[3];
-{r}[0] = {hexvar}[0];
-{r}[1] = {hexvar}[1];
-{r}[2] = '\\0';
-static char {g}[3];
-{g}[0] = {hexvar}[2];
-{g}[1] = {hexvar}[3];
-{g}[2] = '\\0';
-static char {b}[3];
-{b}[0] = {hexvar}[4];
-{b}[1] = {hexvar}[5];
-{b}[2] = '\\0';
+char {r}[] = {{{hexvar}[0], {hexvar}[1], '\\0'}};
+char {g}[] = {{{hexvar}[2], {hexvar}[3], '\\0'}};
+char {b}[] = {{{hexvar}[4], {hexvar}[5], '\\0'}};
 
-Color {color} = {{
-    .r = (unsigned char)strtol({r}), .g = (unsigned char)strtol({g}), .g = (unsigned char)strtol({b})
-}};
+Color {color} = {{.r = atoi({r}), .g = atoi({g}), .b = atoi({b})}};
 """)
             
             return color.OBJECT()

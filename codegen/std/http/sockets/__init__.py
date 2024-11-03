@@ -1,4 +1,5 @@
 from codegen.objects import Object, Position, Type, Param, Free, TempVar
+from codegen.function_manager import OverloadKey, OverloadValue
 from codegen.c_manager import c_dec
 from codegen.target import Target
 
@@ -10,10 +11,13 @@ class sockets:
 """)
         
         if codegen.target != Target.WINDOWS:
-            codegen.pos.warn_here('sockets is only supported on Windows')
-        else:
-            codegen.extra_compile_args.append('-lws2_32')
-            codegen.add_toplevel_code('#pragma comment(lib, "Ws2_32.lib")')
+            codegen.pos.not_supported_err('sockets')
+        
+        codegen.extra_compile_args.append('-lws2_32')
+        codegen.add_toplevel_code("""#include <winsock2.h>
+#include <ws2tcpip.h>
+#pragma comment(lib, "Ws2_32.lib")
+""")
         
         codegen.type_checker.add_type(('Socket', 'AddrInfo'))
         
@@ -153,9 +157,9 @@ if ({res} != 0) {{
             codegen.prepend_code(f"""struct addrinfo *{result}, {hints};
 
 ZeroMemory(&{hints}, sizeof({hints}));
-{hints}.ai_family = (int){family};
-{hints}.ai_socktype = (int){type};
-{hints}.ai_protocol = (int){protocol};
+{hints}.ai_family = {family.cast(Type('int'))};
+{hints}.ai_socktype = {type.cast(Type('int'))};
+{hints}.ai_protocol = {protocol.cast(Type('int'))};
 
 int {ret} = getaddrinfo({host}, {port}, &{hints}, &{result});
 if ({ret} != 0) {{
@@ -176,37 +180,60 @@ if ({ret} != 0) {{
         def _Socket_is_invalid(_, call_position: Position, sock: Object) -> Object:
             return Object(f'(({sock}).sock == INVALID_SOCKET)', Type('bool'), call_position)
         
+        def connect_socket_int(codegen, call_position: Position, sock: Object, host: Object,
+                               port: Object) -> Object:
+            return _Socket_connect(
+                codegen, call_position, sock, host,
+                codegen.c_manager._int_to_string(codegen, call_position, port)
+            )
+        
         @c_dec(
-            param_types=(Param('sock', Type('Socket')), Param('info', Type('AddrInfo'))),
-            is_method=True, add_to_class=self
+            param_types=(
+                Param('sock', Type('Socket')), Param('host', Type('string')),
+                Param('port', Type('string'))
+            ), is_method=True, add_to_class=self, overloads={
+                OverloadKey(Type('int'), (
+                    Param('sock', Type('Socket')), Param('host', Type('string')),
+                    Param('port', Type('int'))
+                )): OverloadValue(connect_socket_int)
+            }
         )
-        def _Socket_connect(_, call_position: Position, sock: Object, info: Object) -> Object:
+        def _Socket_connect(codegen, call_position: Position, sock: Object, host: Object,
+                            port: Object) -> Object:
+            info = _AddrInfo_new(
+                codegen, call_position, host, port,
+                sock.attr('family'), sock.attr('type'), sock.attr('protocol')
+            )
+            
             return Object(
                 f"""(connect(
-                    ({sock}).sock, ({info}).result->ai_addr, (int)(({info}).result->ai_addrlen)
+                    {sock.attr('sock')}, {info.attr('result').attr('ai_addr', True)},
+                    {info.attr('result').attr('ai_addrlen', True).cast(Type('int'))}
                 ))""",
                 Type('int'), call_position
             )
         
         @c_dec(
             param_types=(
-                Param('sock', Type('Socket')), Param('data', Type('string')),
-                Param('length', Type('int'))
+                Param('sock', Type('Socket')), Param('data', Type('string'))
             ), is_method=True, add_to_class=self
         )
-        def _Socket_send(_, call_position: Position, sock: Object, data: Object,
-                         length: Object) -> Object:
-            return Object(f'(send(({sock}).sock, {data}, {length}, 0))', Type('int'), call_position)
+        def _Socket_send(codegen, call_position: Position, sock: Object, data: Object) -> Object:
+            length = codegen.c_manager._string_length(codegen, call_position, data)
+            return Object(
+                f'(send(({sock}).sock, {data}, {length}, 0))',
+                Type('int'), call_position
+            )
         
         @c_dec(
             param_types=(
-                Param('sock', Type('Socket')), Param('buf', Type('string')),
-                Param('buf_size', Type('int'))
+                Param('sock', Type('Socket')), Param('buffer', Type('string')),
+                Param('size', Type('int'))
             ), is_method=True, add_to_class=self
         )
-        def _Socket_recv(_, call_position: Position, sock: Object, buf: Object,
-                         buf_size: Object) -> Object:
-            return Object(f'(recv(({sock}).sock, {buf}, {buf_size}, 0))', Type('int'), call_position)
+        def _Socket_recv(_, call_position: Position, sock: Object, buffer: Object,
+                         size: Object) -> Object:
+            return Object(f'(recv(({sock}).sock, {buffer}, {size}, 0))', Type('int'), call_position)
         
         @c_dec(
             param_types=(

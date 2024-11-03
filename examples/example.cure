@@ -10,7 +10,8 @@ func test_add(float a, float b) -> float { // This time, make a float version
 }
 
 // If no return type is specifed, the function will return nil
-func test(string x) {
+// ('test_' is used because 'test' is a reserved keyword)
+func test_(string x) {
     print(x)
     // Compiler inserts 'return nil'
 }
@@ -38,6 +39,9 @@ func main() -> int {
 
     // Call the test add function with 'x' and 'y' as the arguments
     print(test_add(x, y))
+
+    // Call the test_ function
+    test_("Hello, world!")
 
     // define an array
     arr = {8935, 87125, 95, 841, 12378, 58, 5490, 1249, 3489, 590, 5309, 309}

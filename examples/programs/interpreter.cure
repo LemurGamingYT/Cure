@@ -1,0 +1,63 @@
+// Define an enum for instruction types in the interpreter
+enum InstructionType {
+    PUSH, ADD, PRINT
+}
+
+// Define the Instruction class to represent a single instruction in the interpreter
+class Instruction {
+    InstructionType type
+    array[int] operands
+
+    static func Instruction(InstructionType type, array[int] operands) {
+        this.type = type
+        this.operands = operands
+    }
+}
+
+// Define the Interpreter class to represent the interpreter itself
+class Interpreter {
+    int pc // Program counter
+    array[int] stack // Stack to hold values during execution
+    array[Instruction] program // Array of instructions to execute
+
+    // Constructor to initialize the interpreter
+    static func Interpreter(array[Instruction] program) {
+        this.pc = 0 // Initialize program counter to 0
+        this.stack = int{} // Initialize stack to empty
+        this.program = program // Set program to the provided array of instructions
+    }
+
+    // Method to execute the program
+    func run() {
+        // Loop through the program until the end is reached
+        while this.pc < this.program.length {
+            instruction = this.program[this.pc] // Get the current instruction
+
+            // Execute the instruction based on its type
+            if instruction.type == InstructionType.PUSH {
+                this.stack.add(instruction.operands[0]) // Push the operand onto the stack
+            } else if instruction.type == InstructionType.ADD {
+                // Pop the top two values from the stack, add them, and push the result
+                this.stack.add(this.stack.pop_at(-1) + this.stack.pop_at(-1))
+            } else if instruction.type == InstructionType.PRINT {
+                print(this.stack[-1]) // Print the top value on the stack (does not pop)
+            }
+
+            // Increment the program counter to move to the next instruction
+            this.pc += 1
+        }
+    }
+}
+
+func main() -> int {
+    // Create instructions for pushing 1 and 2 onto the stack, adding them, and printing the result
+    push_1 = new Instruction(InstructionType.PUSH, {1})
+    push_2 = new Instruction(InstructionType.PUSH, {2})
+    add = new Instruction(InstructionType.ADD, int{})
+    print_ = new Instruction(InstructionType.PRINT, int{})
+
+    // Create an interpreter with the program and run it
+    interpreter = new Interpreter({push_1, push_2, add, print_})
+    interpreter.run()
+    return 0
+}

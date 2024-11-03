@@ -22,13 +22,6 @@ typedef struct {
     int length;
     bool is_match;
 } Match;
-
-typedef struct {
-    char* str;
-    size_t length;
-    size_t capacity;
-    char* previously_added;
-} RegexBuilder;
 #define CURE_REGEX_H
 #endif
 """)

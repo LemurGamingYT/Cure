@@ -2,42 +2,46 @@ from typing import Iterable, Any
 # from pprint import pprint
 from pathlib import Path
 
-from codegen.objects import (
-    Scope, Object, Type, EnvItem, Free, TempVar, ID_REGEX, POS_ZERO, INT_REGEX, Arg, Param,
-    CodeType
-)
 from codegen.function_manager import FunctionManager, FunctionType
 from codegen.dependency_manager import DependencyManager
 from codegen.optional_manager import OptionalManager
 from codegen.tuple_manager import TupleManager
 from codegen.class_manager import ClassManager
 from codegen.array_manager import ArrayManager
-from codegen.c_manager import CManager, c_dec
 from codegen.target import get_current_target
+from codegen.c_manager import CManager, c_dec
 from codegen.preprocessor import Preprocessor
 from codegen.dict_manager import DictManager
 from codegen.type_checker import TypeChecker
+from codegen.extern import ExternalManager
+from codegen.optimizer import Optimizer
 from ir.base_visitor import IRVisitor
+from codegen.target import Target
+from codegen.objects import (
+    Scope, Object, Type, EnvItem, Free, TempVar, ID_REGEX, POS_ZERO, INT_REGEX, Arg, Param,
+    CodeType
+)
 from ir import (
     Program, Body, TypeNode, ParamNode, ArgNode, Call, Return, Foreach, While,
     If, Use, VarDecl, Value, Identifier, Array, Dict, Brackets, BinOp, UOp, Attribute, New,
     Ternary, Position, Node, Break, Continue, FuncDecl, Nil, Index, DollarString, IRBuilder,
-    Cast, Enum, Class, AttrAssign, CreateTuple, op_map, RangeFor
+    Cast, Enum, Class, AttrAssign, CreateTuple, op_map, RangeFor, Extern, Test
 )
 
 
 def str_to_c(cure: str, scope: Scope | None = None,
-             filename: Path | None = None) -> tuple['CodeGen', str]:
+             filename: Path | None = None, target: Target | None = None) -> tuple['CodeGen', str]:
     builder = IRBuilder()
     program = builder.build(cure)
     program.file = filename
     # pprint(program)
     
-    codegen = CodeGen(scope)
+    codegen = CodeGen(program, target, scope)
     return codegen, codegen.generate(program)
 
-def cure_to_c(cure: Path, output: Path | None = None) -> tuple['CodeGen', str]:
-    codegen, code = str_to_c(cure.read_text('utf-8'), filename=cure)
+def cure_to_c(cure: Path, output: Path | None = None,
+              target: Target | None = None) -> tuple['CodeGen', str]:
+    codegen, code = str_to_c(cure.read_text('utf-8'), filename=cure, target=target)
     if output is not None:
         output.write_text(code, 'utf-8')
     
@@ -45,55 +49,56 @@ def cure_to_c(cure: Path, output: Path | None = None) -> tuple['CodeGen', str]:
 
 
 class CodeGen(IRVisitor):
-    def __init__(self, scope: Scope | None = None) -> None:
+    def __init__(self, ir: Program, target: Target | None, scope: Scope | None = None) -> None:
         super().__init__()
-        self.metadata: dict[Any, Any] = {}
         
+        self.target = get_current_target() if target is None else target
+        self.extra_compile_args: list[str] = []
+        self.metadata: dict[Any, Any] = {}
+        self.scope = scope or Scope()
+        
+        self.top_code = CodeType()
         self.main_end_code = CodeType()
         self.main_init_code = CodeType()
         self.top_level_code = CodeType()
-        self.top_code = CodeType()
-        self.scope = scope or Scope()
         
         self.preprocessor = Preprocessor(self)
         self.type_checker = TypeChecker(self)
-        
-        self.extra_compile_args: list[str] = []
-        self.target = get_current_target()
         
         self.c_manager = CManager(self)
         self.dict_manager = DictManager(self)
         self.array_manager = ArrayManager(self)
         self.class_manager = ClassManager(self)
         self.tuple_manager = TupleManager(self)
+        self.external_manager = ExternalManager(self)
         self.function_manager = FunctionManager(self)
         self.optional_manager = OptionalManager(self)
         self.dependency_manager = DependencyManager(self, str_to_c)
         
-        self.add_toplevel_code('#ifndef _CURE_INITIALISED\n')
+        self.optimizer = Optimizer(ir, self)
+        optimized_ir = self.optimizer.optimize()
+        if optimized_ir is None:
+            self.pos.warn_here('Failed to optimize code')
         
-        str_array = self.array_manager.define_array(Type('string'))
+        ir = optimized_ir or ir # type: ignore
         
-        self.scope.env['init'] = EnvItem('init', Type('function'), POS_ZERO)
-        self.scope.env['deinit'] = EnvItem('deinit', Type('function'), POS_ZERO)
-        self.scope.env['args'] = EnvItem('args', str_array, POS_ZERO)
-        self.add_toplevel_code(f"""{str_array.c_type} args;
-void init() {{
-srand(time(NULL));
-#if OS_WINDOWS
-    SetConsoleOutputCP(CP_UTF8);
-#else
-    setlocale(LC_ALL, "en_US.UTF-8");
-#endif
-}}
-
-void deinit() {{
-    free(args.elements);
-}}
-
-#define _CURE_INITIALISED
-#endif
-""")
+        self.preprocessor.preprocess(ir)
+        
+        requires_args = self.optimizer.uses_args
+        if requires_args:
+            str_array = self.array_manager.define_array(Type('string'))
+            
+            self.add_toplevel_code(f'{str_array.c_type} args;')
+            
+            self.scope.env['args'] = EnvItem('args', str_array, POS_ZERO)
+            self.main_end_code += 'free(args.elements);'
+        
+        configure_terminal = 'SetConsoleOutputCP(CP_UTF8);'\
+            if self.target == Target.WINDOWS else 'setlocale(LC_ALL, "en_US.UTF-8");'
+        
+        self.main_init_code += f"""srand(time(NULL));
+{configure_terminal}
+"""
     
     def is_number_constant(self, value: Object | str) -> bool:
         """Checks whether a value is a string constant, i.e. is a number and nothing else e.g. 42.
@@ -215,11 +220,14 @@ void deinit() {{
             str: The output name.
         """
         
+        if not self.name_occupied(base_name):
+            return base_name
+        
         i = 0
-        name = base_name + str(i)
+        name = f'{base_name}{i}'
         while self.name_occupied(name):
             i += 1
-            name = base_name + str(i)
+            name = f'{base_name}{i}'
         
         return name
     
@@ -276,8 +284,8 @@ void deinit() {{
             name = self.fix_name(name)
         
         if add_code:
-            if value is None:
-                POS_ZERO.warn_here(f'Constant \'{original_name}\' has no value, skipping adding it.')
+            if value is None and self.pos is not None:
+                self.pos.warn_here(f'Constant \'{original_name}\' has no value, skipping adding it.')
                 return
             
             self.add_toplevel_code(f'const {type.c_type} {name} = {value};')
@@ -347,7 +355,7 @@ void deinit() {{
             Object: The output of the function as an `Object`.
         """
         
-        if (item := self.scope.env.get(name)) is not None:
+        if (item := self.scope.env.get(name)) is not None and item.type is not None:
             if (func := item.func) is not None:
                 obj = self.function_manager.call_func(
                     self, tuple(args), func, call_position,
@@ -359,7 +367,7 @@ void deinit() {{
                 return self.handle_free(obj.free, obj, call_position)
             
             if (func_info := item.type.function_info) is not None:
-                obj = self.function_manager.call_type(self, tuple(args), func_info, call_position)
+                obj = self.function_manager.call_type(self, tuple(args), func_info, name, call_position)
                 if obj is None:
                     call_position.error_here(f'Function \'{name}\' returned absolutely nothing')
                 
@@ -689,8 +697,8 @@ void deinit() {{
             
             const = 'const ' if node.is_const else ''
             if type_.function_info is not None:
-                _, _, temp_name = type_.function_info
-                signature = f'{type_.c_type.replace(temp_name, name)}'
+                temp_name = type_.function_info.typedef_name
+                signature = f'{const}{temp_name} {name}'
             else:
                 signature = f'{const}{type_.c_type} {name}'
             
@@ -744,12 +752,18 @@ void deinit() {{
     
     def visit_Identifier(self, node: Identifier) -> Object:
         if (item := self.scope.env.get(node.name)) is not None:
-            if item.func is not None:
-                return Object(item.name, Type('function'), node.pos)
+            if (func := item.func) is not None:
+                function_info = self.type_checker.make_function_info(func.return_type, [
+                    param.type for param in func.params
+                ])
+                
+                return Object(item.name, function_info.as_type(), node.pos)
 
             return Object(item.name, item.type, node.pos, free=item.free)
         elif self.type_checker.is_valid_type(node.name):
             return Object(node.name, Type('type'), node.pos)
+        elif (c_func := self.c_manager.get_object(node.name)) is not None:
+            return Object(node.name, c_func.return_type, node.pos)
         else:
             node.pos.error_here(f'Name \'{node.name}\' is not defined')
     
@@ -768,7 +782,9 @@ void deinit() {{
             type_ = elements[0].value.type
             for elem in elements:
                 if elem.value.type != type_:
-                    elem.value.position.error_here('Type mismatch in array')
+                    elem.value.position.error_here(
+                        f'Type mismatch in array (\'{elem.value.type}\' and \'{type_}\')'
+                    )
         elif type_ is None and len(elements) == 0:
             node.pos.error_here('Array inference requires at least one element')
         elif type_ is None:
@@ -796,7 +812,7 @@ void deinit() {{
             ktype = tuple(elements.keys())[0].type
             for key in elements.keys():
                 if key.type != ktype:
-                    key.position.error_here('Type mismatch in dict')
+                    key.position.error_here(f'Type mismatch in dict (\'{key.type}\' and \'{ktype}\')')
         elif ktype is None and len(elements.keys()) == 0:
             node.pos.error_here('Dictionary inference requires at least one element')
         elif ktype is None:
@@ -809,7 +825,9 @@ void deinit() {{
             vtype = tuple(elements.values())[0].type
             for value in elements.values():
                 if value.type != vtype:
-                    value.position.error_here('Type mismatch in dict')
+                    value.position.error_here(
+                        f'Type mismatch in dict (\'{value.type}\' and \'{vtype}\')'
+                    )
         elif vtype is None and len(elements.values()) == 0:
             node.pos.error_here('Dictionary inference requires at least one element')
         elif vtype is None:
@@ -832,8 +850,8 @@ void deinit() {{
     
     def visit_Call(self, node: Call) -> Object:
         return self.call(
-            node.name, [self.visit_ArgNode(arg) for arg in node.args], node.pos, True,
-            self.get_generic_args(node.generic_args)
+            str(self.visit(node.callee)), [self.visit_ArgNode(arg) for arg in node.args],
+            node.pos, True, self.get_generic_args(node.generic_args)
         )
     
     def visit_Ternary(self, node: Ternary) -> Object:
@@ -1034,3 +1052,11 @@ void deinit() {{
         
         self.exit_scope()
         return out
+    
+    def visit_Extern(self, node: Extern) -> Object:
+        self.external_manager.add_external(node.name, node.pos)
+        return Object(f'// external declaration for \'{node.name}\'', Type('nil'), node.pos)
+    
+    def visit_Test(self, node: Test) -> Object:
+        function = FuncDecl(node.pos, f'{node.name}_test', node.body, [])
+        return self.visit_FuncDecl(function)

@@ -1,5 +1,14 @@
 # Update Log
 
+### Version 0.0.6 (Nov 3, 2024)
+- 'extern' keyword
+- Code optimizer
+- Bug fixes and small changes
+- Targetting different OS platforms
+- Better class operator overloading
+- Class destructors
+- First class functions
+
 ### Version 0.0.51 (Oct 15, 2024)
 - Quick bug fixes
 

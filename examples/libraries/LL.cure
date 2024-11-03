@@ -37,7 +37,7 @@ func main() -> int {
     // Create a new bit field of 32 bits
     field = new BitField(32)
     // Set every bit to either true or false
-    foreach i in range(field.num_of_bits) {
+    for i in 0..field.num_of_bits {
         field.set(i, Math.random(1) == 0)
     }
 

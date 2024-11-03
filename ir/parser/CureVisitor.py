@@ -69,6 +69,16 @@ class CureVisitor(ParseTreeVisitor):
         return self.visitChildren(ctx)
 
 
+    # Visit a parse tree produced by CureParser#externStmt.
+    def visitExternStmt(self, ctx:CureParser.ExternStmtContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by CureParser#methodName.
+    def visitMethodName(self, ctx:CureParser.MethodNameContext):
+        return self.visitChildren(ctx)
+
+
     # Visit a parse tree produced by CureParser#classProperty.
     def visitClassProperty(self, ctx:CureParser.ClassPropertyContext):
         return self.visitChildren(ctx)
@@ -109,6 +119,11 @@ class CureVisitor(ParseTreeVisitor):
         return self.visitChildren(ctx)
 
 
+    # Visit a parse tree produced by CureParser#testAssign.
+    def visitTestAssign(self, ctx:CureParser.TestAssignContext):
+        return self.visitChildren(ctx)
+
+
     # Visit a parse tree produced by CureParser#arg.
     def visitArg(self, ctx:CureParser.ArgContext):
         return self.visitChildren(ctx)
@@ -139,18 +154,73 @@ class CureVisitor(ParseTreeVisitor):
         return self.visitChildren(ctx)
 
 
-    # Visit a parse tree produced by CureParser#call.
-    def visitCall(self, ctx:CureParser.CallContext):
-        return self.visitChildren(ctx)
-
-
     # Visit a parse tree produced by CureParser#atom.
     def visitAtom(self, ctx:CureParser.AtomContext):
         return self.visitChildren(ctx)
 
 
-    # Visit a parse tree produced by CureParser#expr.
-    def visitExpr(self, ctx:CureParser.ExprContext):
+    # Visit a parse tree produced by CureParser#new.
+    def visitNew(self, ctx:CureParser.NewContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by CureParser#tuple_create.
+    def visitTuple_create(self, ctx:CureParser.Tuple_createContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by CureParser#index.
+    def visitIndex(self, ctx:CureParser.IndexContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by CureParser#unary.
+    def visitUnary(self, ctx:CureParser.UnaryContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by CureParser#logical.
+    def visitLogical(self, ctx:CureParser.LogicalContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by CureParser#call.
+    def visitCall(self, ctx:CureParser.CallContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by CureParser#cast.
+    def visitCast(self, ctx:CureParser.CastContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by CureParser#atom_expr.
+    def visitAtom_expr(self, ctx:CureParser.Atom_exprContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by CureParser#relational.
+    def visitRelational(self, ctx:CureParser.RelationalContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by CureParser#multiplication.
+    def visitMultiplication(self, ctx:CureParser.MultiplicationContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by CureParser#attr.
+    def visitAttr(self, ctx:CureParser.AttrContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by CureParser#ternary.
+    def visitTernary(self, ctx:CureParser.TernaryContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by CureParser#addition.
+    def visitAddition(self, ctx:CureParser.AdditionContext):
         return self.visitChildren(ctx)
 
 

@@ -1,0 +1,36 @@
+func camel_to_snake(string s) -> string {
+    snake_str = ""
+    i = 0
+    foreach c in s {
+        if c.is_upper {
+            snake_str += "_" + c.lower()
+        } else if s[i - 1].is_digit && c.is_lower {
+            snake_str += "_" + c
+        } else if s[i - 1].is_alpha && c.is_digit {
+            snake_str += "_" + c.lower()
+        } else if !c.is_alnum {
+            snake_str += "_"
+        } else {
+            snake_str += c
+        }
+
+        i += 1
+    }
+
+    if snake_str[0] == "_" {
+        snake_str = snake_str.slice(1, snake_str.length)
+    }
+
+    return snake_str
+}
+
+func main() -> int {
+    print(camel_to_snake("TestVariable"))
+    return 0
+}
+
+test camel_to_snake {
+    assert(camel_to_snake("TestVariable") == "test_variable")
+    assert(camel_to_snake("TestVariable2") == "test_variable_2")
+    assert(camel_to_snake("TestVariable2Test") == "test_variable_2_test")
+}

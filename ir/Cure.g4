@@ -4,13 +4,13 @@ parse: stmt* EOF;
 
 type
     : ID (LBRACK type (COLON type)? RBRACK)? QUESTION?
+    | LPAREN (type (COMMA type)*)? RPAREN RETURNS type
     | LPAREN (type (COMMA type)*)? RPAREN
-    // | LPAREN (type (COMMA type)*)? RPAREN RETURNS type
     ;
 
 stmt
-    : varAssign | funcAssign | classAssign | enumAssign
-    | foreachStmt | whileStmt | ifStmt | useStmt | rangeStmt
+    : varAssign | funcAssign | classAssign | enumAssign | testAssign
+    | foreachStmt | whileStmt | ifStmt | useStmt | rangeStmt | externStmt
     | expr
     ;
 
@@ -24,9 +24,18 @@ whileStmt: WHILE expr body;
 rangeStmt: FOR ID IN expr DOUBLEDOT expr body;
 foreachStmt: FOREACH ID IN expr body;
 useStmt: USE STRING;
+externStmt: EXTERN STRING;
+
+methodName
+    : (TILDE ID)
+    | ID
+    | opname=(ADD | SUB | MUL | DIV | MOD | EEQ | NEQ | LT | GT | GTE | LTE | AND | OR)
+    ;
 
 classProperty: (PUBLIC | PRIVATE)? type ID (ASSIGN expr)?;
-classMethod: (PUBLIC | PRIVATE)? STATIC? FUNC OVERRIDE? ID LPAREN params? RPAREN (RETURNS type)? body;
+classMethod
+    : (PUBLIC | PRIVATE)? STATIC? FUNC OVERRIDE? name=methodName LPAREN params? RPAREN (RETURNS type)? body
+    ;
 classDeclarations
     : (classMethod | classProperty)+
     ;
@@ -42,6 +51,7 @@ varAssign
     : CONST? type? ID op=(ADD | SUB | MUL | DIV | MOD)? ASSIGN expr
     | ID DOT ID op=(ADD | SUB | MUL | DIV | MOD)? ASSIGN expr
     ;
+testAssign: TEST ID body;
 
 arg: (ID COLON)? expr;
 args: arg (COMMA arg)*;
@@ -52,7 +62,6 @@ params: param (COMMA param)*;
 dict_element: expr COLON expr;
 
 genericArgs: LBRACK type (COMMA type)* RBRACK;
-call: ID genericArgs? LPAREN args? RPAREN;
 atom
     : (LBRACK type COLON type RBRACK)? LBRACE (dict_element (COMMA dict_element)*)? RBRACE
     | type? LBRACE args? RBRACE
@@ -66,21 +75,21 @@ atom
     ;
 
 expr
-    : call
-    // | FUNC LPAREN params? RPAREN (RETURNS type)? body
-    | atom
-    | LPAREN type RPAREN expr
-    | expr DOT ID genericArgs? (LPAREN args? RPAREN)?
-    | expr IF expr ELSE expr
-    | LPAREN (expr (COMMA expr)*)+ RPAREN
-    // | LBRACE expr COLON ID IN expr RBRACE
-    | NEW ID LPAREN args? RPAREN
-    | expr LBRACK expr RBRACK
-    | expr op=(MUL | DIV | MOD) expr
-    | expr op=(ADD | SUB) expr
-    | expr op=(EEQ | NEQ | GT | LT | GTE | LTE) expr
-    | expr op=(AND | OR) expr
-    | uop=(NOT | SUB | ADD) expr
+    : LPAREN type RPAREN expr #cast
+    // | FUNC LPAREN params? RPAREN (RETURNS type)? body #lambda
+    | atom #atom_expr
+    | NEW ID LPAREN args? RPAREN #new
+    | LPAREN (expr (COMMA expr)*)+ RPAREN #tuple_create
+    | expr genericArgs? LPAREN args? RPAREN #call
+    | expr DOT ID genericArgs? (LPAREN args? RPAREN)? #attr
+    | expr IF expr ELSE expr #ternary
+    // | LBRACE expr COLON ID IN expr RBRACE #list_comp
+    | expr LBRACK expr RBRACK #index
+    | expr op=(MUL | DIV | MOD) expr #multiplication
+    | expr op=(ADD | SUB) expr #addition
+    | expr op=(EEQ | NEQ | GT | LT | GTE | LTE) expr #relational
+    | expr op=(AND | OR) expr #logical
+    | uop=(NOT | SUB | ADD) expr #unary
     ;
 
 
@@ -93,10 +102,12 @@ FOR: 'for';
 ENUM: 'enum';
 ELSE: 'else';
 FUNC: 'func';
+TEST: 'test';
 WHILE: 'while';
 BREAK: 'break';
 CONST: 'const';
 RETURN: 'return';
+EXTERN: 'extern';
 FOREACH: 'foreach';
 CONTINUE: 'continue';
 
@@ -135,6 +146,7 @@ DOUBLEDOT: '..';
 DOT: '.';
 COMMA: ',';
 COLON: ':';
+TILDE: '~';
 ASSIGN: '=';
 LPAREN: '(';
 RPAREN: ')';

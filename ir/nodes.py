@@ -17,6 +17,16 @@ class Position:
     column: int
     src: str = field(repr=False)
     
+    def not_supported_err(self, symbol_name: str) -> NoReturn:
+        """Error message for when a symbol is not supported.
+
+        Args:
+            symbol_name (str): The symbol name. If this is a function, it should end with `()` to
+            indicate that it is a function.
+        """
+        
+        self.error_here(f'{symbol_name} is not supported on current target')
+    
     def get_print_content(self, color: AnsiFore, msg: str) -> str:
         return f'{self.get_src()}\n{Style.BRIGHT}{color}{" " * self.column}^\n{msg}{Style.RESET_ALL}'
     
@@ -74,7 +84,7 @@ class ArgNode(Node):
 
 @dataclass(**kwargs)
 class Call(Node):
-    name: str
+    callee: Node
     args: list[ArgNode] = field(default_factory=list)
     generic_args: list[TypeNode] = field(default_factory=list)
 
@@ -115,6 +125,10 @@ class If(Node):
 @dataclass(**kwargs)
 class Use(Node):
     path: str
+
+@dataclass(**kwargs)
+class Extern(Node):
+    name: str
 
 @dataclass(**kwargs)
 class VarDecl(Node):
@@ -264,4 +278,9 @@ class RangeFor(Node):
     loop_name: str
     start: Node
     end: Node
+    body: Body
+
+@dataclass(**kwargs)
+class Test(Node):
+    name: str
     body: Body

@@ -3,8 +3,8 @@
 use "threads"
 
 
-// 'test' is a function that takes two integers and prints their sum
-func test(int a, int b) {
+// 'test1' is a function that takes two integers and prints their sum
+func test1(int a, int b) {
     print(a + b)
 }
 
@@ -20,8 +20,8 @@ func test2(int x) {
 }
 
 func main() -> int {
-    // Create a new thread that calls the 'test' function with the arguments 1 and 2
-    thread = new Thread(test, 1, 2) // Automatically starts the thread
+    // Create a new thread that calls the 'test1' function with the arguments 1 and 2
+    thread = new Thread(test1, 1, 2) // Automatically starts the thread
     print(thread) // Print the thread object
     
     // Thread.id is not supported on Windows
@@ -34,10 +34,10 @@ func main() -> int {
     // Wait for the thread to finish
     thread.join()
 
+
     /*Equivalent to:
     thread = new Thread(test2, ONE_MILLION)
     thread.join()*/
-
     test2(ONE_MILLION) // Call the Thread modified function
     return 0
 }

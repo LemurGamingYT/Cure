@@ -1,11 +1,13 @@
 # TODOs
  TODOs for the Cure programming language
 
-*as of v0.0.4*
+*as of v0.0.6*
 - [x] Fix nested arrays
 - [x] Support toplevel/global variables
 - [ ] Support overloaded function modifications
 - [ ] Functions
+    - [ ] First class functions: Gives the ability to have functions as types
+        - [ ] Test more
     - [ ] Anonymous functions: Functions that are not named
     - [x] Overloading
     - [x] Default Arguments
@@ -32,8 +34,11 @@
 value = double(5) // Expands to 5*2`
 - [ ] Coroutines and async/await: Asynchronous programming features for better concurrency handling
 - [x] Enums: A simple way to define a set of named constants
-- [ ] First class functions: Gives the ability to have functions as types
 - [ ] 'extern' keyword: Allows the use of external functions from C
+    - [ ] Header libraries
+    - [ ] Finish all headers
+    - [ ] Allow inclusion of C files/headers
+    - [ ] Windows API: Wrapper around the C `Windows.h` header from https://en.wikipedia.org/wiki/Windows.h
 - [ ] Generic functions: Every time a function with generic parameters is called, the compiler will define a new function for the new generic type. For example `func add[T](T a, T b) -> T {
     return a + b
 }
@@ -41,6 +46,7 @@ value = double(5) // Expands to 5*2`
 print(func(8, 10)) // Generates add(int, int) -> int
 print(func(5.7, 9)) // Generates add(float, int) -> float`
     - [ ] Allow the use of the generic type in the function body
+    - [ ] Make the implementation a bit better
 - [x] Optionals: A type that can be either a value or nil. This is implemented as another type (needs more testing)
 - [x] Casting: Convert a type to another type
 - [ ] Libraries
@@ -67,10 +73,16 @@ if pattern.match("123-4567") {
         - [x] Inline Assembly: Inline assembly code (not tested)
         - [x] Process manipulation: Read and write memory to processes
         - [ ] Memory Pool: Memory pool class for allocating chunks of memory efficiently, https://en.wikipedia.org/wiki/Memory_pool
-        - [ ] Slab Allocator: A slab allocator for allocating memory, https://en.wikipedia.org/wiki/Slab_allocation
-    - [ ] Windows API: Wrapper around the C `Windows.h` header
+        - [ ] Allocators
+            - [ ] Slab Allocator: A slab allocator for allocating memory, https://en.wikipedia.org/wiki/Slab_allocation
+            - [ ] Page Allocator: The most basic allocator, whenever it makes an allocation it will ask the OS for entire pages of memory. This is of course fairly inefficient and slow.
+            - [ ] Fixed Buffer Allocator: allocates memory into a fixed buffer and does not make any heap allocations. Very performant but requires you to know the size of the buffer ahead of time.
+            - [ ] Arena Allocator: Takes in a child allocator and allocates memory multiply times but only free it once. This is useful for when you wish to allocate multiple things and free them all at once since they are all allocated in the same memory block.
+            - [ ] General Purpose Allocator: a general purpose safe allocator that can be used for most cases. This is not the most performant or efficient allocator but it can be made much faster than the page allocator by turning off features such as thread safety and other safety checks.
+            - [ ] C Allocator: A very high performance allocator with limited to no safety features. It will essentially call malloc and free from the C standard library, which basically removes the main benefit of using allocators which is no behind the scenes allocations and deallocations.
     - [ ] Http library: GET or POST requests and TCP/IP, UDP, etc
-        - [x] Sockets
+        - [ ] Sockets
+            - [ ] Test and make programs
     - [x] Text library: Text wrapping and locale
     - [ ] Compression library: RLE and other compression techniques
     - [x] Threading library: Thread code in different threads on the CPU
@@ -84,6 +96,7 @@ if pattern.match("123-4567") {
         - [ ] HTML
         - [ ] YAML
         - [ ] INI
+            - [ ] Test
         - [ ] Markdown
     - [ ] UI library: A library for creating user interfaces
         - [x] Window, Button, Label and Frame

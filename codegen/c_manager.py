@@ -4,10 +4,11 @@ from pathlib import Path
 
 from colorama import Fore
 
+from codegen.objects import Object, Position, EnvItem, Free, Type, TempVar, POS_ZERO, Arg, Param
+from codegen.target import Target
 from codegen.function_manager import (
     Overloads, BuiltinFunction, UserFunction, OverloadKey, OverloadValue
 )
-from codegen.objects import Object, Position, EnvItem, Free, Type, TempVar, POS_ZERO, Arg, Param
 
 
 CURRENT_FILE = Path(__file__).absolute()
@@ -227,6 +228,9 @@ class CManager:
             codegen (type): The codegen instance.
         """
         
+        if file in self.includes:
+            return
+        
         self.includes.add(file)
         codegen.add_toplevel_code(f'#include {file}')
     
@@ -292,7 +296,7 @@ class CManager:
             func (Callable): The Python function callable.
         """
         
-        self.__dict__['_' + name] = func
+        self.__dict__[name if name.startswith('_') else '_' + name] = func
     
     def err(self, fmt: str, *variables: str) -> str:
         """Print an error message.
@@ -328,18 +332,6 @@ exit(1);
         """
 
         return f'if ({buf_var} == NULL) {{ {self.err("out of memory")} }}'
-    
-    def symbol_not_supported(self, symbol_name: str) -> str:
-        """Raise a compile time error if the symbol name is not supported.
-
-        Args:
-            symbol_name (str): The symbol name.
-
-        Returns:
-            str: The compile time error code.
-        """
-        
-        return f'#error "{symbol_name} not supported"'
     
     def fmt_length(self, codegen, pos: Position, fmt: str, *format_vars: str,
                    buf_var: str | None = None) -> tuple[str, Free]:
@@ -482,17 +474,10 @@ if ({length} > 1) {{
         self.codegen = codegen
         self.includes = set()
         
-        self.include(f'"{HEADER}"', codegen)
         self.include('<stdbool.h>', codegen)
         self.include('<stdlib.h>', codegen)
         self.include('<stdio.h>', codegen)
         self.include('<time.h>', codegen)
-        self.includes.add('<windows.h>')
-        self.includes.add('<io.h>')
-        self.includes.add('<shlobj.h>')
-        self.includes.add('<unistd.h>')
-        self.includes.add('<ws2tcpip.h>')
-        self.includes.add('<fcntl.h>')
         
         from codegen.StringBuilder import StringBuilder
         from codegen.strings import strings
@@ -500,12 +485,43 @@ if ({length} > 1) {{
         from codegen.Logger import Logger
         from codegen.Math import Math
         from codegen.Cure import Cure
-        self.add_objects(Math(self), self)
-        self.add_objects(Cure(self), self)
-        self.add_objects(Logger(self), self)
-        self.add_objects(System(self), self)
-        self.add_objects(strings(self), self)
-        self.add_objects(StringBuilder(self), self)
+        
+        codegen.add_toplevel_code("""#ifndef __CURE_INIT__
+#define __CURE_INIT__
+""")
+        
+        if codegen.target == Target.WINDOWS:
+            codegen.add_toplevel_code("""#define OS_WINDOWS true
+#define NOMINMAX
+#define WIN32_LEAN_AND_MEAN
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#include <windows.h>
+#include <shlobj.h>
+#include <fcntl.h>
+#include <io.h>
+
+#define OS "Windows"
+#define IS_ADMIN IsUserAnAdmin()
+""")
+            
+            self.includes.add('<windows.h>')
+            self.includes.add('<io.h>')
+            self.includes.add('<shlobj.h>')
+            self.includes.add('<unistd.h>')
+            self.includes.add('<ws2tcpip.h>')
+            self.includes.add('<fcntl.h>')
+        elif codegen.target == Target.LINUX or codegen.target == Target.MAC:
+            self.include('<locale.h>', codegen)
+            codegen.add_toplevel_code("""#include <unistd.h>
+
+#define OS "Linux"
+#define IS_ADMIN geteuid() == 0
+""")
+            
+            self.includes.add('<unistd.h>')
+        else:
+            codegen.pos.error_here('Unsupported operating system')
         
         codegen.scope.env['Math'] = EnvItem('Math', Type('Math'), POS_ZERO)
         codegen.scope.env['System'] = EnvItem('System', Type('System'), POS_ZERO)
@@ -523,6 +539,45 @@ if ({length} > 1) {{
         codegen.scope.env['ONE_THOUSAND'] = EnvItem('ONE_THOUSAND', Type('int'), POS_ZERO)
         codegen.scope.env['Cure'] = EnvItem('Cure', Type('Cure'), POS_ZERO)
         codegen.scope.env['Timer'] = EnvItem('Timer', Type('Timer'), POS_ZERO)
+        
+        codegen.add_toplevel_code("""#if defined(_M_X64) || defined(__x86_64__)
+#define ARCH_x86_64 1
+#define ARCH "x86_64"
+#elif defined(_M_IX86) || defined(__i386__)
+#define ARCH_x86 1
+#define ARCH "x86"
+#elif defined(_M_ARM64) || defined(__aarch64__)
+#define ARCH_arm64 1
+#define ARCH "arm64"
+#else
+#error "Unsupported architecture"
+#endif
+""")
+        
+        codegen.add_toplevel_code("""typedef void* hex;
+typedef char* string;
+typedef void* nil;
+typedef unsigned char byte;
+
+const int MIN_INT = -2147483648;
+const int MAX_INT = 2147483647;
+const string DIGITS = "0123456789";
+const string PUNCTUATION = "!@#$%^&*()_+-=[]{};:'\\"\\\\|,.<>/?";
+const string LETTERS = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
+const string VERSION = "0.0.6";
+const float MIN_FLOAT = -1.701411733192644277e+38;
+const float MAX_FLOAT = 1.701411733192644277e+38;
+const int ONE_BILLION = 1000000000;
+const int ONE_MILLION = 1000000;
+const int ONE_THOUSAND = 1000;
+""")
+        
+        self.add_objects(Math(self), self)
+        self.add_objects(Cure(self), self)
+        self.add_objects(Logger(self), self)
+        self.add_objects(System(self), self)
+        self.add_objects(strings(self), self)
+        self.add_objects(StringBuilder(self), self)
         
         @c_dec(param_types=(Param('*', Type('*')),), can_user_call=True, add_to_class=self)
         def _print(codegen, call_position: Position, *args: Object) -> Object:
@@ -897,8 +952,10 @@ snprintf({temp_var}, 47, "%f", ({value}));
         @c_dec(param_types=(Param('value', Type('Timer')),), is_method=True, add_to_class=self)
         def _Timer_to_string(codegen, call_position: Position, value: Object) -> Object:
             code, buf_free = self.fmt_length(
-                codegen, call_position, '"Timer(is_running=%s)"',
-                f'({value}).is_running'
+                codegen, call_position, '"Timer(is_running=%s)"', _to_string(
+                    codegen, call_position,
+                    Object(f'({value}).is_running', Type('bool'), call_position)
+                )
             )
             
             codegen.prepend_code(code)
@@ -1297,6 +1354,17 @@ double {significand} = {num} / pow(10.0, {exponent});
             return _int_science(codegen, call_position, f, precision)
         
         
+        platform_specific_fields: str
+        if self.codegen.target == Target.WINDOWS:
+            platform_specific_fields = 'LARGE_INTEGER start, end, frequency;'
+        elif self.codegen.target == Target.LINUX:
+            platform_specific_fields = 'struct timespec start, end;'
+        self.codegen.add_toplevel_code(f"""typedef struct {{
+    {platform_specific_fields}
+    bool is_running;
+}} Timer;
+""")
+        
         self.wrap_struct_properties('timer', Type('Timer'), [
             Param('is_running', Type('bool'))
         ])
@@ -1304,17 +1372,19 @@ double {significand} = {num} / pow(10.0, {exponent});
         def elapsed_ns(codegen, call_position: Position, timer: Object):
             elapsed: TempVar = codegen.create_temp_var(Type('LARGE_INTEGER'), call_position)
             res: TempVar = codegen.create_temp_var(Type('float'), call_position)
-            return f"""#if OS_WINDOWS
-    LARGE_INTEGER {elapsed};
-    {elapsed}.QuadPart = ({timer}).end.QuadPart - ({timer}).start.QuadPart;
-    float {res} = {elapsed}.QuadPart * 1e9 / ({timer}).frequency.QuadPart;
-#elif OS_LINUX
-    float {res} = (float)((({timer}).end.tv_sec - ({timer}).start.tv_sec) * 1e9 +
-        (({timer}).end.tv_sec - ({timer}).end.tv_nsec - ({timer}).start.tv_nsec));
-#else
-{self.symbol_not_supported('Timer.elapsed_ns')}
-#endif
-""", res
+            code: str
+            if codegen.target == Target.WINDOWS:
+                code = f"""LARGE_INTEGER {elapsed};
+{elapsed}.QuadPart = ({timer}).end.QuadPart - ({timer}).start.QuadPart;
+float {res} = {elapsed}.QuadPart * 1e9 / ({timer}).frequency.QuadPart;"""
+            elif codegen.target == Target.LINUX:
+                code = f"""float {res} = (float)((({timer}).end.tv_sec - ({timer}).start.tv_sec)
+                    * 1e9 + (({timer}).end.tv_sec - ({timer}).end.tv_nsec -
+                    ({timer}).start.tv_nsec));"""
+            else:
+                call_position.not_supported_err('Timer.elapsed_ns')
+
+            return code, res
         
         @c_dec(param_types=(Param('timer', Type('Timer')),), is_property=True, add_to_class=self)
         def _Timer_elapsed_ns(codegen, call_position: Position, timer: Object) -> Object:
@@ -1345,34 +1415,37 @@ double {significand} = {num} / pow(10.0, {exponent});
         
         @c_dec(param_types=(Param('timer', Type('Timer')),), is_method=True, add_to_class=self)
         def _Timer_start(codegen, call_position: Position, timer: Object) -> Object:
-            codegen.prepend_code(f"""#if OS_WINDOWS
-    QueryPerformanceFrequency(&({timer}).frequency);
-    QueryPerformanceCounter(&({timer}).start);
-#elif OS_LINUX
-    clock_gettime(CLOCK_MONOTONIC, &({timer}).start);
-#else
-{self.symbol_not_supported('Timer.start')}
-#endif
-
+            code: str
+            if codegen.target == Target.WINDOWS:
+                code = f"""QueryPerformanceFrequency(&({timer}).frequency);
+QueryPerformanceCounter(&({timer}).start);"""
+            elif codegen.target == Target.LINUX:
+                code = f'clock_gettime(CLOCK_MONOTONIC, &({timer}).start);'
+            else:
+                call_position.not_supported_err('Timer.start()')
+            
+            codegen.prepend_code(f"""{code}
 ({timer}).is_running = true;
 """)
             
             return Object.NULL(call_position)
         
-        def timer_stop(timer: Object) -> str:
-            return f"""#if OS_WINDOWS
-    QueryPerformanceCounter(&({timer}).end);
-#elif OS_LINUX
-    clock_gettime(CLOCK_MONOTONIC, &({timer}).end);
-#else
-{self.symbol_not_supported('Timer.stop')}
-#endif
+        def timer_stop(timer: Object, call_position: Position) -> str:
+            code: str
+            if codegen.target == Target.WINDOWS:
+                code = f'QueryPerformanceCounter(&({timer}).end);'
+            elif codegen.target == Target.LINUX:
+                code = f'clock_gettime(CLOCK_MONOTONIC, &({timer}).end);'
+            else:
+                call_position.not_supported_err('Timer.stop()')
+            
+            return f"""{code}
 ({timer}).is_running = false;
 """
         
         @c_dec(param_types=(Param('timer', Type('Timer')),), is_method=True, add_to_class=self)
         def _Timer_stop(codegen, call_position: Position, timer: Object) -> Object:
-            codegen.prepend_code(timer_stop(timer))
+            codegen.prepend_code(timer_stop(timer, call_position))
             return Object.NULL(call_position)
         
         @c_dec(is_method=True, is_static=True, add_to_class=self)
@@ -1414,7 +1487,7 @@ double {significand} = {num} / pow(10.0, {exponent});
             timer = _Timer_new(codegen, call_position)
             _Timer_start(codegen, call_position, timer)
             code, res = elapsed_ns(codegen, call_position, timer)
-            codegen.append_code(f"""{timer_stop(timer)};
+            codegen.append_code(f"""{timer_stop(timer, call_position)};
 {code};
 printf("Time spent to execute '{func_obj.name}': %fms\\n", {res} / 1e6);
 """)
@@ -1546,3 +1619,5 @@ if (!{has_cached}) {{
 """)
             
             return codegen.call(transformer.code, [Arg(res.OBJECT())], call_position)
+        
+        self.codegen.add_toplevel_code('#endif')

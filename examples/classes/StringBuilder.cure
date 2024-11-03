@@ -2,6 +2,7 @@
 [Benchmark()]
 func test_string(int n) {
     s = ""
+    
     // Loop n times
     foreach _ in range(n) {
         s += "ABC" // Append "ABC"

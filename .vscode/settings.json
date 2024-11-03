@@ -46,7 +46,9 @@
         "escape.h": "c",
         "xlocale": "c",
         "genann.h": "c",
-        "miniui.h": "c"
+        "miniui.h": "c",
+        "cstdlib": "c",
+        "tinycsocket.h": "c"
     },
     "python.REPL.enableREPLSmartSend": false
 }

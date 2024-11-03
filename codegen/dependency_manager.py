@@ -1,7 +1,8 @@
+from importlib import import_module
 from typing import Callable
 from pathlib import Path
 
-from codegen.c_manager import STD_PATH, CManager
+from codegen.c_manager import STD_PATH
 from codegen.objects import Position
 
 
@@ -23,20 +24,26 @@ class DependencyManager:
         if lib_path.endswith('.py'):
             lib_path = lib_path.removesuffix('.py')
         
-        exec(f"""from .std.{lib_path} import {lib.stem}
-if {lib.stem} not in [type(cls) for cls in dependencies]:
-    lib = {lib.stem}(self)
-    if not getattr(lib, 'CAN_USE', True):
-        pos.error_here(f'Library \\'{lib_name}\\' cannot be used')
-    
-    dependencies.append(lib)
-    objects = CManager.get_all_objects(lib)
-    for k, v in objects.items():
-        setattr(c_manager, k, v)
-""", globals(), {
-    'c_manager': self.codegen.c_manager, 'self': self.codegen, 'dependencies': self.dependencies,
-    'pos': pos, 'CManager': CManager
-})
+        try:
+            module = import_module(f'codegen.std.{lib_path}')
+        except ModuleNotFoundError:
+            pos.error_here(f'Library \'{lib_name}\' not found')
+        
+        lib_type = module.__dict__.get(lib.stem)
+        if lib_type is None:
+            pos.error_here(f'Library \'{lib_name}\' does not have a library class')
+        
+        if lib_type in [type(cls) for cls in self.dependencies]:
+            return
+        
+        lib_class = lib_type(self.codegen)
+        if not getattr(lib_class, 'CAN_USE', True):
+            pos.error_here(f'Library \'{lib_name}\' cannot be used')
+        
+        self.dependencies.append(lib_class)
+        objects = self.codegen.c_manager.get_all_objects(lib_class)
+        for k, v in objects.items():
+            setattr(self.codegen.c_manager, k, v)
     
     def use(self, lib_name: str, pos: Position) -> None:
         """Use a Cure library.

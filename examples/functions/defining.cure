@@ -1,5 +1,5 @@
 // Define a 'test' function that simply prints 'abc' and returns nil
-func test() {
+func test1() {
     print("abc")
 }
 
@@ -10,8 +10,8 @@ func test2(int a) -> int {
 
 // Main is a function that returns an int
 func main() -> int {
-    // Call test and test2
-    test()
+    // Call test1 and test2
+    test1()
     print(test2(50))
     
     return 0

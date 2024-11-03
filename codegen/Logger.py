@@ -5,6 +5,11 @@ from codegen.c_manager import c_dec
 
 class Logger:
     def __init__(self, c_manager) -> None:
+        c_manager.codegen.add_toplevel_code("""typedef struct {
+    FILE* out;
+    string path;
+} Logger;
+""")
         c_manager.wrap_struct_properties('logger', Type('Logger'), [
             Param('path', Type('string'))
         ])

@@ -3,6 +3,7 @@ from typing import Any
 from ir.nodes import ClassMembers, ClassMethod, ClassProperty, Position, Return, Identifier
 from codegen.objects import Object, Type, Param, TempVar, EnvItem, Class, Field, Free
 from codegen.c_manager import c_dec
+from ir import op_map
 
 
 # the free name used in all of the class free functions
@@ -24,6 +25,39 @@ class ClassManager:
                 return member
         
         return None
+    
+    def is_operator_overload_name(self, name: str) -> tuple[bool, str]:
+        if len((split_name := name.split('_'))) == 2 and split_name[0] in op_map.values():
+            op_name, _ = split_name
+            op_symbol = list(op_map.keys())[list(op_map.values()).index(op_name)]
+            return True, op_symbol
+        
+        return False, ''
+    
+    def handle_name(self, method: ClassMethod, params: list[Param], class_: Class) -> str:
+        name = method.name
+        if name.startswith('~'):
+            name = f'{class_.type}_deconstructor_{name[1:]}'
+            class_.destructor_methods.append(name)
+            if len(method.params) > 0:
+                method.pos.error_here('Destructor cannot have parameters')
+            
+            return name
+        
+        if name not in op_map:
+            is_overload_name, op_symbol = self.is_operator_overload_name(name)
+            if is_overload_name:
+                method.pos.info_here('This overloads an operator. If this is intentional, '\
+                    f'use the operator symbol \'{op_symbol}\' instead of it\'s name')
+            
+            return f'{class_.type.c_type}_{name}'
+        
+        if len(params) != 2:
+            method.pos.error_here('Operator overloading function must have exactly 2 parameters')
+        
+        op_name = op_map[name]
+        other_param = params[1]
+        return f'{class_.type.c_type}_{op_name}_{other_param.type.c_type}'
     
     def initialiser(self, class_name: str, fields: list[Field]) -> str:
         return f"""typedef struct {{
@@ -64,11 +98,14 @@ class ClassManager:
 """)
             if value.free is not None:
                 codegen.scope.remove_free(value.free)
-                cls_name_free = Free(
+                
+                cls_name_free = value.free.replace_from_class(Free(
                     object_name=f'{value.free.object_name}',
                     basic_name=f'(*{FREE_NAME}).{name}'
-                )
-                class_.free_members.append(value.free.replace_from_class(cls_name_free))
+                ))
+                
+                if cls_name_free not in class_.free_members:
+                    class_.free_members.append(value.free.replace_from_class(cls_name_free))
             
             return Object.NULL(call_position)
 
@@ -88,7 +125,7 @@ class ClassManager:
         return_type = self.codegen.visit_TypeNode(
             method.return_type) if method.return_type is not None else Type('nil')
 
-        name = f'{cls_type}_{method.name}'
+        name = self.handle_name(method, params, class_)
         kwargs: dict[str, Any] = {'is_static': method.is_static}
         body: Object = eval_body()
         if method.name == cls_type.type:
@@ -97,6 +134,7 @@ class ClassManager:
             method.body.nodes.append(Return(method.body.pos, Identifier(method.body.pos, 'this')))
             body = eval_body()
             params = params[1:]
+            kwargs['is_static'] = True
         elif kwargs['is_static']:
             params = params[1:]
             params_str = self.codegen.function_manager.params_str(params)
@@ -211,9 +249,8 @@ class ClassManager:
         for member in without_properties:
             code.append(self.method_to_code(member, cls_type, class_))
         
-        self.codegen.add_toplevel_code(f"""void {free_name}({cls_type.c_type}* {FREE_NAME}) {{
+        return '\n'.join(code) + f"""void {free_name}({cls_type.c_type}* {FREE_NAME}) {{
+    {'\n'.join(f'{deconstructor}({FREE_NAME});' for deconstructor in class_.destructor_methods)}
     {'\n'.join(free.code for free in class_.free_members)}
 }}
-""")
-        
-        return '\n'.join(code)
+"""
