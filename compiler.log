@@ -1,0 +1,7 @@
+2024-11-24 18:35:31,987 DEBUG Optimized IR
+2024-11-24 18:35:31,987 DEBUG Preprocessed IR
+2024-11-24 18:35:31,987 INFO Program does not require args
+2024-11-24 18:35:31,987 DEBUG Finished Code Generation initialization
+2024-11-24 18:35:31,987 DEBUG Generating C code for examples\test.cure targetting Target.WINDOWS
+2024-11-24 18:35:31,987 DEBUG Using name 'http'
+2024-11-24 18:35:31,987 DEBUG Entering scope with 0 parameters outside of a class

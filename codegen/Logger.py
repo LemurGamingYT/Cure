@@ -18,7 +18,7 @@ class Logger:
         def _Logger_type(_, call_position: Position) -> Object:
             return Object('"Logger"', Type('string'), call_position)
         
-        @c_dec(param_types=(Param('logger', Type('Logger')),), is_method=True, add_to_class=self)
+        @c_dec(params=(Param('logger', Type('Logger')),), is_method=True, add_to_class=self)
         def _Logger_to_string(codegen, call_position: Position, logger: Object) -> Object:
             code, buf_free = codegen.c_manager.fmt_length(
                 codegen, call_position, '"Logger(path=%s)"', f'({logger}).path'
@@ -31,14 +31,14 @@ if (({logger}).path == NULL) {buf_free.object_name} = "Logger(path=stdout)";
         
         
         @c_dec(
-            param_types=(Param('logger', Type('Logger')), Param('content', Type('string'))),
+            params=(Param('logger', Type('Logger')), Param('content', Type('string'))),
             add_to_class=self, is_method=True
         )
         def _Logger_log(codegen, call_position: Position, logger: Object, content: Object) -> Object:
             codegen.prepend_code(f'fprintf(({logger}).out, "%s\\n", {str(content)});')
             return Object.NULL(call_position)
         
-        @c_dec(param_types=(Param('logger', Type('Logger')),), add_to_class=self, is_method=True)
+        @c_dec(params=(Param('logger', Type('Logger')),), add_to_class=self, is_method=True)
         def _Logger_dump(codegen, call_position: Position, logger: Object) -> Object:
             codegen.prepend_code(f'fflush(({logger}).out);')
             return Object.NULL(call_position)

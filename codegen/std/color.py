@@ -37,7 +37,7 @@ typedef struct {
         
         
         @c_dec(
-            param_types=(Param('color', Type('Color')),), is_method=True, add_to_class=self
+            params=(Param('color', Type('Color')),), is_method=True, add_to_class=self
         )
         def _Color_to_string(codegen, call_position: Position, color: Object) -> Object:
             code, buf_free = codegen.c_manager.fmt_length(
@@ -70,7 +70,7 @@ Color {color} = {{.r = atoi({r}), .g = atoi({g}), .b = atoi({b})}};
             return color.OBJECT()
     
         @c_dec(
-            param_types=(Param('r', Type('int')), Param('g', Type('int')), Param('b', Type('int'))),
+            params=(Param('r', Type('int')), Param('g', Type('int')), Param('b', Type('int'))),
             is_method=True, is_static=True, add_to_class=self, overloads={
                 OverloadKey(Type('Color'), (Param('hex', Type('string')),)): OverloadValue(Color_hex)
             }

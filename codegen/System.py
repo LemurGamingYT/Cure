@@ -178,7 +178,7 @@ GetCursorPos(&{point});
         # https://stackoverflow.com/questions/4842424/list-of-ansi-color-escape-sequences
         
         @c_dec(
-            param_types=(Param('code', Type('int'), default=Object('0', Type('int'))),),
+            params=(Param('code', Type('int'), default=Object('0', Type('int'))),),
             is_method=True, is_static=True, add_to_class=self
         )
         def _System_exit(codegen, call_position: Position, code: Object) -> Object:
@@ -186,7 +186,7 @@ GetCursorPos(&{point});
             return Object.NULL(call_position)
         
         @c_dec(
-            param_types=(Param('milliseconds', Type('int')),),
+            params=(Param('milliseconds', Type('int')),),
             is_method=True, is_static=True, add_to_class=self
         )
         def _System_sleep(codegen, call_position: Position, milliseconds: Object) -> Object:
@@ -202,7 +202,7 @@ GetCursorPos(&{point});
             return Object.NULL(call_position)
         
         @c_dec(
-            param_types=(Param('func', Type('function')),),
+            params=(Param('func', Type('function')),),
             is_method=True, is_static=True, add_to_class=self
         )
         def _System_atexit(codegen, call_position: Position, func: Object) -> Object:
@@ -231,7 +231,7 @@ void {void_func}() {{ {func}(); }}
             return Object.NULL(call_position)
         
         @c_dec(
-            param_types=(Param('command', Type('string')),),
+            params=(Param('command', Type('string')),),
             is_method=True, is_static=True, add_to_class=self
         )
         def _System_shell(_, call_position: Position, command: Object) -> Object:
@@ -266,7 +266,7 @@ BlockInput(FALSE);
             return Object.NULL(call_position)
         
         @c_dec(
-            param_types=(Param('char', Type('string')),),
+            params=(Param('char', Type('string')),),
             is_method=True, is_static=True, add_to_class=self
         )
         def _System_is_key_pressed(codegen, call_position: Position, char: Object) -> Object:
@@ -295,7 +295,7 @@ BlockInput(FALSE);
             return Object.NULL(call_position)
         
         @c_dec(
-            param_types=(Param('vec', Type('Vector2')),), is_method=True, is_static=True,
+            params=(Param('vec', Type('Vector2')),), is_method=True, is_static=True,
             add_to_class=self, overloads={
                 OverloadKey(
                     Type('nil'), (Param('x', Type('int')), Param('y', Type('int')))
@@ -310,7 +310,7 @@ BlockInput(FALSE);
             return Object.NULL(call_position)
         
         @c_dec(
-            param_types=(Param('time', Type('string')),),
+            params=(Param('time', Type('string')),),
             is_method=True, is_static=True, add_to_class=self
         )
         def _System_time_from_string(codegen, call_position: Position, time: Object) -> Object:
@@ -347,64 +347,72 @@ Time {obj} = {{ .t = {result}, .ti = &{breakdown} }};
 """)
             
             return obj.OBJECT()
+        
+        @c_dec(is_method=True, is_static=True, add_to_class=self)
+        def _System_wait_for_key(codegen, call_position: Position) -> Object:
+            if codegen.target != Target.WINDOWS:
+                call_position.not_supported_err('System.wait_for_key()')
+            
+            codegen.c_manager.include('<conio.h>', codegen)
+            return Object('(_getch())', Type('int'), call_position)
 
 
-        @c_dec(param_types=(Param('a', Type('Time')), Param('b', Type('Time'))), add_to_class=self)
+        @c_dec(params=(Param('a', Type('Time')), Param('b', Type('Time'))), add_to_class=self)
         def _Time_eq_Time(_, call_position: Position, a: Object, b: Object) -> Object:
             return Object(f'({a.attr("t")} == {b.attr("t")})', Type('bool'), call_position)
         
-        @c_dec(param_types=(Param('a', Type('Time')), Param('b', Type('Time'))), add_to_class=self)
+        @c_dec(params=(Param('a', Type('Time')), Param('b', Type('Time'))), add_to_class=self)
         def _Time_neq_Time(_, call_position: Position, a: Object, b: Object) -> Object:
             return Object(f'({a.attr("t")} != {b.attr("t")})', Type('bool'), call_position)
         
-        @c_dec(param_types=(Param('a', Type('Time')), Param('b', Type('Time'))), add_to_class=self)
+        @c_dec(params=(Param('a', Type('Time')), Param('b', Type('Time'))), add_to_class=self)
         def _Time_gt_Time(_, call_position: Position, a: Object, b: Object) -> Object:
             return Object(f'({a.attr("t")} > {b.attr("t")})', Type('bool'), call_position)
         
-        @c_dec(param_types=(Param('a', Type('Time')), Param('b', Type('Time'))), add_to_class=self)
+        @c_dec(params=(Param('a', Type('Time')), Param('b', Type('Time'))), add_to_class=self)
         def _Time_lt_Time(_, call_position: Position, a: Object, b: Object) -> Object:
             return Object(f'({a.attr("t")} < {b.attr("t")})', Type('bool'), call_position)
         
-        @c_dec(param_types=(Param('a', Type('Time')), Param('b', Type('Time'))), add_to_class=self)
+        @c_dec(params=(Param('a', Type('Time')), Param('b', Type('Time'))), add_to_class=self)
         def _Time_gte_Time(_, call_position: Position, a: Object, b: Object) -> Object:
             return Object(f'({a.attr("t")} >= {b.attr("t")})', Type('bool'), call_position)
         
-        @c_dec(param_types=(Param('a', Type('Time')), Param('b', Type('Time'))), add_to_class=self)
+        @c_dec(params=(Param('a', Type('Time')), Param('b', Type('Time'))), add_to_class=self)
         def _Time_lte_Time(_, call_position: Position, a: Object, b: Object) -> Object:
             return Object(f'({a.attr("t")} <= {b.attr("t")})', Type('bool'), call_position)
 
-        @c_dec(param_types=(Param('time', Type('Time')),), is_property=True, add_to_class=self)
+        @c_dec(params=(Param('time', Type('Time')),), is_property=True, add_to_class=self)
         def _Time_second(_, call_position: Position, time: Object) -> Object:
             return Object(f'(({time}).ti->tm_sec)', Type('int'), call_position)
         
-        @c_dec(param_types=(Param('time', Type('Time')),), is_property=True, add_to_class=self)
+        @c_dec(params=(Param('time', Type('Time')),), is_property=True, add_to_class=self)
         def _Time_minute(_, call_position: Position, time: Object) -> Object:
             return Object(f'(({time}).ti->tm_min)', Type('int'), call_position)
         
-        @c_dec(param_types=(Param('time', Type('Time')),), is_property=True, add_to_class=self)
+        @c_dec(params=(Param('time', Type('Time')),), is_property=True, add_to_class=self)
         def _Time_hour(_, call_position: Position, time: Object) -> Object:
             return Object(f'(({time}).ti->tm_hour)', Type('int'), call_position)
         
-        @c_dec(param_types=(Param('time', Type('Time')),), is_property=True, add_to_class=self)
+        @c_dec(params=(Param('time', Type('Time')),), is_property=True, add_to_class=self)
         def _Time_day(_, call_position: Position, time: Object) -> Object:
             return Object(f'(({time}).ti->tm_mday)', Type('int'), call_position)
         
-        @c_dec(param_types=(Param('time', Type('Time')),), is_property=True, add_to_class=self)
+        @c_dec(params=(Param('time', Type('Time')),), is_property=True, add_to_class=self)
         def _Time_month(_, call_position: Position, time: Object) -> Object:
             return Object(f'(({time}).ti->tm_mon + 1)', Type('int'), call_position)
         
-        @c_dec(param_types=(Param('time', Type('Time')),), is_property=True, add_to_class=self)
+        @c_dec(params=(Param('time', Type('Time')),), is_property=True, add_to_class=self)
         def _Time_year(_, call_position: Position, time: Object) -> Object:
             return Object(f'(({time}).ti->tm_year + 1900)', Type('int'), call_position)
         
-        @c_dec(param_types=(Param('time', Type('Time')),), is_property=True, add_to_class=self)
+        @c_dec(params=(Param('time', Type('Time')),), is_property=True, add_to_class=self)
         def _Time_weekday(_, call_position: Position, time: Object) -> Object:
             return Object(f'(({time}).ti->tm_wday)', Type('int'), call_position)
         
-        @c_dec(param_types=(Param('time', Type('Time')),), is_property=True, add_to_class=self)
+        @c_dec(params=(Param('time', Type('Time')),), is_property=True, add_to_class=self)
         def _Time_yearday(_, call_position: Position, time: Object) -> Object:
             return Object(f'(({time}).ti->tm_yday)', Type('int'), call_position)
         
-        @c_dec(param_types=(Param('time', Type('Time')),), is_property=True, add_to_class=self)
+        @c_dec(params=(Param('time', Type('Time')),), is_property=True, add_to_class=self)
         def _Time_isdst(_, call_position: Position, time: Object) -> Object:
             return Object(f'(({time}).ti->tm_isdst)', Type('int'), call_position)

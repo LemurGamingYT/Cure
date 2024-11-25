@@ -5,6 +5,6 @@ from codegen.c_manager import c_dec
 
 class stdalign_h:
     def __init__(self, _) -> None:
-        @c_dec(param_types=(Param('type', Type('any')),), can_user_call=True, add_to_class=self)
+        @c_dec(params=(Param('type', Type('any')),), can_user_call=True, add_to_class=self)
         def _alignof(_, call_position: Position, type: Object) -> Object:
             return Object(f'(alignof({type}))', size_t, call_position)

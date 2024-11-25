@@ -21,30 +21,38 @@ class ExternalManager:
         elif isinstance(symbol_object, EnvItem):
             self.codegen.scope.env[symbol_object.name] = symbol_object
     
+    def add_file(self, file: Path, pos: Position, name: str) -> bool:
+        module = import_module(f'codegen.extern.{file.stem}')
+        cls = getattr(module, file.stem, None)
+        if cls is None:
+            pos.error_here(f'Invalid header \'{file.stem}\'')
+        
+        external_class = cls(self.codegen)
+        header_symbols = self.codegen.c_manager.get_all_objects(external_class)
+        if self.replace_header_name(file.stem) == name or name == 'C':
+            for func in header_symbols.values():
+                self.add_symbol(func)
+            
+            return True
+        
+        for func in header_symbols:
+            if (func_name := getattr(func, 'name', None)) is None or func_name != '_' + name:
+                continue
+            
+            self.add_symbol(func)
+            return True
+        
+        return False
+    
     def add_external(self, name: str, pos: Position) -> None:
         name = self.replace_header_name(name)
+        has_added_symbols = False
         for file in EXTERNAL_PYTHON_PATH.glob('*.py'):
             if not file.is_file() or file.stem == '__init__':
                 continue
             
-            module = import_module(f'codegen.extern.{file.stem}')
-            cls = getattr(module, file.stem, None)
-            if cls is None:
-                pos.error_here(f'Invalid header \'{file.stem}\'')
-            
-            external_class = cls(self.codegen)
-            header_symbols = self.codegen.c_manager.get_all_objects(external_class)
-            if self.replace_header_name(file.stem) == name:
-                for func in header_symbols.values():
-                    self.add_symbol(func)
-                
-                return
-            
-            for func in header_symbols:
-                if (func_name := getattr(func, 'name', None)) is None or func_name != '_' + name:
-                    continue
-                
-                self.add_symbol(func)
-                return
+            if self.add_file(file, pos, name):
+                has_added_symbols = True
         
-        pos.error_here(f'Unknown external declaration \'{name}\'')
+        if not has_added_symbols:
+            pos.error_here(f'Unknown external declaration \'{name}\'')

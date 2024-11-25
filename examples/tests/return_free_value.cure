@@ -1,9 +1,0 @@
-func return_free_value(string a, string b) -> string {
-    return a + b
-}
-
-func main() -> int {
-    assert(return_free_value("a", "b") == "ab")
-    assert(return_free_value("", "") == "")
-    return 0
-}

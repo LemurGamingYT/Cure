@@ -7,15 +7,14 @@ from ir.nodes import TypeNode
 class LinkedList:
     def __init__(self, codegen) -> None:
         self.codegen = codegen
+        codegen.type_checker.add_type('LinkedList')
         setattr(codegen.type_checker, 'LinkedList_type', self.ll_type)
         
-        codegen.metadata.setdefault('linked_list_types', [])
-        
         @c_dec(
-            can_user_call=True, add_to_class=self, generic_params=('T',),
+            add_to_class=self, is_method=True, is_static=True, generic_params=('T',),
             return_type=Type('LinkedList[{T}]')
         )
-        def _create_linked_list(codegen, call_position: Position, *, T: Type) -> Object:
+        def _LinkedList_new(codegen, call_position: Position, *, T: Type) -> Object:
             ll_type = self.define_linked_list_type(T)
             return codegen.call(f'{ll_type.c_type}_make', [], call_position)
     
@@ -29,7 +28,7 @@ class LinkedList:
         node_type = Type(f'LinkedList[{type}]', f'{type.c_type}LinkedListNode')
         list_type = Type(f'LinkedList[{type}]', f'{type.c_type}LinkedList')
         
-        if type.type in self.codegen.metadata['linked_list_types']:
+        if self.codegen.type_checker.is_valid_type(list_type):
             return list_type
     
         self.codegen.add_toplevel_code(f"""typedef struct {{
@@ -53,7 +52,7 @@ typedef struct {{
             return ll.OBJECT()
         
         @c_dec(
-            param_types=(Param('ll', list_type),), is_method=True,
+            params=(Param('ll', list_type),), is_method=True,
             func_name_override=f'{list_type.c_type}_to_string', add_to_class=c_manager,
         )
         def to_string(codegen, call_position: Position, ll: Object) -> Object:
@@ -66,7 +65,7 @@ typedef struct {{
             return Object.STRINGBUF(buf_free, call_position)
         
         @c_dec(
-            param_types=(Param('ll', list_type),), is_property=True,
+            params=(Param('ll', list_type),), is_property=True,
             add_to_class=c_manager, func_name_override=f'{list_type.c_type}_count',
         )
         def count(codegen, call_position: Position, ll: Object) -> Object:
@@ -84,7 +83,7 @@ while ({node} != NULL) {{
             return i.OBJECT()
         
         @c_dec(
-            param_types=(Param('ll', list_type),),
+            params=(Param('ll', list_type),),
             add_to_class=c_manager, func_name_override=f'{list_type.c_type}_first',
             is_property=True
         )
@@ -98,7 +97,7 @@ while ({node} != NULL) {{
             return Object(f'({list_}.head)', type, call_position)
         
         @c_dec(
-            param_types=(Param('ll', list_type),),
+            params=(Param('ll', list_type),),
             add_to_class=c_manager, func_name_override=f'{list_type.c_type}_last',
             is_property=True
         )
@@ -114,7 +113,7 @@ while ({node}->next != NULL) {{
             return node.OBJECT()
         
         @c_dec(
-            param_types=(Param('ll', list_type), Param('value', type)),
+            params=(Param('ll', list_type), Param('value', type)),
             add_to_class=c_manager, func_name_override=f'{list_type.c_type}_insert_begin',
             is_method=True
         )
@@ -130,7 +129,7 @@ while ({node}->next != NULL) {{
             return Object.NULL(call_position)
         
         @c_dec(
-            param_types=(Param('ll', list_type), Param('i', Type('int')), Param('value', type)),
+            params=(Param('ll', list_type), Param('i', Type('int')), Param('value', type)),
             add_to_class=c_manager, func_name_override=f'{list_type.c_type}_insert_at_index',
             is_method=True
         )
@@ -161,7 +160,7 @@ if ({idx} == 0 || {list_}.head == NULL) {{
             return Object.NULL(call_position)
         
         @c_dec(
-            param_types=(Param('ll', list_type), Param('value', type)), is_method=True,
+            params=(Param('ll', list_type), Param('value', type)), is_method=True,
             add_to_class=c_manager, func_name_override=f'{list_type.c_type}_insert_end',
         )
         def insert_end(codegen, call_position: Position, ll: Object, value: Object) -> Object:
@@ -186,7 +185,7 @@ if ({list_}.head == NULL) {{
             return Object.NULL(call_position)
         
         @c_dec(
-            param_types=(Param('ll', list_type), Param('value', type)), is_method=True,
+            params=(Param('ll', list_type), Param('value', type)), is_method=True,
             add_to_class=c_manager, func_name_override=f'{list_type.c_type}_remove'
         )
         def remove(codegen, call_position: Position, ll: Object, value: Object) -> Object:
@@ -230,5 +229,5 @@ if ({current} != NULL) {{
 }}
 """)
         
-        self.codegen.metadata['linked_list_types'].append(type.type)
+        self.codegen.type_checker.add_type(list_type)
         return list_type

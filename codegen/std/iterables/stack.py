@@ -6,18 +6,17 @@ from ir.nodes import TypeNode
 class Stack:
     def __init__(self, codegen) -> None:
         self.codegen = codegen
+        codegen.type_checker.add_type('Stack')
         setattr(codegen.type_checker, 'Stack_type', self.stack_type)
         
-        codegen.metadata.setdefault('stack_types', [])
-        
         @c_dec(
-            param_types=(Param('size', Type('int')),),
-            can_user_call=True, add_to_class=self, generic_params=('T',),
-            return_type=Type('stack[{T}]')
+            params=(Param('size', Type('int')),),
+            add_to_class=self, is_method=True, is_static=True, generic_params=('T',),
+            return_type=Type('Stack[{T}]')
         )
-        def _create_stack(codegen, call_position: Position, size: Object, *, T: Type) -> Object:
+        def _Stack_new(codegen, call_position: Position, size: Object, *, T: Type) -> Object:
             stack_type = self.define_stack_type(T)
-            return codegen.call(f'{stack_type.c_type}_create', [Arg(size)], call_position)
+            return codegen.call(f'{stack_type.c_type}_make', [Arg(size)], call_position)
     
     def stack_type(self, node: TypeNode) -> Type | None:
         if node.array_type is None:
@@ -26,8 +25,8 @@ class Stack:
         return self.define_stack_type(self.codegen.visit_TypeNode(node.array_type))
     
     def define_stack_type(self, type: Type) -> Type:
-        stack_type = Type(f'stack[{type}]', f'{type.c_type}Stack')
-        if type.type in self.codegen.metadata['stack_types']:
+        stack_type = Type(f'Stack[{type}]', f'{type.c_type}Stack')
+        if self.codegen.type_checker.is_valid_type(stack_type):
             return stack_type
         
         self.codegen.add_toplevel_code(f"""typedef struct {{
@@ -45,10 +44,10 @@ class Stack:
         ])
         
         @c_dec(
-            param_types=(Param('size', Type('int')),),
-            add_to_class=c_manager, func_name_override=f'{stack_type.c_type}_create'
+            params=(Param('size', Type('int')),),
+            add_to_class=c_manager, func_name_override=f'{stack_type.c_type}_make'
         )
-        def stack_create(codegen, call_position: Position, size: Object) -> Object:
+        def stack_make(codegen, call_position: Position, size: Object) -> Object:
             stack_free = Free()
             stack: TempVar = codegen.create_temp_var(stack_type, call_position, free=stack_free)
             stack_free.object_name = f'{stack}.data'
@@ -62,7 +61,7 @@ class Stack:
             return stack.OBJECT()
         
         @c_dec(
-            param_types=(Param('stack', stack_type),), is_method=True,
+            params=(Param('stack', stack_type),), is_method=True,
             add_to_class=c_manager, func_name_override=f'{stack_type.c_type}_to_string',
         )
         def stack_to_string(codegen, call_position: Position, stack: Object) -> Object:
@@ -95,21 +94,21 @@ if ({i} < ({stack}).length - 1) {{
             return codegen.c_manager._StringBuilder_str(codegen, call_position, builder)
         
         @c_dec(
-            param_types=(Param('stack', stack_type),), is_property=True,
+            params=(Param('stack', stack_type),), is_property=True,
             add_to_class=c_manager, func_name_override=f'{stack_type.c_type}_is_empty',
         )
         def stack_is_empty(_, call_position: Position, stack: Object) -> Object:
             return Object(f'(({stack}).length == 0)', Type('bool'), call_position)
         
         @c_dec(
-            param_types=(Param('stack', stack_type),), is_property=True,
+            params=(Param('stack', stack_type),), is_property=True,
             add_to_class=c_manager, func_name_override=f'{stack_type.c_type}_is_full',
         )
         def stack_is_full(_, call_position: Position, stack: Object) -> Object:
             return Object(f'(({stack}).length == ({stack}).size)', Type('bool'), call_position)
         
         @c_dec(
-            param_types=(Param('stack', stack_type), Param('element', type)), is_method=True,
+            params=(Param('stack', stack_type), Param('element', type)), is_method=True,
             add_to_class=c_manager, func_name_override=f'{stack_type.c_type}_push',
         )
         def stack_push(codegen, call_position: Position, stack: Object, element: Object) -> Object:
@@ -123,7 +122,7 @@ if ({i} < ({stack}).length - 1) {{
             return Object.NULL(call_position)
         
         @c_dec(
-            param_types=(Param('stack', stack_type),), is_method=True,
+            params=(Param('stack', stack_type),), is_method=True,
             add_to_class=c_manager, func_name_override=f'{stack_type.c_type}_pop',
         )
         def stack_pop(codegen, call_position: Position, stack: Object) -> Object:
@@ -135,7 +134,7 @@ if ({i} < ({stack}).length - 1) {{
             return Object(f'(({stack}).data[({stack}).length--])', type, call_position)
         
         @c_dec(
-            param_types=(Param('stack', stack_type),), is_method=True,
+            params=(Param('stack', stack_type),), is_method=True,
             add_to_class=c_manager, func_name_override=f'{stack_type.c_type}_peek',
         )
         def stack_peek(codegen, call_position: Position, stack: Object) -> Object:
@@ -146,5 +145,5 @@ if ({i} < ({stack}).length - 1) {{
 
             return Object(f'(({stack}).data[({stack}).length])', type, call_position)
         
-        self.codegen.metadata['stack_types'].append(type.type)
+        self.codegen.type_checker.add_type(stack_type)
         return stack_type

@@ -1,6 +1,8 @@
+from typing import Union, Any, TypeAlias, Callable
 from dataclasses import dataclass, field
-from typing import Union, Any, TypeAlias
 from re import compile as re_compile
+from logging import debug
+from inspect import stack
 
 from ir.nodes import Position, ClassMembers
 
@@ -9,9 +11,30 @@ from ir.nodes import Position, ClassMembers
 ID_REGEX = re_compile(r'(\w+)|(\*\(\w+\))')
 INT_REGEX = re_compile(r'\d+')
 POS_ZERO = Position(0, 0, '')
+CURE_VERSION = '0.0.7'
 Stringable: TypeAlias = Union[str, 'TempVar', 'Object']
+StringableWithPosition: TypeAlias = Union['TempVar', 'Object']
 
 kwargs = {'slots': True, 'unsafe_hash': True}
+
+def previous_function() -> str:
+    return stack()[1].function
+
+def new_string(pos: Position, value: Stringable | None = None,
+               length: Stringable | None = None, empty_string: bool = True) -> str:
+    if value is None and length is None:
+        debug(f'new_string called from \'{previous_function()}\' with no value or length')
+        pos.error_here('new_string called with no value or length')
+    elif length is None and value is not None:
+        return f'string_make({value})'
+    elif length is not None and value is None:
+        if empty_string:
+            return f'string_empty({length})'
+        else:
+            return f'string_new({length})'
+    else:
+        debug(f'new_string called from \'{previous_function()}\' with invalid arguments')
+        pos.error_here('new_string called with invalid arguments')
 
 @dataclass(**kwargs)
 class Arg:
@@ -37,6 +60,10 @@ class Param:
     
     def USE(self) -> str:
         return f'*({self.name})' if self.ref else self.name
+
+@dataclass(**kwargs)
+class ArgValidationCallback:
+    callback: Callable[[Arg, Param], tuple[bool, str]]
 
 @dataclass(**kwargs)
 class FunctionInfo:
@@ -141,6 +168,10 @@ class Scope:
         return top
     
     @property
+    def is_outer(self) -> bool:
+        return self.parent is not None and self.parent.is_toplevel
+    
+    @property
     def is_toplevel(self) -> bool:
         return self.parent is None
     
@@ -215,6 +246,10 @@ class Object:
     def STRINGBUF(buf_free: Free, pos: Position) -> 'Object':
         return Object(buf_free.object_name, Type('string'), pos, free=buf_free)
     
+    @property
+    def needs_free(self) -> bool:
+        return self.free is not None
+    
     def _clone(self) -> 'Object':
         return Object(self.code, self.type, self.position, self.free)
     
@@ -265,17 +300,17 @@ class EnvItem:
 class TempVar:
     name: str
     type: Type
-    created_at: Position
+    position: Position
     free: Free | None = field(default=None)
     
     def __str__(self) -> str:
         return self.name
     
     def OBJECT(self) -> Object:
-        return Object(self.name, self.type, self.created_at, free=self.free)
+        return Object(self.name, self.type, self.position, free=self.free)
     
     def REFERENCE(self) -> Object:
-        return Object(f'&({self.name})', self.type, self.created_at, free=self.free)
+        return Object(f'&({self.name})', self.type, self.position, free=self.free)
     
     def DEREFERENCE(self) -> Object:
-        return Object(f'*({self.name})', self.type, self.created_at, free=self.free)
+        return Object(f'*({self.name})', self.type, self.position, free=self.free)

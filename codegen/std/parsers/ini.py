@@ -1,4 +1,5 @@
 from codegen.objects import Object, Position, Type, Free, TempVar, Param
+from codegen.function_manager import OverloadKey, OverloadValue
 from codegen.c_manager import c_dec, INCLUDES
 
 
@@ -6,6 +7,7 @@ INIPARSER_PATH = INCLUDES / 'iniparser'
 
 class ini:
     def __init__(self, codegen) -> None:
+        codegen.dependency_manager.use('fstream', codegen.pos)
         codegen.c_manager.include(f'"{(INIPARSER_PATH / 'iniparser.h').as_posix()}"', codegen)
         codegen.extra_compile_args.append((INIPARSER_PATH / '*.c').as_posix())
         codegen.c_manager.reserve((
@@ -22,44 +24,49 @@ class ini:
         
         codegen.add_toplevel_code("""typedef struct {
     dictionary* ini;
-    const string path;
+    File* file;
 } INIParser;
 """)
         
         codegen.c_manager.init_class(self, 'INIParser', Type('INIParser'))
         
-        @c_dec(param_types=(Param('ini', Type('INIParser')),), add_to_class=self, is_method=True)
+        @c_dec(params=(Param('ini', Type('INIParser')),), add_to_class=self, is_method=True)
         def _INIParser_to_string(codegen, call_position: Position, ip: Object) -> Object:
             builder: Object = codegen.c_manager._StringBuilder_new(codegen, call_position)
             codegen.c_manager._StringBuilder_capture_stdout(codegen, call_position, builder)
             
-            codegen.prepend_code(f"""iniparser_dump(({ip}).ini, stdout);
-""")
-            
+            codegen.prepend_code(f'iniparser_dump(({ip}).ini, stdout);')
             codegen.c_manager._StringBuilder_release_stdout(codegen, call_position, builder)
             return codegen.c_manager._StringBuilder_str(codegen, call_position, builder)
         
-        @c_dec(
-            param_types=(Param('path', Type('string')),), is_method=True, is_static=True,
-            add_to_class=self
-        )
-        def _INIParser_new(codegen, call_position: Position, path: Object) -> Object:
+        def INIParser_from_File(codegen, call_position: Position, file: Object) -> Object:
             ip_free = Free(free_name='iniparser_freedict')
             ip: TempVar = codegen.create_temp_var(Type('INIParser'), call_position, free=ip_free)
             ip_free.object_name = f'{ip}.ini'
             
             codegen.prepend_code(f"""INIParser {ip} = {{
-    .path = {path}, .ini = iniparser_load({path})
+    .path = {file}, .ini = iniparser_load(({file}).filename)
 }};
 if ({ip}.ini == NULL) {{
     {codegen.c_manager.err('Failed to load INI file')}
 }}
 """)
-
+            
             return ip.OBJECT()
+        
+        @c_dec(
+            params=(Param('path', Type('string')),), is_method=True, is_static=True,
+            add_to_class=self, overloads={
+                OverloadKey(Type('INIParser'), (Param('file', Type('File')),)): OverloadValue(
+                    INIParser_from_File)
+            }
+        )
+        def _INIParser_new(codegen, call_position: Position, path: Object) -> Object:
+            fileio = codegen.c_manager._File_new(codegen, call_position, path)
+            return INIParser_from_File(codegen, call_position, fileio)
 
         @c_dec(
-            param_types=(Param('ini', Type('INIParser')), Param('key', Type('string')),
+            params=(Param('ini', Type('INIParser')), Param('key', Type('string')),
                          Param('default', Type('T'))),
             is_method=True, add_to_class=self, generic_params=('T',), return_type=Type('{T}')
         )
@@ -83,7 +90,7 @@ if ({ip}.ini == NULL) {{
             )
         
         @c_dec(
-            param_types=(Param('ini', Type('INIParser')), Param('key', Type('string')),
+            params=(Param('ini', Type('INIParser')), Param('key', Type('string')),
                          Param('value', Type('string'))),
             is_method=True, add_to_class=self
         )

@@ -8,6 +8,7 @@ CJSON_PATH = (INCLUDES / 'cJSON').absolute()
 
 class json:
     def __init__(self, codegen) -> None:
+        codegen.dependency_manager.use('fstream', codegen.pos)
         codegen.c_manager.include(f'"{(CJSON_PATH / 'cJSON.h').as_posix()}"', codegen)
         codegen.extra_compile_args.append((CJSON_PATH / 'cJSON.c').as_posix())
         codegen.c_manager.reserve((
@@ -50,17 +51,17 @@ class json:
         
         codegen.c_manager.init_class(self, 'JSONParser', Type('JSONParser'))
         
-        @c_dec(param_types=(Param('json', Type('JSONParser')),), add_to_class=self, is_method=True)
+        @c_dec(params=(Param('json', Type('JSONParser')),), add_to_class=self, is_method=True)
         def _JSONParser_to_string(_, call_position: Position, jp: Object) -> Object:
             return Object(f'(cJSON_Print(({jp}).json))', Type('string'), call_position)
 
         
-        @c_dec(param_types=(Param('json', Type('JSONParser')),), is_property=True, add_to_class=self)
+        @c_dec(params=(Param('json', Type('JSONParser')),), is_property=True, add_to_class=self)
         def _JSONParser_get_string(codegen, call_position: Position, jp: Object) -> Object:
             return _JSONParser_to_string(codegen, call_position, jp)
 
         @c_dec(
-            param_types=(Param('json', Type('JSONParser')), Param('key', Type('string')),),
+            params=(Param('json', Type('JSONParser')), Param('key', Type('string')),),
             is_method=True, add_to_class=self, generic_params=('T',), return_type=Type('{T}')
         )
         def _JSONParser_read(codegen, call_position: Position, jp: Object, key: Object,
@@ -92,7 +93,7 @@ if (!cJSON_{validate_method}({value})) {{
             return Object(f'({value}->{value_property})', T, call_position)
         
         @c_dec(
-            param_types=(
+            params=(
                 Param('json', Type('JSONParser')), Param('key', Type('string')),
                 Param('value', Type('T'))
             ), is_method=True, add_to_class=self, generic_params=('T',), return_type=Type('{T}')
@@ -112,8 +113,16 @@ if (!cJSON_{validate_method}({value})) {{
             codegen.prepend_code(f'cJSON_Add{add_method}ToObject(({jp}).json, {key}, {value});')
             return Object.NULL(call_position)
         
+        def JSONParser_to_File(codegen, call_position: Position, jp: Object, file: Object) -> Object:
+            codegen.call('File_write', [
+                Arg(file),
+                Arg(Object(f'cJSON_Print(({jp}).json)', Type('string'), call_position))
+            ], call_position)
+            
+            return Object.NULL(call_position)
+        
         @c_dec(
-            param_types=(Param('json', Type('JSONParser')), Param('filename', Type('string'))),
+            params=(Param('json', Type('JSONParser')), Param('filename', Type('string'))),
             is_method=True, add_to_class=self
         )
         def _JSONParser_to_file(codegen, call_position: Position, jp: Object,
@@ -144,7 +153,7 @@ fprintf({fp}, "%s", cJSON_Print(({jp}).json));
             )
         
         @c_dec(
-            param_types=(Param('code', Type('string')),), is_method=True, is_static=True,
+            params=(Param('code', Type('string')),), is_method=True, is_static=True,
             add_to_class=self, overloads={
                 OverloadKey(
                     Type('JSONParser'), (Param('file', Type('File')),)

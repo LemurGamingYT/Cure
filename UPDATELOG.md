@@ -1,5 +1,13 @@
 # Update Log
 
+### Version 0.0.7 (Nov 25, 2024)
+- Improved file IO
+- Random class
+- Bug fixes
+- Lua Interoperability
+- MutexLock() class
+- Improved CLI
+
 ### Version 0.0.6 (Nov 3, 2024)
 - 'extern' keyword
 - Code optimizer

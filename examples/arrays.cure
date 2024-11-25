@@ -26,13 +26,15 @@ func main() -> int {
     arr.remove(random)
     print(arr)
 
-    // Create another array
-    arr2 = int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
-    print(arr2)
+    // Create another array of size 20
+    arr2 = new int[20]
+    print(arr2) // All elements in an integer array default to 0
 
     // Compare the two arrays
     print(arr == arr2) // false
     print(arr != arr2) // true
+
+    arr2[0] = 100 // Same as arr2.set(0, 100)
 
     // Add the arrays together
     arr.add(arr2)

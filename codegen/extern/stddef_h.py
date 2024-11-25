@@ -14,7 +14,7 @@ class stddef_h:
         
         codegen.add_toplevel_constant('NULL', Type('nil'), add_code=False)
 
-        @c_dec(param_types=(
+        @c_dec(params=(
             Param('type', Type('any')), Param('member-designator', Type('any'))
         ), can_user_call=True, add_to_class=self)
         def _offsetof(_, call_position: Position, type: Object, member_designator: Object) -> Object:

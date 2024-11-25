@@ -9,7 +9,8 @@ from ir.nodes import (
     Program, Body, TypeNode, ParamNode, ArgNode, Call, Return, Foreach, While,
     If, Use, VarDecl, Value, Identifier, Array, Dict, Brackets, BinOp, UOp, Attribute, New,
     Ternary, Position, Node, Break, Continue, FuncDecl, Nil, Index, DollarString, Cast, Enum,
-    ClassProperty, ClassMethod, Class, AttrAssign, CreateTuple, RangeFor, Extern, Test, FuncType
+    ClassProperty, ClassMethod, Class, AttrAssign, CreateTuple, RangeFor, Extern, Test, FuncType,
+    NewArray, Interface, InterfaceMethod, InterfaceMembers, ClassMembers
 )
 
 
@@ -112,7 +113,8 @@ class IRBuilder(CureVisitor):
     
     def visitRangeStmt(self, ctx: CureParser.RangeStmtContext) -> RangeFor:
         return RangeFor(
-            to_pos(ctx), ctx.ID().getText(), self.visit(ctx.expr(0)), self.visit(ctx.expr(1)),
+            to_pos(ctx), ctx.ID().getText(), self.visit(ctx.expr(0)),
+            self.visit(ctx.expr(1)) if len(ctx.expr()) == 2 else None,
             self.visitBody(ctx.body())
         )
     
@@ -146,14 +148,14 @@ class IRBuilder(CureVisitor):
         if ctx.DOT() is not None:
             return AttrAssign(
                 pos, Identifier(pos, ctx.ID(0).getText()), [ctx.ID(1).getText()],
-                self.visit(ctx.expr()), op.text if op is not None else None
+                self.visit(ctx.expr(0)), op.text if op is not None else None
             )
         
         return VarDecl(
-            pos, ctx.ID(0).getText(), self.visit(ctx.expr()),
+            pos, ctx.ID(0).getText(), self.visit(ctx.expr(0 if len(ctx.expr()) == 1 else 1)),
             op.text if op is not None else None,
             self.visitType(ctx.type_()) if ctx.type_() is not None else None,
-            ctx.CONST() is not None
+            ctx.CONST() is not None, self.visit(ctx.expr(0)) if len(ctx.expr()) == 2 else None
         )
     
     def visitFuncModifications(self, ctx: CureParser.FuncModificationsContext) -> Call:
@@ -197,10 +199,8 @@ class IRBuilder(CureVisitor):
         return ident
     
     def visitClassMethod(self, ctx: CureParser.ClassMethodContext) -> ClassMethod:
-        pos = to_pos(ctx)
-        name = self.visitMethodName(ctx.methodName())
         return ClassMethod(
-            pos, name, self.visitBody(ctx.body()),
+            to_pos(ctx), self.visitMethodName(ctx.methodName()), self.visitBody(ctx.body()),
             self.visitParams(ctx.params()) if ctx.params() is not None else [],
             self.visitType(ctx.type_()) if ctx.type_() is not None else None,
             [], [], None,
@@ -208,7 +208,7 @@ class IRBuilder(CureVisitor):
         )
     
     def visitClassDeclarations(self, ctx: CureParser.ClassDeclarationsContext | None)\
-        -> list[ClassMethod | ClassProperty]:
+        -> ClassMembers:
         if ctx is None:
             return []
         
@@ -250,30 +250,30 @@ class IRBuilder(CureVisitor):
         elif ctx.FLOAT() is not None:
             return Value(to_pos(ctx), ctx.getText() + 'f', 'float')
         elif ctx.STRING() is not None:
-            txt = ctx.getText()
-            if len(txt) > 0 and txt[0] == '$':
-                nodes: list[Node] = []
-                
-                s = txt[2:-1]
-                i = 0
-                while i < len(s):
-                    char = s[i]
-                    if char == '{':
-                        i += 1
-                        expr = ''
-                        while s[i] != '}':
-                            expr += s[i]
-                            i += 1
-                        
-                        nodes.append(*self.build(expr).nodes)
-                    else:
-                        nodes.append(Value(to_pos(ctx), char, 'string'))
-                    
-                    i += 1
-                
-                return DollarString(to_pos(ctx), nodes)
+            txt = ctx.getText().replace('\n', '\\n')
+            if len(txt) <= 0 or txt[0] != '$':
+                return Value(to_pos(ctx), txt, 'string')
             
-            return Value(to_pos(ctx), ctx.getText(), 'string')
+            nodes: list[Node] = []
+            
+            s = txt[2:-1]
+            i = 0
+            while i < len(s):
+                char = s[i]
+                if char == '{':
+                    i += 1
+                    expr = ''
+                    while s[i] != '}':
+                        expr += s[i]
+                        i += 1
+                    
+                    nodes.append(*self.build(expr).nodes)
+                else:
+                    nodes.append(Value(to_pos(ctx), char, 'string'))
+                
+                i += 1
+            
+            return DollarString(to_pos(ctx), nodes)
         elif ctx.BOOL() is not None:
             return Value(to_pos(ctx), ctx.getText(), 'bool')
         elif ctx.NIL() is not None:
@@ -335,7 +335,8 @@ class IRBuilder(CureVisitor):
     def visitNew(self, ctx: CureParser.NewContext) -> New:
         return New(
             to_pos(ctx), Identifier(to_pos(ctx), ctx.ID().getText()),
-            self.visitArgs(ctx.args())
+            self.visitArgs(ctx.args()),
+            self.visitGenericArgs(ctx.genericArgs()) if ctx.genericArgs() is not None else []
         )
     
     def visitIndex(self, ctx: CureParser.IndexContext) -> Index:
@@ -365,3 +366,28 @@ class IRBuilder(CureVisitor):
             pos.error_here('Unary operator is missing')
         
         return UOp(pos, self.visit(ctx.expr()), ctx.uop.text)
+    
+    def visitNew_array(self, ctx: CureParser.New_arrayContext) -> NewArray:
+        return NewArray(to_pos(ctx), self.visitType(ctx.type_()), self.visit(ctx.expr()))
+    
+    def visitInterfaceMethod(self, ctx: CureParser.InterfaceMethodContext) -> InterfaceMethod:
+        return InterfaceMethod(
+            to_pos(ctx), self.visitMethodName(ctx.methodName()),
+            self.visitParams(ctx.params()) if ctx.params() is not None else [],
+            self.visitType(ctx.type_()) if ctx.type_() is not None else None
+        )
+    
+    def visitInterfaceDeclarations(
+        self, ctx: CureParser.InterfaceDeclarationsContext
+    ) -> InterfaceMembers:
+        if ctx is None:
+            return []
+        
+        methods = [self.visitInterfaceMethod(func) for func in ctx.interfaceMethod()]
+        return methods
+    
+    def visitInterfaceAssign(self, ctx: CureParser.InterfaceAssignContext) -> Interface:
+        return Interface(
+            to_pos(ctx), ctx.ID().getText(),
+            self.visitInterfaceDeclarations(ctx.interfaceDeclarations())
+        )

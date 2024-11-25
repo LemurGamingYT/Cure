@@ -1,5 +1,6 @@
 #include "../include/miniui/miniui.h"
 
+#include <stdbool.h>
 #include <stdio.h>
 
 

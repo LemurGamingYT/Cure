@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
+from sys import exit as sys_exit, stderr
 from typing import NoReturn, Union
-from sys import exit as sys_exit
 from pathlib import Path
 from abc import ABC
 
@@ -34,7 +34,7 @@ class Position:
         return self.src.splitlines()[self.line - 1]
     
     def error_here(self, msg: str) -> NoReturn:
-        print(self.get_print_content(Fore.RED, msg))
+        print(self.get_print_content(Fore.RED, msg), file=stderr)
         sys_exit(1)
     
     def warn_here(self, msg: str) -> None:
@@ -137,6 +137,7 @@ class VarDecl(Node):
     op: str | None = field(default=None)
     type: TypeNode | None = field(default=None)
     is_const: bool = field(default=False)
+    array_index: Node | None = field(default=None)
 
 @dataclass(**kwargs)
 class FuncDecl(Node):
@@ -198,6 +199,7 @@ class Attribute(Node):
 class New(Node):
     name: Identifier
     args: list[ArgNode] = field(default_factory=list)
+    generic_args: list[TypeNode] = field(default_factory=list)
 
 @dataclass(**kwargs)
 class Ternary(Node):
@@ -277,10 +279,28 @@ class CreateTuple(Node):
 class RangeFor(Node):
     loop_name: str
     start: Node
-    end: Node
+    end: Node | None
     body: Body
 
 @dataclass(**kwargs)
 class Test(Node):
     name: str
     body: Body
+
+@dataclass(**kwargs)
+class NewArray(Node):
+    type: TypeNode
+    size: Node
+
+@dataclass(**kwargs)
+class InterfaceMethod(Node):
+    name: str
+    params: list[ParamNode] = field(default_factory=list)
+    return_type: TypeNode | None = field(default=None)
+
+InterfaceMembers = list[InterfaceMethod]
+
+@dataclass(**kwargs)
+class Interface(Node):
+    name: str
+    members: InterfaceMembers = field(default_factory=InterfaceMembers)

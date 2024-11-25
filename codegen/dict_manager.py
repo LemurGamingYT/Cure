@@ -9,7 +9,6 @@ class DictManager:
         self.codegen = codegen
         
         setattr(codegen.type_checker, 'dict_type', self.dict_type)
-        codegen.metadata.setdefault('dict_types', {})
     
     def dict_type(self, node: TypeNode) -> Type | None:
         if node.dict_types is None:
@@ -20,20 +19,13 @@ class DictManager:
             self.codegen.visit_TypeNode(node.dict_types[1])
         )
     
-    def has_type(self, key_type: Type, value_type: Type) -> bool:
-        for k, v in self.codegen.metadata['dict_types'].items():
-            if k == key_type and v == value_type:
-                return True
-        
-        return False
-    
     def define_dict(self, key_type: Type, value_type: Type) -> Type:
         dict_type = Type(
             f'dict[{key_type}: {value_type}]',
             f'{key_type.c_type}_{value_type.c_type}_dict'
         )
         
-        if self.has_type(key_type, value_type):
+        if self.codegen.type_checker.is_valid_type(dict_type):
             return dict_type
         
         pair_type = Type(
@@ -70,7 +62,7 @@ typedef struct {{
             return Object(f'"{pair_type}"', Type('string'), call_position)
         
         @c_dec(
-            param_types=(Param('pair', pair_type),), is_method=True,
+            params=(Param('pair', pair_type),), is_method=True,
             func_name_override=f'{pair_type.c_type}_to_string', add_to_class=c_manager
         )
         def pair_to_string(codegen, call_position: Position, pair_obj: Object) -> Object:
@@ -93,7 +85,7 @@ typedef struct {{
             return Object.STRINGBUF(buf_free, call_position)
         
         @c_dec(
-            param_types=(Param('a', pair_type), Param('b', pair_type)),
+            params=(Param('a', pair_type), Param('b', pair_type)),
             func_name_override=f'{pair_type.c_type}_eq_{pair_type.c_type}', add_to_class=c_manager
         )
         def pair_eq(codegen, call_position: Position, a: Object, b: Object) -> Object:
@@ -114,7 +106,7 @@ typedef struct {{
             return Object(f'({keys_are_equal}) && ({values_are_equal})', Type('bool'), call_position)
         
         @c_dec(
-            param_types=(Param('a', pair_type), Param('b', pair_type)),
+            params=(Param('a', pair_type), Param('b', pair_type)),
             func_name_override=f'{pair_type.c_type}_neq_{pair_type.c_type}', add_to_class=c_manager
         )
         def pair_neq(codegen, call_position: Position, a: Object, b: Object) -> Object:
@@ -150,7 +142,7 @@ typedef struct {{
             return d.OBJECT()
         
         @c_dec(
-            param_types=(Param('dict', dict_type), Param('key', key_type)),
+            params=(Param('dict', dict_type), Param('key', key_type)),
             func_name_override=f'{dict_type.c_type}_get', add_to_class=c_manager, is_method=True,
         )
         def dict_get(codegen, call_position: Position, dict_obj: Object, key: Object) -> Object:
@@ -181,7 +173,7 @@ if (!{found}) {{
             return value.OBJECT()
         
         @c_dec(
-            param_types=(Param('dict', dict_type), Param('key', key_type)),
+            params=(Param('dict', dict_type), Param('key', key_type)),
             func_name_override=f'{dict_type.c_type}_has', add_to_class=c_manager, is_method=True,
         )
         def dict_has(codegen, call_position: Position, dict_obj: Object, key: Object) -> Object:
@@ -204,7 +196,7 @@ for (size_t {i} = 0; {i} < {d}.length; {i}++) {{
             return has.OBJECT()
         
         @c_dec(
-            param_types=(Param('dict', dict_type), Param('key', key_type), Param('value', value_type)),
+            params=(Param('dict', dict_type), Param('key', key_type), Param('value', value_type)),
             func_name_override=f'{dict_type.c_type}_set', add_to_class=c_manager, is_method=True,
         )
         def dict_set(codegen, call_position: Position, dict_obj: Object, key: Object,
@@ -242,7 +234,7 @@ for (size_t {i} = 0; {i} < {d}.length; {i}++) {{
             return Object.NULL(call_position)
         
         @c_dec(
-            param_types=(Param('dict', dict_type),),
+            params=(Param('dict', dict_type),),
             func_name_override=f'{dict_type.c_type}_to_string', add_to_class=c_manager, is_method=True
         )
         def dict_to_string(codegen, call_position: Position, dict_obj: Object) -> Object:
@@ -254,18 +246,21 @@ for (size_t {i} = 0; {i} < {d}.length; {i}++) {{
 )};
 for (size_t {i} = 0; {i} < {d}.length; {i}++) {{
 """)
+            key: Object = codegen.c_manager._to_string(
+                codegen, call_position, Object(f'{d}.elements[{i}].key', key_type, call_position)
+            )
+            
+            value: Object = codegen.c_manager._to_string(
+                codegen, call_position, Object(f'{d}.elements[{i}].value', value_type, call_position)
+            )
             codegen.prepend_code(f"""{codegen.c_manager._StringBuilder_add(
-    codegen, call_position, builder, codegen.c_manager._to_string(
-        codegen, call_position, Object(f'{d}.elements[{i}].key', key_type, call_position)
-    )
+    codegen, call_position, builder, key
 )};
 {codegen.c_manager._StringBuilder_add(
     codegen, call_position, builder, Object('": "', Type('string'), call_position)
 )};
 {codegen.c_manager._StringBuilder_add(
-    codegen, call_position, builder, codegen.c_manager._to_string(
-        codegen, call_position, Object(f'{d}.elements[{i}].value', value_type, call_position)
-    )
+    codegen, call_position, builder, value
 )};
 
 if ({i} < {d}.length - 1) {{
@@ -274,14 +269,30 @@ if ({i} < {d}.length - 1) {{
     codegen, call_position, builder, Object('", "', Type('string'), call_position)
 )};
 }}
+{key.free.code if key.free is not None else ''}
+{value.free.code if value.free is not None else ''}
 }}
 """)
+            if key.free is not None:
+                codegen.scope.remove_free(key.free)
+            
+            if value.free is not None:
+                codegen.scope.remove_free(value.free)
+            
             codegen.prepend_code(f"""{codegen.c_manager._StringBuilder_add(
     codegen, call_position, builder, Object('"}"', Type('string'), call_position)
 )};
 """)
+            if value.free is not None:
+                codegen.scope.remove_free(value.free)
             
-            return codegen.c_manager._StringBuilder_str(codegen, call_position, builder)
+            obj: Object = codegen.c_manager._StringBuilder_str(codegen, call_position, builder)
+            # StringBuilder_str duplicates the builder's buffer and so now the builder is not needed
+            if builder.free is not None:
+                codegen.prepend_code(builder.free.code)
+                codegen.scope.remove_free(builder.free)
+            
+            return obj
         
         @c_dec(
             func_name_override=f'{dict_type.c_type}_type', add_to_class=c_manager,
@@ -291,7 +302,7 @@ if ({i} < {d}.length - 1) {{
             return Object(f'"dict[{key_type}: {value_type}]"', Type('string'), call_position)
         
         @c_dec(
-            param_types=(Param('dict', dict_type),),
+            params=(Param('dict', dict_type),),
             func_name_override=f'{dict_type.c_type}_keys', add_to_class=c_manager, is_property=True,
         )
         def dict_keys(codegen, call_position: Position, dict_obj: Object) -> Object:
@@ -315,7 +326,7 @@ for (size_t {i} = 0; {i} < {d}.length; {i}++) {{
             return keys.OBJECT()
         
         @c_dec(
-            param_types=(Param('dict', dict_type),),
+            params=(Param('dict', dict_type),),
             func_name_override=f'{dict_type.c_type}_values', add_to_class=c_manager, is_property=True,
         )
         def dict_values(codegen, call_position: Position, dict_obj: Object) -> Object:
@@ -339,7 +350,7 @@ for (size_t {i} = 0; {i} < {d}.length; {i}++) {{
             return values.OBJECT()
         
         @c_dec(
-            param_types=(Param('a', dict_type), Param('b', dict_type)),
+            params=(Param('a', dict_type), Param('b', dict_type)),
             func_name_override=f'{dict_type.c_type}_eq_{dict_type.c_type}', add_to_class=c_manager
         )
         def dict_eq_dict(codegen, call_position: Position, a: Object, b: Object) -> Object:
@@ -362,7 +373,7 @@ for (size_t {i} = 0; {i} < ({a}).length; {i}++) {{
             return res.OBJECT()
         
         @c_dec(
-            param_types=(Param('a', dict_type), Param('b', dict_type)),
+            params=(Param('a', dict_type), Param('b', dict_type)),
             func_name_override=f'{dict_type.c_type}_neq_{dict_type.c_type}', add_to_class=c_manager
         )
         def dict_neq_dict(codegen, call_position: Position, a: Object, b: Object) -> Object:
@@ -385,19 +396,19 @@ for (size_t {i} = 0; {i} < ({a}).length; {i}++) {{
             return res.OBJECT()
         
         @c_dec(
-            param_types=(Param('dict', dict_type), Param('key', key_type)),
+            params=(Param('dict', dict_type), Param('key', key_type)),
             func_name_override=f'index_{dict_type.c_type}', add_to_class=c_manager
         )
         def index_dict(codegen, call_position: Position, dict_obj: Object, key: Object) -> Object:
             return dict_get(codegen, call_position, dict_obj, key)
         
         @c_dec(
-            param_types=(Param('dict', dict_type), Param('i', Type('int'))),
+            params=(Param('dict', dict_type), Param('i', Type('int'))),
             func_name_override=f'iter_{dict_type.c_type}', add_to_class=c_manager,
             return_type=pair_type,
         )
         def iter_dict(_, call_position: Position, dict_obj: Object, i: Object) -> Object:
             return Object(f'(({dict_obj}).elements[{i}])', pair_type, call_position)
         
-        self.codegen.metadata[key_type] = value_type
+        self.codegen.type_checker.add_type(dict_type)
         return dict_type

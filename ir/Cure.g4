@@ -9,7 +9,7 @@ type
     ;
 
 stmt
-    : varAssign | funcAssign | classAssign | enumAssign | testAssign
+    : varAssign | funcAssign | classAssign | enumAssign | testAssign //| interfaceAssign
     | foreachStmt | whileStmt | ifStmt | useStmt | rangeStmt | externStmt
     | expr
     ;
@@ -21,7 +21,7 @@ ifStmt: IF expr body elseifStmt* elseStmt?;
 elseifStmt: ELSE IF expr body;
 elseStmt: ELSE body;
 whileStmt: WHILE expr body;
-rangeStmt: FOR ID IN expr DOUBLEDOT expr body;
+rangeStmt: FOR ID IN expr DOUBLEDOT expr? body;
 foreachStmt: FOREACH ID IN expr body;
 useStmt: USE STRING;
 externStmt: EXTERN STRING;
@@ -31,25 +31,26 @@ methodName
     | ID
     | opname=(ADD | SUB | MUL | DIV | MOD | EEQ | NEQ | LT | GT | GTE | LTE | AND | OR)
     ;
+genericParams: ID (COMMA ID)*;
 
 classProperty: (PUBLIC | PRIVATE)? type ID (ASSIGN expr)?;
 classMethod
     : (PUBLIC | PRIVATE)? STATIC? FUNC OVERRIDE? name=methodName LPAREN params? RPAREN (RETURNS type)? body
     ;
-classDeclarations
-    : (classMethod | classProperty)+
-    ;
-classAssign
-    : CLASS ID (RARROW ID)? LBRACE classDeclarations? RBRACE
-    ;
+classDeclarations: (classMethod | classProperty)+;
+interfaceMethod: STATIC? FUNC OVERRIDE? name=methodName LPAREN params? RPAREN (RETURNS type)?;
+interfaceDeclarations: interfaceMethod+;
+classAssign: CLASS ID (RARROW ID)? LBRACE classDeclarations? RBRACE;
+interfaceAssign: INTERFACE ID LBRACE interfaceDeclarations? RBRACE;
 enumAssign: ENUM ID LBRACE (ID (COMMA ID)*)? RBRACE;
 funcModifications: LBRACK ID LPAREN args? RPAREN RBRACK;
 funcAssign
-    : funcModifications* FUNC (type DOT)? ID (LBRACK ID (COMMA ID)* RBRACK)? LPAREN params? RPAREN (RETURNS type)? body
+    : funcModifications* FUNC (type DOT)? ID (LBRACK genericParams RBRACK)? LPAREN params? RPAREN (RETURNS type)? body
     ;
 varAssign
-    : CONST? type? ID op=(ADD | SUB | MUL | DIV | MOD)? ASSIGN expr
+    : CONST? type? ID ASSIGN expr
     | ID DOT ID op=(ADD | SUB | MUL | DIV | MOD)? ASSIGN expr
+    | ID (LBRACK expr RBRACK)? op=(ADD | SUB | MUL | DIV | MOD)? ASSIGN expr
     ;
 testAssign: TEST ID body;
 
@@ -78,7 +79,8 @@ expr
     : LPAREN type RPAREN expr #cast
     // | FUNC LPAREN params? RPAREN (RETURNS type)? body #lambda
     | atom #atom_expr
-    | NEW ID LPAREN args? RPAREN #new
+    | NEW ID genericArgs? LPAREN args? RPAREN #new
+    | NEW type LBRACK expr RBRACK #new_array
     | LPAREN (expr (COMMA expr)*)+ RPAREN #tuple_create
     | expr genericArgs? LPAREN args? RPAREN #call
     | expr DOT ID genericArgs? (LPAREN args? RPAREN)? #attr
@@ -96,27 +98,30 @@ expr
 // Basic keywords
 IF: 'if';
 IN: 'in';
-NEW: 'new';
 USE: 'use';
-FOR: 'for';
 ENUM: 'enum';
 ELSE: 'else';
 FUNC: 'func';
 TEST: 'test';
-WHILE: 'while';
-BREAK: 'break';
 CONST: 'const';
 RETURN: 'return';
 EXTERN: 'extern';
+
+// Loop keywords
+FOR: 'for';
+WHILE: 'while';
+BREAK: 'break';
 FOREACH: 'foreach';
 CONTINUE: 'continue';
 
 // Class keywords
+NEW: 'new';
 CLASS: 'class';
 STATIC: 'static';
 PUBLIC: 'public';
 PRIVATE: 'private';
 OVERRIDE: 'override';
+INTERFACE: 'interface';
 
 APOSTROPHE: '\'';
 

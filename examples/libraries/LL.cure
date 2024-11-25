@@ -36,9 +36,13 @@ func main() -> int {
 
     // Create a new bit field of 32 bits
     field = new BitField(32)
+
+    // Create a Random object to generate random boolean values
+    random = new Random()
+
     // Set every bit to either true or false
     for i in 0..field.num_of_bits {
-        field.set(i, Math.random(1) == 0)
+        field.set(i, random.next_bool())
     }
 
     print(field) // Prints the bit field

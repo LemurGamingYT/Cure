@@ -107,25 +107,20 @@ func main() -> int {
     // use the 'fstream' library
     use "fstream"
 
-    // Create a file and open it in write mode
-    file = new File("test.txt", "w")
+    // Make a new File object
+    file = new File("test.txt")
     print(file) // Nice string representation of the file
-    print(file.path) // The input path
-    print(file.mode) // Get the mode that the file was opened in
+    print(file.filename) // The input path
 
-    print(file.extension) // Get the file extension
+    file.touch() // Create the file
+    file.write("Hello world\n") // Write some data to the file
+
+    print(file.suffix) // Get the file suffix/extension
+    print(file.exists) // Check if the file exists
     print(file.is_file) // Check if the file is a file (false if a directory)
 
-    file.write("Hello world\n") // Write some content to the file
-
-    file.close() // Close the writer file to write the contents to the file
-
-    read = new File("test.txt", "r") // Open the file in read mode.
-    print(read.contents) // Read the contents of the file
-
-    print(read.size) // Get the size of the file
-
-    read.close()
+    print(file.size) // Get the size of the file
+    print(file.contents) // Read the contents of the file
 
     // successfully executed the program!
     return 0

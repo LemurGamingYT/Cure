@@ -5,6 +5,7 @@ from codegen.c_manager import c_dec, INCLUDES
 
 class serialization:
     def __init__(self, codegen) -> None:
+        codegen.dependency_manager.use('fstream', codegen.pos)
         codegen.type_checker.add_type('Serialization')
         codegen.extra_compile_args.append(INCLUDES / 'binn/binn.c')
         codegen.c_manager.include(f'"{INCLUDES / "binn/binn.h"}"', codegen)
@@ -48,11 +49,10 @@ typedef struct {
         
         def Serialization_from_string_file(codegen, call_position: Position,
                                     filename: Object) -> Object:
-            size: TempVar = codegen.create_temp_var(Type('int64', 'long'), call_position)
+            size: TempVar = codegen.create_temp_var(Type('long'), call_position)
             buf_free = Free()
-            buffer: TempVar = codegen.create_temp_var(Type('any', 'void*'), call_position,
-                                                      free=buf_free)
-            f: TempVar = codegen.create_temp_var(Type('FilePointer', 'FILE*'), call_position)
+            buffer: TempVar = codegen.create_temp_var(Type('void*'), call_position, free=buf_free)
+            f: TempVar = codegen.create_temp_var(Type('FILE*'), call_position)
             serializer = _Serialization_new(codegen, call_position)
             codegen.prepend_code(f"""void* {buffer} = NULL;
 FILE* {f} = fopen({filename}, "rb");
@@ -86,7 +86,7 @@ fclose({f});
             return obj.OBJECT()
         
         @c_dec(
-            param_types=(Param('sz', Type('Serialization')), Param('filename', Type('string'))),
+            params=(Param('sz', Type('Serialization')), Param('filename', Type('string'))),
             is_method=True, add_to_class=self
         )
         def _Serialization_to_file(codegen, call_position: Position, obj: Object,
@@ -101,7 +101,7 @@ if ({f} == NULL) {{
     {codegen.c_manager.err('Failed to open file for writing')}
 }}
 
-fwrite({buffer}, 1, {size}, {f});
+fprintf({f}, {buffer});
 fclose({f});
 """)
             
@@ -109,7 +109,7 @@ fclose({f});
         
         
         @c_dec(
-            param_types=(
+            params=(
                 Param('sz', Type('Serialization')), Param('key', Type('string')),
                 Param('value', Type('T'))
             ), is_method=True, add_to_class=self, generic_params=('T',), return_type=Type('bool')
@@ -138,7 +138,7 @@ fclose({f});
             )
         
         @c_dec(
-            param_types=(Param('sz', Type('Serialization')), Param('key', Type('string'))),
+            params=(Param('sz', Type('Serialization')), Param('key', Type('string'))),
             is_method=True, add_to_class=self, generic_params=('T',), return_type=Type('{T}')
         )
         def _Serialization_read(codegen, call_position: Position, obj: Object,

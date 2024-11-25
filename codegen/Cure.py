@@ -28,7 +28,7 @@ class Cure:
             ])
         
         @c_dec(
-            param_types=(Param('src', Type('string')),), is_method=True, is_static=True,
+            params=(Param('src', Type('string')),), is_method=True, is_static=True,
             add_to_class=self
         )
         def _Cure_compile(codegen, call_position: Position, src: Object) -> Object:
@@ -41,7 +41,7 @@ class Cure:
             return Object.NULL(call_position)
         
         @c_dec(
-            param_types=(Param('arg', Type('string')),), is_method=True, is_static=True,
+            params=(Param('arg', Type('string')),), is_method=True, is_static=True,
             add_to_class=self
         )
         def _Cure_add_compile_arg(codegen, call_position: Position, arg: Object) -> Object:

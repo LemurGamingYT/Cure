@@ -14,14 +14,9 @@ func main() -> int {
 
     print(sizeof(int)) // sizeof returns the size of a type
 
-    // insert_c_code inserts C code into the generated code, be careful with this
-    insert_c_code('printf("Hello World!\n")')
-
     x = 10
-    print(addr_of(x)) // addr_of returns the address of a variable
-
     assert(x == 10) // If the test fails, the default error message is "Assertion failed"
-    assert(x != 10, "x should not be 10") // This will fail and print the error message
+    // assert(x != 10, "x should not be 10") // This will fail and print the error message
 
     // Print literal takes a string and prints it. Not anything else, most notably no new line
     print_literal("Hi!")

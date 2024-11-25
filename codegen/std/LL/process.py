@@ -26,7 +26,7 @@ typedef struct {
             Param('pid', Type('int'))
         ])
         
-        @c_dec(param_types=(Param('proc', Type('Process')),), is_method=True, add_to_class=self)
+        @c_dec(params=(Param('proc', Type('Process')),), is_method=True, add_to_class=self)
         def _Process_to_string(codegen, call_position: Position, proc: Object) -> Object:
             code, buf_free = codegen.c_manager.fmt_length(
                 codegen, call_position,
@@ -52,7 +52,7 @@ if ({proc}.handle == NULL) {{
             return proc.OBJECT()
         
         @c_dec(
-            param_types=(Param('pid', Type('int')),), is_method=True, is_static=True,
+            params=(Param('pid', Type('int')),), is_method=True, is_static=True,
             add_to_class=self, overloads={
                 OverloadKey(Type('Process'), ()): OverloadValue(open_current_process)
             }
@@ -73,7 +73,7 @@ if ({proc}.handle == NULL) {{
             return proc.OBJECT()
         
         @c_dec(
-            param_types=(
+            params=(
                 Param('proc', Type('Process')), Param('addr', Type('hex')), Param('value', Type('any'))
             ), is_method=True, add_to_class=self
         )
@@ -92,7 +92,7 @@ if (!WriteProcessMemory(({proc}).handle, {addr}, &{new_value}, sizeof({value.typ
             return Object.NULL(call_position)
         
         @c_dec(
-            param_types=(
+            params=(
                 Param('proc', Type('Process')), Param('addr', Type('hex'))
             ), is_method=True, add_to_class=self, generic_params=('T',), return_type=Type('{T}')
         )
@@ -110,7 +110,7 @@ if (!ReadProcessMemory(({proc}).handle, {addr}, &{new_value}, sizeof({T.c_type})
             
             return new_value.OBJECT()
         
-        @c_dec(param_types=(Param('proc', Type('Process')),), is_method=True, add_to_class=self)
+        @c_dec(params=(Param('proc', Type('Process')),), is_method=True, add_to_class=self)
         def _Process_close(codegen, call_position: Position, proc: Object) -> Object:
             if codegen.target != Target.WINDOWS:
                 call_position.not_supported_err('Process.close()')

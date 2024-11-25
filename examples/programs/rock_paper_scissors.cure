@@ -1,5 +1,7 @@
+random = new Random()
+
 func get_bot_choice() -> string {
-    choice = Math.random(max: 2)
+    choice = random.next_int(2)
     if choice == 0 {
         return "r"
     } else if choice == 1 {

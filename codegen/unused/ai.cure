@@ -1,0 +1,21 @@
+use "ai"
+
+
+func main() -> int {
+    // Train a simple ANN model to learn the XOR function using backpropagation
+    // New model with 2 inputs, 1 output, 1 hidden layers with 2 neurons
+    model = new ANN(2, 1, 2, 1)
+
+    // Input values to train on
+    inputs = {{0, 0}, {0, 1}, {1, 0}, {1, 1}}
+    outputs = {0, 1, 1, 0}
+
+    // Train the model 500 times with the inputs and outputs
+    model.train(inputs, outputs, 500, 3.0)
+
+    foreach input_ in inputs {
+        print($"Output for [{input_[0]}, {input_[1]}]: {model.predict(input_)}")
+    }
+
+    return 0
+}

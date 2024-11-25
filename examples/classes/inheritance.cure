@@ -6,7 +6,7 @@ class Person {
     int cash = 0 // Amount of money the person has, initially 0
 
     // Define the constructor of the class
-    static func Person(string name, int age) {
+    func Person(string name, int age) {
         // Set the properties of the class
         this.name = name
         this.age = age
@@ -21,7 +21,7 @@ class Employee <- Person {
     int salary // Salary of the employee
 
     // Define the constructor of the class
-    static func Employee(string name, int age, string department, int salary) {
+    func Employee(string name, int age, string department, int salary) {
         // Set the properties of the class
         this.name = name
         this.age = age

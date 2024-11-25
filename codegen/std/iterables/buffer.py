@@ -7,15 +7,14 @@ from codegen.c_manager import c_dec
 class buffer:
     def __init__(self, codegen) -> None:
         self.codegen = codegen
-        
-        codegen.metadata.setdefault('buffer_types', [])
+        codegen.type_checker.add_type('Buffer')
         
         @c_dec(
-            param_types=(Param('size', Type('int')),),
-            can_user_call=True, add_to_class=self, generic_params=('T',),
+            params=(Param('size', Type('int')),),
+            add_to_class=self, is_method=True, is_static=True, generic_params=('T',),
             return_type=Type('Buffer[{T}]')
         )
-        def _create_buffer(codegen, call_position: Position, size: Object, *, T: Type) -> Object:
+        def _Buffer_new(codegen, call_position: Position, size: Object, *, T: Type) -> Object:
             if not codegen.is_number_constant(size):
                 call_position.error_here('Buffer size must be a constant integer size')
             
@@ -24,7 +23,7 @@ class buffer:
     
     def define_buffer_type(self, type: Type, size: Object) -> Type:
         buf_type = Type(f'{str(type).title()}Buffer[{size}]', f'{type.c_type}_buffer{size}')
-        if (type.type, int(str(size))) in self.codegen.metadata['buffer_types']:
+        if self.codegen.type_checker.is_valid_type(buf_type):
             return buf_type
         
         self.codegen.add_toplevel_code(f"""typedef struct {{
@@ -49,7 +48,7 @@ class buffer:
             return buf.OBJECT()
         
         @c_dec(
-            param_types=(Param('buf', buf_type),), is_method=True,
+            params=(Param('buf', buf_type),), is_method=True,
             func_name_override=f'{buf_type.c_type}_to_string', add_to_class=c_manager,
         )
         def to_string(codegen, call_position: Position, buf: Object) -> Object:
@@ -82,14 +81,14 @@ if ({i} < ({buf}).length - 1) {{
             return codegen.c_manager._StringBuilder_str(codegen, call_position, builder)
         
         @c_dec(
-            param_types=(Param('buf', buf_type),), is_property=True,
+            params=(Param('buf', buf_type),), is_property=True,
             func_name_override=f'{buf_type.c_type}_size', add_to_class=c_manager
         )
         def size_(_, call_position: Position, _buf: Object) -> Object:
             return Object(f'{size}', Type('int'), call_position)
         
         @c_dec(
-            param_types=(Param('buf', buf_type), Param('i', Type('int')),),
+            params=(Param('buf', buf_type), Param('i', Type('int')),),
             is_method=True, func_name_override=f'{buf_type.c_type}_get', add_to_class=c_manager
         )
         def get(codegen, call_position: Position, buf: Object, i: Object) -> Object:
@@ -101,7 +100,7 @@ if ({i} < ({buf}).length - 1) {{
         # TODO: reimplement buffer insert
         
         @c_dec(
-            param_types=(Param('buf', buf_type), Param('value', type)),
+            params=(Param('buf', buf_type), Param('value', type)),
             is_method=True, func_name_override=f'{buf_type.c_type}_add', add_to_class=c_manager,
             # overloads={
             #     OverloadKey(Type('nil'),
@@ -120,5 +119,5 @@ if ({i} < ({buf}).length - 1) {{
 
             return Object.NULL(call_position)
         
-        self.codegen.metadata['buffer_types'].append((type.type, int(str(size))))
+        self.codegen.type_checker.add_type(buf_type)
         return buf_type

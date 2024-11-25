@@ -1,7 +1,8 @@
+from logging import debug
 from typing import Any
 
-from ir.nodes import ClassMembers, ClassMethod, ClassProperty, Position, Return, Identifier
 from codegen.objects import Object, Type, Param, TempVar, EnvItem, Class, Field, Free
+from ir.nodes import ClassMembers, ClassMethod, ClassProperty, Position
 from codegen.c_manager import c_dec
 from ir import op_map
 
@@ -74,7 +75,7 @@ class ClassManager:
         class_.fields.append(Field(property.name, typ, default, property.public))
         
         @c_dec(
-            param_types=(Param('obj', cls_type),), is_property=True,
+            params=(Param('obj', cls_type),), is_property=True,
             func_name_override=f'{cls_type}_{property.name}', add_to_class=self.codegen.c_manager,
             return_type=typ
         )
@@ -86,7 +87,7 @@ class ClassManager:
             return Object(f'(({obj}).{name})', t, call_position)
         
         @c_dec(
-            param_types=(Param('obj', cls_type), Param('value', typ)), is_method=True,
+            params=(Param('obj', cls_type), Param('value', typ)), is_method=True,
             func_name_override=f'{cls_type}_set_{property.name}', add_to_class=self.codegen.c_manager
         )
         def _(codegen, call_position: Position, obj: Object, value: Object,
@@ -130,9 +131,7 @@ class ClassManager:
         body: Object = eval_body()
         if method.name == cls_type.type:
             name = f'{cls_type}_new'
-            return_type = cls_type
-            method.body.nodes.append(Return(method.body.pos, Identifier(method.body.pos, 'this')))
-            body = eval_body()
+            return_type = Type('nil')
             params = params[1:]
             kwargs['is_static'] = True
         elif kwargs['is_static']:
@@ -151,7 +150,7 @@ class ClassManager:
                     )
 
         @c_dec(
-            param_types=tuple(params), is_method=True, return_type=return_type,
+            params=tuple(params), is_method=True, return_type=return_type,
             func_name_override=name, add_to_class=self.codegen.c_manager, **kwargs
         )
         def _(codegen, call_position: Position, *args: Object) -> Object:
@@ -162,16 +161,18 @@ class ClassManager:
             if method.name == cls_type.type:
                 free_name = Free(free_name=self.get_free_name(class_))
                 cls: TempVar = codegen.create_temp_var(cls_type, call_position, free=free_name)
-                free_name.object_name = f'&({cls})'
+                free_name.object_name = f'&{cls}'
+                passing_args.insert(0, cls.REFERENCE())
                 codegen.prepend_code(f"""{cls_type.c_type} {cls} = {{0}};
+{name}({', '.join(str(arg) for arg in passing_args)});
 """)
                 for field in class_.fields:
                     if field.default is None:
                         continue
                     
-                    codegen.prepend_code(f"""{cls}.{field.name} = {field.default};
-""")
-                passing_args.insert(0, cls.REFERENCE())
+                    codegen.prepend_code(f'{cls}.{field.name} = {field.default};')
+                
+                return cls.OBJECT()
             else:
                 if len(passing_args) > 0:
                     # if the first argument is an identifier, this means that the class instance was
@@ -249,6 +250,8 @@ class ClassManager:
         for member in without_properties:
             code.append(self.method_to_code(member, cls_type, class_))
         
+        debug(f'\'{class_name}\' has {len(members)} members, needs {len(class_.free_members)} '\
+            f'frees, has {len(class_.destructor_methods)} deconstructors and {len(fields)} fields')
         return '\n'.join(code) + f"""void {free_name}({cls_type.c_type}* {FREE_NAME}) {{
     {'\n'.join(f'{deconstructor}({FREE_NAME});' for deconstructor in class_.destructor_methods)}
     {'\n'.join(free.code for free in class_.free_members)}

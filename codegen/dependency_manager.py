@@ -1,5 +1,6 @@
 from importlib import import_module
 from typing import Callable
+from logging import debug
 from pathlib import Path
 
 from codegen.c_manager import STD_PATH
@@ -37,13 +38,43 @@ class DependencyManager:
             return
         
         lib_class = lib_type(self.codegen)
-        if not getattr(lib_class, 'CAN_USE', True):
+        if not getattr(lib_class, 'CAN_USE', True) and Path.cwd().name != 'Cure':
             pos.error_here(f'Library \'{lib_name}\' cannot be used')
         
         self.dependencies.append(lib_class)
         objects = self.codegen.c_manager.get_all_objects(lib_class)
         for k, v in objects.items():
             setattr(self.codegen.c_manager, k, v)
+    
+    def use_from_folder(self, lib_name: str, folder: Path, pos: Position) -> bool:
+        """Tries to use a Cure library from a specific `Path`.
+
+        Args:
+            lib_name (str): The name of the library.
+            folder (Path): The `Path` of the folder.
+            pos (Position): The position.
+        
+        Returns:
+            bool: Whether the library was used.
+        """
+        
+        lib_name_path = folder / lib_name
+        for lib in folder.iterdir():
+            if self.is_file_target_lib(lib, lib_name_path):
+                self.use_builtin(lib, lib_name, lib, pos)
+                return True
+            
+            if lib.is_file():
+                continue
+            
+            has_sub_directories = any(f.is_dir() and f.name != '__pycache__' for f in lib.iterdir())
+            if not has_sub_directories:
+                continue
+            
+            if self.use_from_folder(lib_name, lib, pos):
+                return True
+        
+        return False
     
     def use(self, lib_name: str, pos: Position) -> None:
         """Use a Cure library.
@@ -53,31 +84,10 @@ class DependencyManager:
             pos (Position): The position.
         """
         
-        lib_name_path = STD_PATH / lib_name
-        if lib_name_path.is_dir():
-            lib_name_path = lib_name_path.absolute()
+        debug(f'Using name \'{lib_name}\'')
         
-        for lib in STD_PATH.iterdir():
-            lib_path = lib
-            if self.is_file_target_lib(lib_path, lib_name_path):
-                self.use_builtin(lib_name_path, lib_name, lib_path, pos)
-                return
-            
-            if not lib.is_dir():
-                continue
-            
-            has_sub_directories = any(f.is_dir() and f.name != '__pycache__' for f in lib.iterdir())
-            if not has_sub_directories:
-                continue
-            
-            for f in lib.iterdir():
-                if not f.is_dir():
-                    continue
-                
-                lib_path /= f
-                if self.is_file_target_lib(lib_path, lib_name_path):
-                    self.use_builtin(lib_name_path, lib_name, lib_path, pos)
-                    return
+        if self.use_from_folder(lib_name, STD_PATH, pos):
+            return
         else:
             full_lib_name = lib_name
             lib = Path(lib_name)
@@ -94,6 +104,8 @@ class DependencyManager:
                 header = lib.with_suffix('.h')
                 sub_codegen, code = self.strtoc(lib.read_text('utf-8'))
                 self.codegen.scope.env |= sub_codegen.scope.env
+                self.codegen.c_manager.add_objects(sub_codegen.c_manager, self.codegen.c_manager)
+                self.codegen.metadata['valid_types'] |= sub_codegen.metadata['valid_types']
                 
                 header.write_text(f"""#pragma once
 #ifdef __cplusplus

@@ -12,7 +12,7 @@ class BigInt:
 }} BigInt;
 """)
         
-        @c_dec(param_types=(Param('bi', Type('BigInt')),), add_to_class=self)
+        @c_dec(params=(Param('bi', Type('BigInt')),), add_to_class=self)
         def _BigInt_to_string(codegen, call_position: Position, bint: Object) -> Object:
             buf_free = Free()
             buf: TempVar = codegen.create_temp_var(Type('string'), call_position, free=buf_free,
@@ -42,7 +42,7 @@ for (int {i} = ({bint}).length - 1; {i} >= 0; {i}--) {{
             return buf.OBJECT()
         
         @c_dec(
-            param_types=(Param('bi', Type('BigInt')), Param('bi', Type('BigInt'))),
+            params=(Param('bi', Type('BigInt')), Param('bi', Type('BigInt'))),
             add_to_class=self
         )
         def _BigInt_add_BigInt(codegen, call_position: Position, a: Object, b: Object) -> Object:
@@ -64,7 +64,7 @@ for (int {i} = 0; {i} < ({a}).length || {i} < ({b}).length || {carry}; {i}++) {{
             return res.OBJECT()
         
         @c_dec(
-            param_types=(Param('bi', Type('BigInt')), Param('bi', Type('BigInt'))),
+            params=(Param('bi', Type('BigInt')), Param('bi', Type('BigInt'))),
             add_to_class=self
         )
         def _BigInt_sub_BigInt(codegen, call_position: Position,
@@ -96,7 +96,7 @@ while ({res}.length > 1 && {res}.digits[{res}.length - 1] == 0) {{
             return res.OBJECT()
         
         @c_dec(
-            param_types=(Param('num', Type('string')),),
+            params=(Param('num', Type('string')),),
             is_method=True, is_static=True, add_to_class=self
         )
         def _BigInt_new(codegen, call_position: Position, num: Object) -> Object:

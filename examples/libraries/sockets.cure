@@ -1,0 +1,24 @@
+// 'sockets' is a library that has sockets for communication across devices
+use "sockets"
+
+
+func main() -> int {
+    // The port to host the server on
+    port = "12345"
+
+    // Create a new socket
+    sock = new Socket()
+    sock.bind("localhost", port) // Bind to localhost 12345
+    sock.listen(5) // Listen for new clients
+    while true {
+        client = new Socket()
+        sock.accept(client) // Accept a new client when there is one
+        client.send("Thank you for connecting") // Send the client a message
+
+        // Client is closed here
+        break
+    }
+
+    // If you want to, you can run 'telnet localhost 12345' to check if this works!
+    return 0
+}

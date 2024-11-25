@@ -14,12 +14,12 @@ class Pointer:
         codegen.type_checker.add_type('Pointer')
         
         def check_pointer(codegen, pointer: Stringable) -> None:
-            codegen.prepend_code(f"""if (({pointer}).is_freed) {{
+            codegen.prepend_code(f"""if (({pointer}).is_freed || ({pointer}).data == NULL) {{
     {codegen.c_manager.err('Pointer has been freed')}
 }}
 """)
         
-        @c_dec(param_types=(Param('ptr', Type('Pointer')),), is_method=True, add_to_class=self)
+        @c_dec(params=(Param('ptr', Type('Pointer')),), is_method=True, add_to_class=self)
         def _Pointer_to_string(codegen, call_position: Position, ptr: Object) -> Object:
             code, buf_free = codegen.c_manager.fmt_length(
                 codegen, call_position,
@@ -29,7 +29,7 @@ class Pointer:
             codegen.prepend_code(code)
             return Object.STRINGBUF(buf_free, call_position)
         
-        @c_dec(param_types=(Param('size_bytes', Type('int')),), can_user_call=True, add_to_class=self)
+        @c_dec(params=(Param('size_bytes', Type('int')),), can_user_call=True, add_to_class=self)
         def _allocate(codegen, call_position: Position, size_bytes: Object) -> Object:
             ptr: TempVar = codegen.create_temp_var(Type('Pointer'), call_position)
             codegen.prepend_code(f"""Pointer {ptr} = {{
@@ -40,14 +40,23 @@ class Pointer:
         
         
         @c_dec(
-            param_types=(Param('size_bytes', Type('int')),), is_method=True, is_static=True,
+            params=(Param('size_bytes', Type('int')),), is_method=True, is_static=True,
             add_to_class=self
         )
         def _Pointer_new(codegen, call_position: Position, size_bytes: Object) -> Object:
             return _allocate(codegen, call_position, size_bytes)
         
         @c_dec(
-            param_types=(Param('ptr', Type('Pointer')), Param('size', Type('int'))),
+            params=(Param('size', Type('int')),), is_method=True, is_static=True,
+            add_to_class=self
+        )
+        def _Pointer_zero(codegen, call_position: Position, size: Object) -> Object:
+            ptr = _Pointer_new(codegen, call_position, size)
+            codegen.prepend_code(f'memset(({ptr}).data, 0, {size});')
+            return ptr
+        
+        @c_dec(
+            params=(Param('ptr', Type('Pointer')), Param('size', Type('int'))),
             is_method=True, add_to_class=self
         )
         def _Pointer_reallocate(codegen, _: Position,
@@ -59,7 +68,7 @@ class Pointer:
             
             return pointer
         
-        @c_dec(param_types=(Param('ptr', Type('Pointer')),), is_method=True, add_to_class=self)
+        @c_dec(params=(Param('ptr', Type('Pointer')),), is_method=True, add_to_class=self)
         def _Pointer_free(codegen, call_position: Position, pointer: Object) -> Object:
             check_pointer(codegen, pointer)
             codegen.prepend_code(f"""free(({pointer}).data);
@@ -68,7 +77,7 @@ class Pointer:
             return Object.NULL(call_position)
         
         @c_dec(
-            param_types=(Param('ptr', Type('Pointer')), Param('data', Type('any'))),
+            params=(Param('ptr', Type('Pointer')), Param('data', Type('any'))),
             is_method=True, add_to_class=self
         )
         def _Pointer_write(codegen, call_position: Position, pointer: Object, data: Object) -> Object:
@@ -80,9 +89,58 @@ memcpy(({pointer}).data, &{data_var}, sizeof({data_var}));
             return Object.NULL(call_position)
         
         @c_dec(
-            param_types=(Param('ptr', Type('Pointer')),),
+            params=(Param('ptr', Type('Pointer')),),
             is_method=True, add_to_class=self, generic_params=('T',), return_type=Type('{T}')
         )
         def _Pointer_read(codegen, call_position: Position, pointer: Object, *, T: Type) -> Object:
             check_pointer(codegen, pointer)
             return Object(f'(*({T}*)({pointer}).data)', T, call_position)
+        
+        @c_dec(
+            params=(Param('ptr', Type('Pointer')), Param('src', Type('any')),),
+            is_method=True, add_to_class=self
+        )
+        def _Pointer_copy(codegen, call_position: Position, pointer: Object, src: Object) -> Object:
+            check_pointer(codegen, pointer)
+            src_var: TempVar = codegen.create_temp_var(Type('any'), call_position)
+            codegen.prepend_code(f"""{src.type.c_type} {src_var} = {src};
+memcpy(({pointer}).data, &{src_var}, sizeof({src_var}));
+""")
+            return Object.NULL(call_position)
+        
+        @c_dec(
+            params=(Param('ptr', Type('Pointer')), Param('value', Type('any')),
+                    Param('size', Type('int')),),
+            is_method=True, add_to_class=self
+        )
+        def _Pointer_set(codegen, call_position: Position, pointer: Object, value: Object,
+                         size: Object) -> Object:
+            check_pointer(codegen, pointer)
+            codegen.prepend_code(f'memset(({pointer}).data, {value}, {size});')
+            return Object.NULL(call_position)
+        
+        @c_dec(
+            params=(Param('ptr', Type('Pointer')), Param('offset', Type('int'))),
+            is_method=True, add_to_class=self
+        )
+        def _Pointer_offset(codegen, call_position: Position, pointer: Object,
+                            offset: Object) -> Object:
+            check_pointer(codegen, pointer)
+            codegen.prepend_code(f'((char*)({pointer}).data) += {offset};')
+            return Object.NULL(call_position)
+        
+        @c_dec(
+            params=(Param('ptr', Type('Pointer')), Param('other', Type('Pointer'))),
+            is_method=True, add_to_class=self
+        )
+        def _Pointer_swap(codegen, call_position: Position, pointer: Object, other: Object) -> Object:
+            check_pointer(codegen, pointer)
+            check_pointer(codegen, other)
+            other_data = other.attr('data')
+            pointer_data = pointer.attr('data')
+            codegen.prepend_code(f"""memcpy({pointer_data}, {other_data}, sizeof({pointer_data}));
+memcpy({other_data}, {pointer_data}, sizeof({pointer_data}));
+memcpy({pointer_data}, {other_data}, sizeof({pointer_data}));
+""")
+            
+            return Object.NULL(call_position)

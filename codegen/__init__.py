@@ -1,15 +1,17 @@
+from logging import debug, info, warning
 from typing import Iterable, Any
 # from pprint import pprint
 from pathlib import Path
 
 from codegen.function_manager import FunctionManager, FunctionType
 from codegen.dependency_manager import DependencyManager
+from codegen.interface_manager import InterfaceManager
 from codegen.optional_manager import OptionalManager
 from codegen.tuple_manager import TupleManager
 from codegen.class_manager import ClassManager
 from codegen.array_manager import ArrayManager
-from codegen.target import get_current_target
 from codegen.c_manager import CManager, c_dec
+from codegen.target import get_current_target
 from codegen.preprocessor import Preprocessor
 from codegen.dict_manager import DictManager
 from codegen.type_checker import TypeChecker
@@ -19,13 +21,14 @@ from ir.base_visitor import IRVisitor
 from codegen.target import Target
 from codegen.objects import (
     Scope, Object, Type, EnvItem, Free, TempVar, ID_REGEX, POS_ZERO, INT_REGEX, Arg, Param,
-    CodeType
+    CodeType, ArgValidationCallback
 )
 from ir import (
     Program, Body, TypeNode, ParamNode, ArgNode, Call, Return, Foreach, While,
     If, Use, VarDecl, Value, Identifier, Array, Dict, Brackets, BinOp, UOp, Attribute, New,
     Ternary, Position, Node, Break, Continue, FuncDecl, Nil, Index, DollarString, IRBuilder,
-    Cast, Enum, Class, AttrAssign, CreateTuple, op_map, RangeFor, Extern, Test
+    Cast, Enum, Class, AttrAssign, CreateTuple, op_map, RangeFor, Extern, Test, NewArray,
+    Interface
 )
 
 
@@ -37,6 +40,7 @@ def str_to_c(cure: str, scope: Scope | None = None,
     # pprint(program)
     
     codegen = CodeGen(program, target, scope)
+    debug(f'Generating C code for {filename} targetting {codegen.target}')
     return codegen, codegen.generate(program)
 
 def cure_to_c(cure: Path, output: Path | None = None,
@@ -45,6 +49,7 @@ def cure_to_c(cure: Path, output: Path | None = None,
     if output is not None:
         output.write_text(code, 'utf-8')
     
+    debug(f'Generated C code for {cure}')
     return codegen, code
 
 
@@ -53,6 +58,7 @@ class CodeGen(IRVisitor):
         super().__init__()
         
         self.target = get_current_target() if target is None else target
+        self.arg_validation_callbacks: list[ArgValidationCallback] = []
         self.extra_compile_args: list[str] = []
         self.metadata: dict[Any, Any] = {}
         self.scope = scope or Scope()
@@ -73,18 +79,24 @@ class CodeGen(IRVisitor):
         self.external_manager = ExternalManager(self)
         self.function_manager = FunctionManager(self)
         self.optional_manager = OptionalManager(self)
+        self.interface_manager = InterfaceManager(self)
         self.dependency_manager = DependencyManager(self, str_to_c)
         
         self.optimizer = Optimizer(ir, self)
         optimized_ir = self.optimizer.optimize()
         if optimized_ir is None:
             self.pos.warn_here('Failed to optimize code')
+            warning('Failed to optimize IR')
+        else:
+            debug('Optimized IR')
         
         ir = optimized_ir or ir # type: ignore
         
         self.preprocessor.preprocess(ir)
+        debug('Preprocessed IR')
         
         requires_args = self.optimizer.uses_args
+        info('Program requires args' if requires_args else 'Program does not require args')
         if requires_args:
             str_array = self.array_manager.define_array(Type('string'))
             
@@ -99,6 +111,8 @@ class CodeGen(IRVisitor):
         self.main_init_code += f"""srand(time(NULL));
 {configure_terminal}
 """
+
+        debug('Finished Code Generation initialization')
     
     def is_number_constant(self, value: Object | str) -> bool:
         """Checks whether a value is a string constant, i.e. is a number and nothing else e.g. 42.
@@ -172,9 +186,13 @@ class CodeGen(IRVisitor):
         
         self.scope = Scope(self.scope, env=self.scope.env.copy(), **kwargs)
         
+        inside_class_text = 'inside a class' if self.scope.is_in_class else 'outside of a class'
         if params is not None:
+            debug(f'Entering scope with {len(params)} parameters {inside_class_text}')
             for param in params:
                 self.scope.env[param.name] = EnvItem(param.USE(), param.type, Position(0, 0, ''))
+        else:
+            debug(f'Entering scope with no parameters {inside_class_text}')
     
     def exit_scope(self) -> None:
         """Exit out of a scope and restore the previous scope."""
@@ -193,7 +211,6 @@ class CodeGen(IRVisitor):
         Returns:
             bool: True if the name is occupied and False if the name isn't occupied.
         """
-        
         
         return name in self.scope.env or self.c_manager.get_object(name) is not None or\
             name in self.c_manager.RESERVED_NAMES
@@ -447,7 +464,7 @@ class CodeGen(IRVisitor):
             return Object(f'"{name}"', Type('string'), call_position)
         
         @c_dec(
-            param_types=(Param('enum', enum_type),), is_method=True,
+            params=(Param('enum', enum_type),), is_method=True,
             add_to_class=self.c_manager, func_name_override=f'{enum_type.c_type}_to_string'
         )
         def _(_, call_position: Position, _enum: Object) -> Object:
@@ -469,21 +486,21 @@ class CodeGen(IRVisitor):
                 return Object(f'(({name})({value}))', enum_type, call_position)
             
         @c_dec(
-            param_types=(Param('enum', enum_type),), is_method=True,
+            params=(Param('enum', enum_type),), is_method=True,
             add_to_class=self.c_manager, func_name_override=f'{enum_type.c_type}_to_int'
         )
         def _(_, call_position: Position, enum: Object) -> Object:
             return Object(f'((int)({enum}))', Type('int'), call_position)
         
         @c_dec(
-            param_types=(Param('a', enum_type), Param('b', enum_type)), is_method=True,
+            params=(Param('a', enum_type), Param('b', enum_type)), is_method=True,
             add_to_class=self.c_manager, func_name_override=f'{enum_type.c_type}_eq_{enum_type.c_type}'
         )
         def _(_, call_position: Position, a: Object, b: Object) -> Object:
             return Object(f'(({a}) == ({b}))', Type('bool'), call_position)
         
         @c_dec(
-            param_types=(Param('a', enum_type), Param('b', enum_type)),  is_method=True,
+            params=(Param('a', enum_type), Param('b', enum_type)),  is_method=True,
             add_to_class=self.c_manager, func_name_override=f'{enum_type.c_type}_neq_{enum_type.c_type}'
         )
         def _(_, call_position: Position, a: Object, b: Object) -> Object:
@@ -509,12 +526,27 @@ class CodeGen(IRVisitor):
         
         return True
     
+    def expect_body_type(self, body: Body, expected_type: Type, **kwargs):
+        self.enter_scope(**kwargs) # enter a new scope to not conflict with the current scope
+        
+        for stmt in body.nodes:
+            stmt_node = self.visit(stmt)
+            if not isinstance(stmt, (Return, If, While, Foreach, Break, Continue)):
+                continue
+            
+            if stmt_node.type != expected_type:
+                self.exit_scope()
+                return False, stmt_node.position, stmt_node.type
+        
+        self.exit_scope()
+        return True, None, None
+    
     
     def visit_Program(self, node: Program) -> str:
         self.dependency_manager.running_file = node.file
         
         # self.preprocessor.preprocess(node)
-        code = '\n'.join(line + ';' for line in [self.visit(stmt).code for stmt in node.nodes])
+        code = '\n'.join(line + ';' for line in [str(self.visit(stmt)) for stmt in node.nodes])
         return str(self.top_level_code + '\n' + code)
     
     def visit_TypeNode(self, node: TypeNode) -> Type:
@@ -638,6 +670,10 @@ class CodeGen(IRVisitor):
         
         if code_type == Type('nil'):
             code.extend(v.code for v in self.scope.local_free_vars)
+            
+            # unreliable
+            # if self.scope.is_outer:
+            #     code.append('return NULL;')
         
         self.exit_scope()
         return Object('\n'.join(code), code_type, node.pos, free=free)
@@ -652,7 +688,9 @@ class CodeGen(IRVisitor):
             name = self.fix_name(name)
 
         value: Object = self.visit(node.value)
-        type_ = self.visit_TypeNode(node.type) if node.type is not None else value.type
+        type_ = self.type_checker.get_type(
+            self.visit_TypeNode(node.type) if node.type is not None else value.type
+        )
         if value.type != type_:
             node.pos.error_here(f'Expected type \'{type_}\', got \'{value.type}\'')
         
@@ -667,12 +705,12 @@ class CodeGen(IRVisitor):
             elif item.is_const:
                 node.pos.error_here(f'Cannot redeclare \'{original_name}\' a constant')
             
+            item_value = Object(item.name, item.type, node.pos)
             if node.op is not None:
-                val = Object(item.name, item.type, node.pos)
                 value = self.call_callee(
                     f'{item.type.c_type}_{op_map[node.op]}_{value.type.c_type}',
-                    [Arg(val), Arg(value)], f'Operator \'{node.op}\' is not defined for types '\
-                        f'\'{val.type}\' and \'{value.type}\'', node.pos
+                    [Arg(item_value), Arg(value)], f'Operator \'{node.op}\' is not defined for types '\
+                        f'\'{item_value.type}\' and \'{value.type}\'', node.pos
                 )
             
             if value.free is not None:
@@ -680,40 +718,50 @@ class CodeGen(IRVisitor):
                     if item.free is None else value.free.replace(item.free)
                 self.scope.remove_free(value.free)
             
+            if node.array_index is not None:
+                return self.call_callee(f'{item.type.c_type}_set', [
+                    Arg(item_value), Arg(self.visit(node.array_index)), Arg(value)
+                ], f'Cannot set index on type \'{item_value.type}\'', node.pos)
+            
             return Object(f'{item.name} = {value}', item.type, node.pos)
+        
+        if node.op is not None:
+            node.pos.error_here(f'\'{original_name}\' is not defined')
+        
+        free = Free(name, basic_name=name) if value.free is not None else None
+        if free is not None and value.free is not None:
+            self.scope.remove_free(value.free)
+            free = free.replace(value.free)
+            self.scope.add_free(free)
+        
+        self.scope.env[original_name] = EnvItem(
+            name, type_, node.pos, is_const=node.is_const, free=free
+        )
+        
+        const = 'const ' if node.is_const else ''
+        if type_.function_info is not None:
+            temp_name = type_.function_info.typedef_name
+            signature = f'{const}{temp_name} {name}'
         else:
-            if node.op is not None:
-                node.pos.error_here(f'\'{original_name}\' is not defined')
+            signature = f'{const}{type_.c_type} {name}'
+        
+        if self.scope.is_toplevel:
+            if node.is_const:
+                node.pos.error_here('Cannot declare a constant in the global scope')
             
-            free = Free(name, basic_name=name) if value.free is not None else None
-            if free is not None and value.free is not None:
-                self.scope.remove_free(value.free)
-                free = free.replace(value.free)
-                self.scope.add_free(free)
+            if not self.scope.prepended_code.is_empty:
+                self.main_init_code += str(self.scope.prepended_code)
+                self.scope.prepended_code.reset()
             
-            self.scope.env[original_name] = EnvItem(
-                name, type_, node.pos, is_const=node.is_const, free=free
-            )
+            self.main_init_code += f'{name} = {value};\n'
             
-            const = 'const ' if node.is_const else ''
-            if type_.function_info is not None:
-                temp_name = type_.function_info.typedef_name
-                signature = f'{const}{temp_name} {name}'
-            else:
-                signature = f'{const}{type_.c_type} {name}'
+            if not self.scope.appended_code.is_empty:
+                self.main_init_code += str(self.scope.appended_code)
+                self.scope.appended_code.reset()
             
-            if self.scope.is_toplevel:
-                if node.is_const:
-                    node.pos.error_here('Cannot declare a constant in the global scope')
-                
-                if not self.scope.prepended_code.is_empty:
-                    self.main_init_code += str(self.scope.prepended_code)
-                    self.scope.prepended_code.reset()
-                
-                self.main_init_code += f'{name} = {value};\n'
-                return Object(f'{signature}', Type('nil'), node.pos)
-            
-            return Object(f'{signature} = {str(value)}', Type('nil'), node.pos)
+            return Object(signature, Type('nil'), node.pos)
+        
+        return Object(f'{signature} = {value}', Type('nil'), node.pos)
     
     def visit_ParamNode(self, node: ParamNode) -> Param:
         return Param(
@@ -727,6 +775,7 @@ class CodeGen(IRVisitor):
     def visit_Value(self, node: Value) -> Object:
         if node.type == 'string':
             # slice to remove apostrophes and replace with double quotes
+            # node.value = new_string(node.pos, f'"{node.value[1:-1]}"')
             node.value = f'"{node.value[1:-1]}"'
         
         return Object(node.value, Type(node.type), node.pos)
@@ -739,11 +788,7 @@ class CodeGen(IRVisitor):
                 fmt += part.value
             else:
                 b = self.visit(part)
-                b_var = self.create_temp_var(b.type, node.pos)
-                self.prepend_code(f'string {b_var} = {self.call(
-    f"{b.type.c_type}_to_string", [Arg(b)], node.pos
-)};')
-                fmt_variables.append(str(b_var))
+                fmt_variables.append(str(self.call(f'{b.type.c_type}_to_string', [Arg(b)], node.pos)))
                 fmt += '%s'
         
         code, buf_free = self.c_manager.fmt_length(self, node.pos, f'"{fmt}"', *fmt_variables)
@@ -920,7 +965,11 @@ class CodeGen(IRVisitor):
             if not getattr(func, 'is_static', False):
                 node.pos.error_here(f'Class instantiation method for \'{name}\' is not static')
             
-            return self.call(callee, [self.visit_ArgNode(arg) for arg in node.args], node.pos)
+            generic_args = self.get_generic_args(node.generic_args)
+            return self.call(
+                callee, [self.visit_ArgNode(arg) for arg in node.args], node.pos,
+                generic_args=generic_args
+            )
         
         if self.type_checker.is_valid_type(name):
             node.pos.error_here(f'Class instantiation method for \'{name}\' is not defined')
@@ -1033,30 +1082,55 @@ class CodeGen(IRVisitor):
     
     def visit_RangeFor(self, node: RangeFor) -> Object:
         start: Object = self.visit(node.start)
-        end: Object = self.visit(node.end)
-        
-        loop_type = Type('int')
-        if start.type == Type('float') or end.type == Type('float'):
-            loop_type = Type('float')
-        
-        self.enter_scope(is_in_loop=True)
-        loop_var: TempVar = self.create_temp_var(loop_type, node.pos, name=node.loop_name)
-        out = Object(f"""for (
-    {loop_type.c_type} {loop_var.name} = {start};
-    {loop_var.name} < ({end});
-    {loop_var.name}++
+        loop_var: TempVar
+        if node.end is None:
+            loop_var = self.create_temp_var(start.type, node.pos, name=node.loop_name,
+                                            default_expr=str(start))
+            self.enter_scope(is_in_loop=True)
+            out = f"""while (true) {{
+{self.visit_Body(node.body)}
+{loop_var}++;
+}}
+"""
+        else:
+            end: Object = self.visit(node.end)
+            
+            loop_type = Type('int')
+            if start.type == Type('float') or end.type == Type('float'):
+                loop_type = Type('float')
+            
+            self.enter_scope(is_in_loop=True)
+            loop_var = self.create_temp_var(loop_type, node.pos, name=node.loop_name)
+            out = f"""for (
+    {loop_type.c_type} {loop_var} = {start};
+    {loop_var} < ({end});
+    {loop_var}++
 ) {{
 {self.visit_Body(node.body)}
 }}
-""", Type('nil'), node.pos)
+"""
         
         self.exit_scope()
-        return out
+        return Object(out, Type('nil'), node.pos)
     
     def visit_Extern(self, node: Extern) -> Object:
         self.external_manager.add_external(node.name, node.pos)
-        return Object(f'// external declaration for \'{node.name}\'', Type('nil'), node.pos)
+        return Object('', Type('nil'), node.pos)
     
     def visit_Test(self, node: Test) -> Object:
         function = FuncDecl(node.pos, f'{node.name}_test', node.body, [])
         return self.visit_FuncDecl(function)
+    
+    def visit_NewArray(self, node: NewArray) -> Object:
+        array_type = self.array_manager.define_array(self.visit_TypeNode(node.type))
+        return self.call(f'{array_type.c_type}_make', [Arg(self.visit(node.size))], node.pos)
+    
+    def visit_Interface(self, node: Interface) -> Object:
+        name = node.name
+        if self.name_occupied(name):
+            node.pos.error_here(f'Name \'{name}\' is already in use')
+
+        self.scope.is_in_class = True
+        code = self.interface_manager.create(node)
+        self.scope.is_in_class = False
+        return Object(code, Type('nil'), node.pos)

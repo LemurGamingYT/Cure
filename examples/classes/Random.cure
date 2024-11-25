@@ -1,0 +1,16 @@
+func main() -> int {
+    // Create a new Random object
+    random = new Random()
+
+    // Use the Random object to generate random values
+    // Generate a random integer between 1 and 10
+    print(random.next_int(1, 10))
+    print(random.next_int(50)) // Generate a random integer between 0 and 50
+
+    // Generate a random boolean (true or false)
+    print(random.next_bool())
+
+    // Generate a random string of length 10 using the characters "abc"
+    print(random.next_string(10, "abc"))
+    return 0
+}

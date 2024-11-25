@@ -18,7 +18,7 @@ class BitField:
             Param('num_of_bits', Type('int'))
         ])
         
-        @c_dec(param_types=(Param('field', Type('BitField')),), is_method=True, add_to_class=self)
+        @c_dec(params=(Param('field', Type('BitField')),), is_method=True, add_to_class=self)
         def _BitField_to_string(codegen, call_position: Position, field: Object) -> Object:
             builder: Object = codegen.c_manager._StringBuilder_new(codegen, call_position)
             i: TempVar = codegen.create_temp_var(Type('size_t'), call_position)
@@ -38,7 +38,7 @@ class BitField:
         
         
         @c_dec(
-            param_types=(Param('a', Type('BitField')), Param('b', Type('BitField'))),
+            params=(Param('a', Type('BitField')), Param('b', Type('BitField'))),
             add_to_class=self
         )
         def _BitField_and_BitField(codegen, call_position: Position, a: Object, b: Object) -> Object:
@@ -61,7 +61,7 @@ for (size_t {i} = 0; {i} < {num_words}; {i}++) {{
             return res
         
         @c_dec(
-            param_types=(Param('a', Type('BitField')), Param('b', Type('BitField'))),
+            params=(Param('a', Type('BitField')), Param('b', Type('BitField'))),
             add_to_class=self
         )
         def _BitField_or_BitField(codegen, call_position: Position, a: Object, b: Object) -> Object:
@@ -85,7 +85,7 @@ for (size_t {i} = 0; {i} < {num_words}; {i}++) {{
         
         
         @c_dec(
-            param_types=(Param('field', Type('BitField')), Param('index', Type('int')),),
+            params=(Param('field', Type('BitField')), Param('index', Type('int')),),
             is_method=True, add_to_class=self
         )
         def _BitField_get(codegen, call_position: Position, field: Object, index: Object) -> Object:
@@ -102,7 +102,7 @@ for (size_t {i} = 0; {i} < {num_words}; {i}++) {{
             )
         
         @c_dec(
-            param_types=(
+            params=(
                 Param('field', Type('BitField')), Param('index', Type('int')),
                 Param('value', Type('bool'))
             ), is_method=True, add_to_class=self
@@ -125,7 +125,7 @@ if ({value}) {{
             return Object.NULL(call_position)
         
         @c_dec(
-            param_types=(Param('size', Type('int')),),
+            params=(Param('size', Type('int')),),
             is_method=True, is_static=True, add_to_class=self
         )
         def _BitField_new(codegen, call_position: Position, size: Object) -> Object:

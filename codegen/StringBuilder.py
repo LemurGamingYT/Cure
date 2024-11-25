@@ -1,4 +1,5 @@
 from codegen.objects import Object, Type, Param, Position, TempVar, Free
+from codegen.function_manager import OverloadKey, OverloadValue
 from codegen.c_manager import c_dec
 from codegen.target import Target
 
@@ -25,7 +26,7 @@ class StringBuilder:
         ])
         
         @c_dec(
-            param_types=(Param('builder', Type('StringBuilder')),),
+            params=(Param('builder', Type('StringBuilder')),),
             is_property=True, add_to_class=self
         )
         def _StringBuilder_str(codegen, call_position: Position, obj: Object) -> Object:
@@ -37,14 +38,7 @@ class StringBuilder:
             
             return buf.OBJECT()
         
-        # TODO: make StringBuilder.len_add an overload of StringBuilder.add
-        @c_dec(
-            param_types=(
-                Param('builder', Type('StringBuilder')), Param('s', Type('string')),
-                Param('len', Type('int'))
-            ), is_method=True, add_to_class=self
-        )
-        def _StringBuilder_len_add(codegen, call_position: Position, builder: Object, s: Object,
+        def StringBuilder_len_add(codegen, call_position: Position, builder: Object, s: Object,
                        len: Object) -> Object:
             lvar: TempVar = codegen.create_temp_var(Type('int'), call_position)
             codegen.prepend_code(f"""size_t {lvar} = {len};
@@ -64,17 +58,22 @@ memcpy(({builder}).buf + ({builder}).length, {s}, {lvar});
             return Object.NULL(call_position)
         
         @c_dec(
-            param_types=(Param('builder', Type('StringBuilder')), Param('s', Type('string'))),
-            is_method=True, add_to_class=self
+            params=(Param('builder', Type('StringBuilder')), Param('s', Type('string'))),
+            is_method=True, add_to_class=self, overloads={
+                OverloadKey(Type('nil'), (
+                    Param('builder', Type('StringBuilder')), Param('s', Type('string')),
+                    Param('len', Type('int'))
+                )): OverloadValue(StringBuilder_len_add)
+            }
         )
         def _StringBuilder_add(codegen, call_position: Position, builder: Object, s: Object) -> Object:
-            return _StringBuilder_len_add(
+            return StringBuilder_len_add(
                 codegen, call_position, builder, s,
                 codegen.c_manager._string_length(codegen, call_position, s)
             )
         
         @c_dec(
-            param_types=(Param('builder', Type('StringBuilder')),), is_method=True,
+            params=(Param('builder', Type('StringBuilder')),), is_method=True,
             add_to_class=self
         )
         def _StringBuilder_capture_stdout(codegen, call_position: Position,
@@ -101,7 +100,7 @@ _dup2({pipe_write_fd}, _fileno(stdout));
             return Object.NULL(call_position)
         
         @c_dec(
-            param_types=(Param('builder', Type('StringBuilder')),), is_method=True,
+            params=(Param('builder', Type('StringBuilder')),), is_method=True,
             add_to_class=self
         )
         def _StringBuilder_release_stdout(codegen, call_position: Position,
@@ -132,7 +131,7 @@ CloseHandle(({builder}).hWrite);
         
         default_capacity = Object(str(STRINGBUILDER_CAPACITY), Type('int'))
         @c_dec(
-            param_types=(Param(
+            params=(Param(
                 'capacity', Type('int'),
                 default=default_capacity
             ),), is_method=True, is_static=True, add_to_class=self

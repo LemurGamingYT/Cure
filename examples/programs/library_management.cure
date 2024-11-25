@@ -1,0 +1,93 @@
+class Book {
+    string author
+    string title
+    int year
+    int pages
+    int price
+
+    func Book(string title, string author, int year, int pages, int price) {
+        this.author = author
+        this.title = title
+        this.year = year
+        this.pages = pages
+        this.price = price
+    }
+
+    func to_string() -> string {
+        return $"Book(author={this.author}, title={this.title})"
+    }
+}
+
+class Library {
+    array[Book] books
+
+    func Library() {
+        this.books = Book{}
+    }
+
+    func add(Book book) {
+        this.books.add(book)
+    }
+
+    func find_book(string title) -> Book? {
+        foreach book in this.books {
+            if book.title == title {
+                return optional[Book](book)
+            }
+        }
+
+        return optional[Book](nil)
+    }
+
+    func to_string() -> string {
+        return to_string(this.books)
+    }
+}
+
+
+func main() -> int {
+    lib = new Library()
+    lib.add(new Book("Harry Potter and the Chamber of Secrets", "J. K. Rowling", 1998, 256, 10))
+    lib.add(new Book("Harry Potter and the Goblet of Fire", "J. K. Rowling", 2000, 636, 10))
+    lib.add(new Book("Harry Potter and the Order of the Phoenix", "J. K. Rowling", 2003, 766, 10))
+    lib.add(new Book("Harry Potter and the Half-Blood Prince", "J. K. Rowling", 2005, 607, 10))
+    lib.add(new Book("Harry Potter and the Deathly Hallows", "J. K. Rowling", 2007, 607, 10))
+    lib.add(new Book("The Lord of the Rings", "J. R. R. Tolkien", 1954, 1178, 10))
+    lib.add(new Book("The Hobbit", "J. R. R. Tolkien", 1937, 310, 10))
+
+    empty_book = new Book("Not found", "Not found", 0, 0, 0)
+
+    print("Welcome to the library!")
+    print("1. Find a book")
+    print("2. Add a book")
+    print("3. Exit")
+    while true {
+        choice = input("Enter your choice: ")
+        if choice == "1" {
+            title = input("Enter the title of the book: ")
+            book = lib.find_book(title).unwrap(empty_book)
+            if book.title == "Not found" {
+                print("Book not found")
+                continue
+            }
+
+            print($"Book exists: {book}")
+        } else if choice == "2" {
+            title = input("Enter the title of the book: ")
+            author = input("Enter the author of the book: ")
+            year = input("Enter the year of the book: ").parse_int()
+            pages = input("Enter the number of pages of the book: ").parse_int()
+            price = input("Enter the price of the book: ").parse_int()
+
+            // TODO: Fix this bug where the book is freed
+            lib.add(new Book(title, author, year, pages, price))
+            print("Book added")
+
+            // Book object is freed here instead of the end of the loop
+        } else if choice == "3" {
+            break
+        }
+    }
+
+    return 0
+}

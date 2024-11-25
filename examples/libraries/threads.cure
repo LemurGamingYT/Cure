@@ -3,6 +3,13 @@
 use "threads"
 
 
+// Create a global 'x' variable
+int x = 0
+
+// Create the mutex lock
+MutexLock lock = new MutexLock()
+
+
 // 'test1' is a function that takes two integers and prints their sum
 func test1(int a, int b) {
     print(a + b)
@@ -17,6 +24,17 @@ func test2(int x) {
     }
 
     print("Done decrementing")
+}
+
+// A function that causes a race condition
+// This is without a mutex lock, but with one, it's fine
+[Thread()]
+func race_condition() {
+    for _ in 0..ONE_MILLION {
+        lock.lock()
+        x += 1
+        lock.unlock()
+    }
 }
 
 func main() -> int {
@@ -39,5 +57,10 @@ func main() -> int {
     thread = new Thread(test2, ONE_MILLION)
     thread.join()*/
     test2(ONE_MILLION) // Call the Thread modified function
+
+    // Call the race_condition() function twice to cause the race condition
+    race_condition()
+    race_condition()
+    print(x)
     return 0
 }

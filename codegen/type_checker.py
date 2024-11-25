@@ -1,6 +1,6 @@
 from typing import Iterable
 
-from codegen.objects import Type, POS_ZERO, EnvItem, FunctionInfo
+from codegen.objects import Type, FunctionInfo
 from ir.nodes import TypeNode
 
 
@@ -8,11 +8,15 @@ class TypeChecker:
     def __init__(self, codegen) -> None:
         self.codegen = codegen
         
-        self.valid_types: set[Type] = {
-            Type('int'), Type('float'), Type('bool'), Type('string'), Type('nil'), Type('Math'),
-            Type('System'), Type('Time'), Type('Cure'), Type('Fraction'), Type('Vector2'), Type('hex'),
-            Type('StringBuilder'), Type('Timer'), Type('Logger')
-        }
+        codegen.metadata.setdefault('valid_types', {
+            Type('int'): Type('int'), Type('float'): Type('float'), Type('bool'): Type('bool'),
+            Type('string'): Type('string'), Type('nil'): Type('nil'), Type('Math'): Type('Math'),
+            Type('System'): Type('System'), Type('Time'): Type('Time'), Type('Cure'): Type('Cure'),
+            Type('Fraction'): Type('Fraction'), Type('Vector2'): Type('Vector2'),
+            Type('hex'): Type('hex'), Type('StringBuilder'): Type('StringBuilder'),
+            Type('Timer'): Type('Timer'), Type('Logger'): Type('Logger'),
+            Type('Random'): Type('Random')
+        })
         
         # codegen.metadata.setdefault('function_info_name_map', {})
     
@@ -45,37 +49,42 @@ class TypeChecker:
         return_type = self.codegen.visit_TypeNode(node.func_type.return_type)
         return self.make_function_info(return_type, param_types).as_type()
     
-    def get_type(self, type_: Type | str) -> Type:
+    def get_type(self, type_: Type | str) -> Type | None:
         """Get the type of the given type. Handles generic types.
 
         Args:
             type_ (Type | str): The type to get the type of.
 
         Returns:
-            Type: The true type of the input type.
+            Type | None: The true type of the input type or possibly None if the type is not valid.
         """
         
         if isinstance(type_, str):
             type_ = Type(type_)
         
-        return type_
+        return self.codegen.metadata['valid_types'].get(type_)
     
-    def add_type(self, type_: Type | str | Iterable[Type] | Iterable[str]) -> None:
+    def add_type(self, type_: Type | str | Iterable[Type] | Iterable[str] | dict[Type, Type],
+                 value_type: Type | None = None) -> None:
         """Add a new type to `valid_types` which is used to check whether a type is valid.
 
         Args:
-            type_ (Type | str | Iterable[Type] | Iterable[str]): The type(s) to add.
+            type_ (Type | str | Iterable[Type] | Iterable[str] | dict[Type, Type]): The type(s) to add.
+            value_type (Type | None, optional): The type of the type. Defaults to the type.
         """
         
         if isinstance(type_, str):
             type_ = Type(type_)
+        elif isinstance(type_, dict):
+            for k, v in type_.items():
+                self.add_type(k, v)
+            return
         elif isinstance(type_, Iterable):
             for t in type_:
                 self.add_type(t)
             return
         
-        self.codegen.scope.env[type_.type] = EnvItem(type_.type, type_, (self.codegen.pos or POS_ZERO))
-        self.valid_types.add(type_)
+        self.codegen.metadata['valid_types'][type_] = value_type or type_
 
     def is_valid_type(self, type_: Type | str) -> bool:
         """Checks whether a type is valid.
@@ -90,4 +99,17 @@ class TypeChecker:
         if isinstance(type_, str):
             type_ = Type(type_)
         
-        return type_ in self.valid_types
+        return type_ in self.codegen.metadata['valid_types']
+    
+    def set_type_value(self, type_: Type | str, value_type: Type) -> None:
+        """Sets the value type of a type.
+
+        Args:
+            type_ (Type | str): The type to set the value type of.
+            value_type (Type): The value type to set.
+        """
+
+        if isinstance(type_, str):
+            type_ = Type(type_)
+
+        self.codegen.metadata['valid_types'][type_] = value_type

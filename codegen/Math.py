@@ -19,7 +19,7 @@ typedef struct {
 """)
         
         @c_dec(
-            param_types=(Param('a', Type('Fraction')), Param('b', Type('Fraction'))),
+            params=(Param('a', Type('Fraction')), Param('b', Type('Fraction'))),
             add_to_class=self
         )
         def _Fraction_add_Fraction(codegen, call_position: Position, a: Object, b: Object) -> Object:
@@ -33,7 +33,7 @@ typedef struct {
             return f.OBJECT()
         
         @c_dec(
-            param_types=(Param('a', Type('Vector2')), Param('b', Type('Vector2'))),
+            params=(Param('a', Type('Vector2')), Param('b', Type('Vector2'))),
             add_to_class=self
         )
         def _Vector2_add_Vector2(codegen, call_position: Position, a: Object, b: Object) -> Object:
@@ -46,7 +46,7 @@ typedef struct {
             return vec.OBJECT()
         
         @c_dec(
-            param_types=(Param('a', Type('Fraction')), Param('b', Type('Fraction'))),
+            params=(Param('a', Type('Fraction')), Param('b', Type('Fraction'))),
             add_to_class=self
         )
         def _Fraction_sub_Fraction(codegen, call_position: Position, a: Object, b: Object) -> Object:
@@ -60,7 +60,7 @@ typedef struct {
             return f.OBJECT()
         
         @c_dec(
-            param_types=(Param('a', Type('Vector2')), Param('b', Type('Vector2'))),
+            params=(Param('a', Type('Vector2')), Param('b', Type('Vector2'))),
             add_to_class=self
         )
         def _Vector2_sub_Vector2(codegen, call_position: Position, a: Object, b: Object) -> Object:
@@ -73,7 +73,7 @@ typedef struct {
             return vec.OBJECT()
         
         @c_dec(
-            param_types=(Param('a', Type('Fraction')), Param('b', Type('Fraction'))),
+            params=(Param('a', Type('Fraction')), Param('b', Type('Fraction'))),
             add_to_class=self
         )
         def _Fraction_mul_Fraction(codegen, call_position: Position, a: Object, b: Object) -> Object:
@@ -86,7 +86,7 @@ typedef struct {
             return f.OBJECT()
         
         @c_dec(
-            param_types=(Param('a', Type('Vector2')), Param('b', Type('Vector2'))),
+            params=(Param('a', Type('Vector2')), Param('b', Type('Vector2'))),
             add_to_class=self
         )
         def _Vector2_mul_Vector2(codegen, call_position: Position, a: Object, b: Object) -> Object:
@@ -99,7 +99,7 @@ typedef struct {
             return vec.OBJECT()
         
         @c_dec(
-            param_types=(Param('a', Type('Fraction')), Param('b', Type('Fraction'))),
+            params=(Param('a', Type('Fraction')), Param('b', Type('Fraction'))),
             add_to_class=self
         )
         def _Fraction_div_Fraction(codegen, call_position: Position, a: Object, b: Object) -> Object:
@@ -112,7 +112,7 @@ typedef struct {
             return f.OBJECT()
         
         @c_dec(
-            param_types=(Param('a', Type('Vector2')), Param('b', Type('Vector2'))),
+            params=(Param('a', Type('Vector2')), Param('b', Type('Vector2'))),
             add_to_class=self
         )
         def _Vector2_div_Vector2(codegen, call_position: Position, a: Object, b: Object) -> Object:
@@ -143,7 +143,7 @@ typedef struct {
         def Math_absint(_, call_position: Position, x: Object) -> Object:
             return Object(f'(abs({x}))', Type('int'), call_position)
         
-        @c_dec(param_types=(Param('x', Type('float')),), is_method=True, is_static=True, overloads={
+        @c_dec(params=(Param('x', Type('float')),), is_method=True, is_static=True, overloads={
             OverloadKey(Type('int'), (Param('x', Type('int')),)): OverloadValue(Math_absint)
         }, add_to_class=self)
         def _Math_abs(codegen, call_position: Position, x: Object) -> Object:
@@ -151,7 +151,7 @@ typedef struct {
             return Object(f'((float)fabsf({x}))', Type('float'), call_position)
         
         @c_dec(
-            param_types=(Param('x', Type('float')),), is_method=True, is_static=True, overloads={
+            params=(Param('x', Type('float')),), is_method=True, is_static=True, overloads={
                 OverloadKey(Type('float'), (Param('x', Type('int')),)): OverloadValue(None)
             }, add_to_class=self
         )
@@ -160,7 +160,7 @@ typedef struct {
             return Object(f'(sinf({x}))', Type('float'), call_position)
         
         @c_dec(
-            param_types=(Param('x', Type('float')),), is_method=True, is_static=True, overloads={
+            params=(Param('x', Type('float')),), is_method=True, is_static=True, overloads={
                 OverloadKey(Type('float'), (Param('x', Type('int')),)): OverloadValue(None)
             }, add_to_class=self
         )
@@ -169,7 +169,7 @@ typedef struct {
             return Object(f'((float)cosf({x}))', Type('float'), call_position)
         
         @c_dec(
-            param_types=(Param('x', Type('float')),), is_method=True, is_static=True, overloads={
+            params=(Param('x', Type('float')),), is_method=True, is_static=True, overloads={
                 OverloadKey(Type('float'), (Param('x', Type('int')),)): OverloadValue(None)
             }, add_to_class=self
         )
@@ -178,7 +178,7 @@ typedef struct {
             return Object(f'((float)tanf({x}))', Type('float'), call_position)
         
         @c_dec(
-            param_types=(Param('x', Type('float')),), is_method=True, is_static=True, overloads={
+            params=(Param('x', Type('float')),), is_method=True, is_static=True, overloads={
                 OverloadKey(Type('float'), (Param('x', Type('int')),)): OverloadValue(None)
             }, add_to_class=self
         )
@@ -187,7 +187,7 @@ typedef struct {
             return Object(f'((float)asinf({x}))', Type('float'), call_position)
 
         @c_dec(
-            param_types=(Param('x', Type('float')),), is_method=True, is_static=True, overloads={
+            params=(Param('x', Type('float')),), is_method=True, is_static=True, overloads={
                 OverloadKey(Type('float'), (Param('x', Type('int')),)): OverloadValue(None)
             }, add_to_class=self
         )
@@ -196,7 +196,7 @@ typedef struct {
             return Object(f'((float)acosf({x}))', Type('float'), call_position)
 
         @c_dec(
-            param_types=(Param('x', Type('float')),), is_method=True, is_static=True, overloads={
+            params=(Param('x', Type('float')),), is_method=True, is_static=True, overloads={
                 OverloadKey(Type('float'), (Param('x', Type('int')),)): OverloadValue(None)
             }, add_to_class=self
         )
@@ -205,7 +205,7 @@ typedef struct {
             return Object(f'((float)atanf({x}))', Type('float'), call_position)
         
         @c_dec(
-            param_types=(Param('y', Type('float')), Param('x', Type('float'))),
+            params=(Param('y', Type('float')), Param('x', Type('float'))),
             is_method=True, is_static=True, add_to_class=self, overloads={
                 OverloadKey(
                     Type('float'), (Param('y', Type('int')), Param('x', Type('int')))
@@ -223,7 +223,7 @@ typedef struct {
             return Object(f'((float)atan2f({y}, {x}))', Type('float'), call_position)
         
         @c_dec(
-            param_types=(Param('x', Type('float')),), is_method=True, is_static=True, overloads={
+            params=(Param('x', Type('float')),), is_method=True, is_static=True, overloads={
                 OverloadKey(Type('float'), (Param('x', Type('int')),)): OverloadValue(None)
             }, add_to_class=self
         )
@@ -232,7 +232,7 @@ typedef struct {
             return Object(f'((float)sqrtf({x}))', Type('float'), call_position)
         
         @c_dec(
-            param_types=(Param('x', Type('float')), Param('n', Type('float'))),
+            params=(Param('x', Type('float')), Param('n', Type('float'))),
             is_method=True, is_static=True, add_to_class=self, overloads={
                 OverloadKey(
                     Type('float'), (Param('x', Type('int')), Param('n', Type('int')))
@@ -250,7 +250,7 @@ typedef struct {
             return Object(f'((float)powf({x}, 1.0f / ({n})))', Type('float'), call_position)
         
         @c_dec(
-            param_types=(Param('x', Type('float')), Param('y', Type('float'))),
+            params=(Param('x', Type('float')), Param('y', Type('float'))),
             is_method=True, is_static=True, add_to_class=self, overloads={
                 OverloadKey(
                     Type('float'), (Param('x', Type('int')), Param('y', Type('int')))
@@ -268,7 +268,7 @@ typedef struct {
             return Object(f'((float)powf({x}, {y}))', Type('float'), call_position)
         
         @c_dec(
-            param_types=(Param('x', Type('float')),), is_method=True, is_static=True, overloads={
+            params=(Param('x', Type('float')),), is_method=True, is_static=True, overloads={
                 OverloadKey(Type('float'), (Param('x', Type('int')),)): OverloadValue(None)
             }, add_to_class=self
         )
@@ -277,7 +277,7 @@ typedef struct {
             return Object(f'((float)logf({x}))', Type('float'), call_position)
 
         @c_dec(
-            param_types=(Param('x', Type('float')),), is_method=True, is_static=True, overloads={
+            params=(Param('x', Type('float')),), is_method=True, is_static=True, overloads={
                 OverloadKey(Type('float'), (Param('x', Type('int')),)): OverloadValue(None)
             }, add_to_class=self
         )
@@ -286,7 +286,7 @@ typedef struct {
             return Object(f'((float)log10f({x}))', Type('float'), call_position)
         
         @c_dec(
-            param_types=(Param('x', Type('float')),), is_method=True, is_static=True, overloads={
+            params=(Param('x', Type('float')),), is_method=True, is_static=True, overloads={
                 OverloadKey(Type('float'), (Param('x', Type('int')),)): OverloadValue(None)
             }, add_to_class=self
         )
@@ -295,7 +295,7 @@ typedef struct {
             return Object(f'((float)log2f({x}))', Type('float'), call_position)
 
         @c_dec(
-            param_types=(Param('x', Type('float')),), is_method=True, is_static=True, overloads={
+            params=(Param('x', Type('float')),), is_method=True, is_static=True, overloads={
                 OverloadKey(Type('float'), (Param('x', Type('int')),)): OverloadValue(None)
             }, add_to_class=self
         )
@@ -304,7 +304,7 @@ typedef struct {
             return Object(f'((float)expf({x}))', Type('float'), call_position)
         
         @c_dec(
-            param_types=(Param('x', Type('float')),),
+            params=(Param('x', Type('float')),),
             is_method=True, is_static=True, add_to_class=self
         )
         def _Math_ceil(codegen, call_position: Position, x: Object) -> Object:
@@ -312,7 +312,7 @@ typedef struct {
             return Object(f'((int)ceilf({x}))', Type('int'), call_position)
         
         @c_dec(
-            param_types=(Param('x', Type('float')),),
+            params=(Param('x', Type('float')),),
             is_method=True, is_static=True, add_to_class=self
         )
         def _Math_floor(codegen, call_position: Position, x: Object) -> Object:
@@ -320,7 +320,7 @@ typedef struct {
             return Object(f'((int)floorf({x}))', Type('int'), call_position)
         
         @c_dec(
-            param_types=(Param('x', Type('float')),),
+            params=(Param('x', Type('float')),),
             is_method=True, is_static=True, add_to_class=self
         )
         def _Math_round(codegen, call_position: Position, x: Object) -> Object:
@@ -328,7 +328,7 @@ typedef struct {
             return Object(f'((int)roundf({x}))', Type('int'), call_position)
         
         @c_dec(
-            param_types=(Param('x', Type('float')), Param('y', Type('float'))),
+            params=(Param('x', Type('float')), Param('y', Type('float'))),
             is_method=True, is_static=True, add_to_class=self, overloads={
                 OverloadKey(
                     Type('int'), (Param('x', Type('int')), Param('y', Type('int')))
@@ -350,7 +350,7 @@ typedef struct {
             )
         
         @c_dec(
-            param_types=(Param('x', Type('float')), Param('y', Type('float'))),
+            params=(Param('x', Type('float')), Param('y', Type('float'))),
             is_method=True, is_static=True, add_to_class=self, overloads={
                 OverloadKey(
                     Type('int'), (Param('x', Type('int')), Param('y', Type('int')))
@@ -371,34 +371,8 @@ typedef struct {
                 call_position
             )
         
-        def rand_start0(codegen, call_position: Position, max: Object) -> Object:
-            return _Math_random(codegen, call_position, Object('0', Type('int'), call_position), max)
-        
         @c_dec(
-            param_types=(Param('min', Type('int')), Param('max', Type('int'))),
-            is_method=True, is_static=True, add_to_class=self, overloads={
-                OverloadKey(Type('int'), (Param('max', Type('int')),)): OverloadValue(rand_start0)
-            }
-        )
-        def _Math_random(codegen, call_position: Position, min: Object, max: Object) -> Object:
-            low_num: TempVar = codegen.create_temp_var(Type('int'), call_position)
-            hi_num: TempVar = codegen.create_temp_var(Type('int'), call_position)
-            codegen.prepend_code(f"""int {low_num} = 0, {hi_num} = 0;
-if (({min}) < ({max})) {{
-{low_num} = {min};
-{hi_num} = {max};
-}} else {{
-{low_num} = {max};
-{hi_num} = {min};
-}}
-""")
-            return Object(
-                f'((rand() % ({hi_num} - {low_num} + 1)) + {low_num})',
-                Type('int'), call_position
-            )
-        
-        @c_dec(
-            param_types=(Param('deg', Type('float')),), is_method=True, is_static=True, overloads={
+            params=(Param('deg', Type('float')),), is_method=True, is_static=True, overloads={
                 OverloadKey(Type('float'), (Param('deg', Type('int')),)): OverloadValue(None)
             }, add_to_class=self
         )
@@ -408,7 +382,7 @@ if (({min}) < ({max})) {{
             return Object(f'((float)({deg}) * {pi} / 180.0f)', Type('float'), call_position)
         
         @c_dec(
-            param_types=(Param('rad', Type('float')),), is_method=True, is_static=True, overloads={
+            params=(Param('rad', Type('float')),), is_method=True, is_static=True, overloads={
                 OverloadKey(Type('float'), (Param('rad', Type('int')),)): OverloadValue(None)
             }, add_to_class=self
         )
@@ -418,7 +392,7 @@ if (({min}) < ({max})) {{
             return Object(f'((float)({rad}) * 180.0f / {pi})', Type('float'), call_position)
         
         @c_dec(
-            param_types=(Param('x', Type('float')),), is_method=True, is_static=True, overloads={
+            params=(Param('x', Type('float')),), is_method=True, is_static=True, overloads={
                 OverloadKey(Type('float'), (Param('x', Type('int')),)): OverloadValue(None)
             }, add_to_class=self
         )
@@ -427,7 +401,7 @@ if (({min}) < ({max})) {{
             return Object(f'((float)sinh({x}))', Type('float'), call_position)
         
         @c_dec(
-            param_types=(Param('x', Type('float')),), is_method=True, is_static=True, overloads={
+            params=(Param('x', Type('float')),), is_method=True, is_static=True, overloads={
                 OverloadKey(Type('float'), (Param('x', Type('int')),)): OverloadValue(None)
             }, add_to_class=self
         )
@@ -436,7 +410,7 @@ if (({min}) < ({max})) {{
             return Object(f'((float)cosh({x}))', Type('float'), call_position)
         
         @c_dec(
-            param_types=(Param('x', Type('float')),), is_method=True, is_static=True, overloads={
+            params=(Param('x', Type('float')),), is_method=True, is_static=True, overloads={
                 OverloadKey(Type('float'), (Param('x', Type('int')),)): OverloadValue(None)
             }, add_to_class=self
         )
@@ -445,7 +419,7 @@ if (({min}) < ({max})) {{
             return Object(f'((float)tanh({x}))', Type('float'), call_position)
         
         @c_dec(
-            param_types=(Param('x', Type('float')), Param('y', Type('float'))),
+            params=(Param('x', Type('float')), Param('y', Type('float'))),
             is_method=True, is_static=True, add_to_class=self,
             overloads={
                 OverloadKey(
@@ -464,7 +438,7 @@ if (({min}) < ({max})) {{
             return Object(f'((float)copysignf({x}, {y}))', Type('float'), call_position)
         
         @c_dec(
-            param_types=(Param('top', Type('int')), Param('bottom', Type('int'))),
+            params=(Param('top', Type('int')), Param('bottom', Type('int'))),
             is_method=True, is_static=True, add_to_class=self
         )
         def _Math_fraction(codegen, call_position: Position, top: Object, bottom: Object) -> Object:
@@ -473,7 +447,7 @@ if (({min}) < ({max})) {{
             return f.OBJECT()
         
         @c_dec(
-            param_types=(Param('a', Type('int')), Param('b', Type('int'))),
+            params=(Param('a', Type('int')), Param('b', Type('int'))),
             is_method=True, is_static=True, add_to_class=self
         )
         def _Math_gcd(codegen, call_position: Position, a: Object, b: Object) -> Object:
@@ -489,7 +463,7 @@ while ({res} > 0) {{
             return res.OBJECT()
         
         @c_dec(
-            param_types=(Param('a', Type('int')), Param('b', Type('int'))),
+            params=(Param('a', Type('int')), Param('b', Type('int'))),
             is_method=True, is_static=True, add_to_class=self
         )
         def _Math_lcm(codegen, call_position: Position, a: Object, b: Object) -> Object:
@@ -499,7 +473,7 @@ while ({res} > 0) {{
             )
         
         @c_dec(
-            param_types=(Param('x', Type('float')), Param('y', Type('float'))),
+            params=(Param('x', Type('float')), Param('y', Type('float'))),
             is_method=True, is_static=True, add_to_class=self
         )
         def _Math_vec2(codegen, call_position: Position, x: Object, y: Object) -> Object:
@@ -514,7 +488,7 @@ while ({res} > 0) {{
             Param('top', Type('int')), Param('bottom', Type('int'))
         ])
         
-        @c_dec(param_types=(Param('frac', Type('Fraction')),), is_property=True, add_to_class=self)
+        @c_dec(params=(Param('frac', Type('Fraction')),), is_property=True, add_to_class=self)
         def _Fraction_simple(codegen, call_position: Position, frac: Object) -> Object:
             f: TempVar = codegen.create_temp_var(Type('Fraction'), call_position)
             g: TempVar = codegen.create_temp_var(Type('int'), call_position)
@@ -528,7 +502,7 @@ Fraction {f} = {{ .top = ({frac}).top / {g}, .bottom = ({frac}).bottom / {g} }};
             
             return f.OBJECT()
         
-        @c_dec(param_types=(Param('frac', Type('Fraction')),), is_property=True, add_to_class=self)
+        @c_dec(params=(Param('frac', Type('Fraction')),), is_property=True, add_to_class=self)
         def _Fraction_recip(codegen, call_position: Position, frac: Object) -> Object:
             f: TempVar = codegen.create_temp_var(Type('Fraction'), call_position)
             codegen.prepend_code(f"""Fraction {f} = {{
@@ -542,7 +516,7 @@ Fraction {f} = {{ .top = ({frac}).top / {g}, .bottom = ({frac}).bottom / {g} }};
             Param('x', Type('float')), Param('y', Type('float'))
         ])
         
-        @c_dec(param_types=(Param('vec', Type('Vector2')),), is_property=True, add_to_class=self)
+        @c_dec(params=(Param('vec', Type('Vector2')),), is_property=True, add_to_class=self)
         def _Vector2_length(codegen, call_position: Position, vec: Object) -> Object:
             codegen.c_manager.include('<math.h>', codegen)
             return Object(
@@ -550,7 +524,7 @@ Fraction {f} = {{ .top = ({frac}).top / {g}, .bottom = ({frac}).bottom / {g} }};
                 Type('float'), call_position
             )
         
-        @c_dec(param_types=(Param('vec', Type('Vector2')),), is_property=True, add_to_class=self)
+        @c_dec(params=(Param('vec', Type('Vector2')),), is_property=True, add_to_class=self)
         def _Vector2_norm(codegen, call_position: Position, vec: Object) -> Object:
             v: TempVar = codegen.create_temp_var(Type('Vector2'), call_position)
             codegen.prepend_code(f"""Vector2 {v} = {{
@@ -561,7 +535,7 @@ Fraction {f} = {{ .top = ({frac}).top / {g}, .bottom = ({frac}).bottom / {g} }};
             return v.OBJECT()
         
         @c_dec(
-            param_types=(Param('vec1', Type('Vector2')), Param('vec2', Type('Vector2'))),
+            params=(Param('vec1', Type('Vector2')), Param('vec2', Type('Vector2'))),
             is_method=True, add_to_class=self
         )
         def _Vector2_dot(_, call_position: Position, vec1: Object, vec2: Object) -> Object:
@@ -571,7 +545,7 @@ Fraction {f} = {{ .top = ({frac}).top / {g}, .bottom = ({frac}).bottom / {g} }};
             )
         
         @c_dec(
-            param_types=(Param('vec1', Type('Vector2')), Param('vec2', Type('Vector2'))),
+            params=(Param('vec1', Type('Vector2')), Param('vec2', Type('Vector2'))),
             is_method=True, add_to_class=self
         )
         def _Vector2_cross(_, call_position: Position, vec1: Object, vec2: Object) -> Object:
@@ -581,7 +555,7 @@ Fraction {f} = {{ .top = ({frac}).top / {g}, .bottom = ({frac}).bottom / {g} }};
             )
         
         @c_dec(
-            param_types=(Param('vec1', Type('Vector2')), Param('vec2', Type('Vector2'))),
+            params=(Param('vec1', Type('Vector2')), Param('vec2', Type('Vector2'))),
             is_method=True, add_to_class=self
         )
         def _Vector2_dist(codegen, call_position: Position, vec1: Object, vec2: Object) -> Object:
@@ -591,7 +565,7 @@ Fraction {f} = {{ .top = ({frac}).top / {g}, .bottom = ({frac}).bottom / {g} }};
             )
         
         @c_dec(
-            param_types=(Param('vec1', Type('Vector2')), Param('vec2', Type('Vector2'))),
+            params=(Param('vec1', Type('Vector2')), Param('vec2', Type('Vector2'))),
             is_method=True, add_to_class=self
         )
         def _Vector2_angle(codegen, call_position: Position, vec1: Object, vec2: Object) -> Object:

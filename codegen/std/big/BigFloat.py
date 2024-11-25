@@ -12,7 +12,7 @@ class BigFloat:
 } BigFloat;
 """)
         
-        @c_dec(param_types=(Param('bf', Type('BigFloat')),), is_method=True, add_to_class=self)
+        @c_dec(params=(Param('bf', Type('BigFloat')),), is_method=True, add_to_class=self)
         def _BigFloat_to_string(codegen, call_position: Position, bf: Object) -> Object:
             codegen.c_manager.include('<string.h>', codegen)
             
@@ -42,7 +42,7 @@ free({frac_part});
             return buf.OBJECT()
         
         @c_dec(
-            param_types=(Param('bf', Type('BigFloat')), Param('bf', Type('BigFloat'))),
+            params=(Param('bf', Type('BigFloat')), Param('bf', Type('BigFloat'))),
             add_to_class=self
         )
         def _BigFloat_add_BigFloat(codegen, call_position: Position, a: Object,
@@ -73,7 +73,7 @@ while ({res}.fractional_part.length > 0 && {res}.fractional_part.digits[
             return res.OBJECT()
         
         @c_dec(
-            param_types=(Param('bf', Type('BigFloat')), Param('bf', Type('BigFloat'))),
+            params=(Param('bf', Type('BigFloat')), Param('bf', Type('BigFloat'))),
             add_to_class=self
         )
         def _BigFloat_sub_BigFloat(codegen, call_position: Position, a: Object,
@@ -105,7 +105,7 @@ while ({res}.fractional_part.length > 0 && {res}.fractional_part.digits[
             return res.OBJECT()
         
         @c_dec(
-            param_types=(Param('bf', Type('BigFloat')), Param('f', Type('float'))),
+            params=(Param('bf', Type('BigFloat')), Param('f', Type('float'))),
             add_to_class=self
         )
         def _BigFloat_add_float(codegen, call_position: Position, bf: Object, f: Object) -> Object:
@@ -114,7 +114,7 @@ while ({res}.fractional_part.length > 0 && {res}.fractional_part.digits[
             return _BigFloat_add_BigFloat(codegen, call_position, bf, float_as_bf)
         
         @c_dec(
-            param_types=(Param('num', Type('string')),), is_method=True, is_static=True,
+            params=(Param('num', Type('string')),), is_method=True, is_static=True,
             add_to_class=self
         )
         def _BigFloat_new(codegen, call_position: Position, num: Object) -> Object:

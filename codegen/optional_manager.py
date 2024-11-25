@@ -1,4 +1,5 @@
 from codegen.objects import Object, Position, Type, Param, TempVar
+from codegen.function_manager import OverloadKey, OverloadValue
 from codegen.c_manager import c_dec
 from ir.nodes import TypeNode
 
@@ -7,8 +8,6 @@ class OptionalManager:
     def __init__(self, codegen) -> None:
         self.codegen = codegen
         setattr(codegen.type_checker, 'optional_type', self.optional_type)
-        
-        codegen.metadata.setdefault('optional_types', [])
     
     def optional_type(self, node: TypeNode) -> Type | None:
         if node.array_type is None:
@@ -19,16 +18,15 @@ class OptionalManager:
     def define_optional(self, type: Type) -> Type:
         opt_t = Type(
             f'optional[{type}]', f'{type.c_type}_optional',
-            #compatible_types=(type.type, 'nil')
+            # compatible_types=(type.type, 'nil')
         )
-        if type in self.codegen.metadata['optional_types']:
+        if self.codegen.type_checker.is_valid_type(opt_t):
             return opt_t
         
         self.codegen.add_toplevel_code(f"""typedef struct {{
     {type.c_type}* value;
 }} {opt_t.c_type};
 """)
-        self.codegen.metadata['optional_types'].append(type)
         
         c_manager = self.codegen.c_manager
         c_manager.reserve(opt_t.c_type)
@@ -45,14 +43,14 @@ class OptionalManager:
             return Object(f'"{opt_t}"', Type('string'), call_position)
         
         @c_dec(
-            param_types=(Param('opt', opt_t),), is_method=True, add_to_class=c_manager,
+            params=(Param('opt', opt_t),), is_method=True, add_to_class=c_manager,
             func_name_override=f'_{opt_t.c_type}_to_string'
         )
         def to_string(_, call_position: Position, _opt: Object) -> Object:
             return Object(f'"optional \'{type}\'"', Type('string'), call_position)
         
         @c_dec(
-            param_types=(Param('value', Type('any')),), add_to_class=c_manager,
+            params=(Param('value', Type('any')),), add_to_class=c_manager,
             func_name_override=f'_{opt_t.c_type}_new'
         )
         def new(codegen, call_position: Position, value: Object) -> Object:
@@ -69,14 +67,14 @@ class OptionalManager:
             return opt.OBJECT()
         
         @c_dec(
-            param_types=(Param('opt', opt_t),), is_property=True, add_to_class=c_manager,
+            params=(Param('opt', opt_t),), is_property=True, add_to_class=c_manager,
             func_name_override=f'_{opt_t.c_type}_is_nil'
         )
         def is_nil(_, call_position: Position, opt: Object) -> Object:
             return Object(f'(({opt}).value == NULL)', Type('bool'), call_position)
         
         @c_dec(
-            param_types=(Param('opt', opt_t),), is_property=True, add_to_class=c_manager,
+            params=(Param('opt', opt_t),), is_property=True, add_to_class=c_manager,
             func_name_override=f'_{opt_t.c_type}_value'
         )
         def value(codegen, call_position: Position, opt: Object) -> Object:
@@ -88,7 +86,7 @@ class OptionalManager:
             return Object(f'(*(({opt}).value))', type, call_position)
         
         @c_dec(
-            param_types=(Param('opt', opt_t), Param('new_value', Type('any'))), is_method=True,
+            params=(Param('opt', opt_t), Param('new_value', Type('any'))), is_method=True,
             add_to_class=c_manager, func_name_override=f'_{opt_t.c_type}_set_value'
         )
         def set_value(codegen, call_position: Position, opt: Object, value: Object) -> Object:
@@ -105,5 +103,25 @@ class OptionalManager:
             
             return Object.NULL(call_position)
         
+        def unwrap(codegen, call_position: Position, opt: Object) -> Object:
+            return value(codegen, call_position, opt)
         
+        @c_dec(
+            params=(Param('opt', opt_t), Param('default', type),), is_method=True,
+            add_to_class=c_manager, overloads={OverloadKey(type, ()): OverloadValue(unwrap)},
+            func_name_override=f'{opt_t.c_type}_unwrap'
+        )
+        def unwrap_default(codegen, call_position: Position, opt: Object, default: Object) -> Object:
+            res: TempVar = codegen.create_temp_var(type, call_position)
+            codegen.prepend_code(f"""{type.c_type} {res};
+if ({is_nil(codegen, call_position, opt)}) {{
+    {res} = {default};
+}} else {{
+    {res} = *(({opt}).value);
+}}
+""")
+            
+            return res.OBJECT()
+        
+        self.codegen.type_checker.add_type(opt_t)
         return opt_t

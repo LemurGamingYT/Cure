@@ -1,5 +1,6 @@
 from dataclasses import dataclass, field
 from typing import Union, Callable, Any
+from logging import debug
 from copy import deepcopy
 
 from ir.nodes import Body, FuncDecl, Call, Identifier
@@ -37,6 +38,10 @@ class BuiltinFunction:
     callables: Callables = field(default_factory=Callables)
     generic_params: list[str] = field(default_factory=list)
 
+    @property
+    def callable_name(self) -> str:
+        return getattr(self.callable, 'name')
+
     def call(
         self, codegen, call_position: Position, key: OverloadValue | None, args: tuple[Arg, ...],
         **kwargs
@@ -54,6 +59,8 @@ class BuiltinFunction:
         self, codegen, name: Callable, returns: Type, param_types: tuple[Param, ...],
         free: Free | None = None
     ) -> None:
+        params_str = FunctionManager.params_str(param_types)
+        debug(f'Adding overload on {self.callable_name} named {name} with [{params_str}] -> {returns}')
         self.overloads[OverloadKey(returns, tuple(param_types))] = OverloadValue(name, free)
         codegen.c_manager.reserve(name)
 
@@ -67,10 +74,12 @@ class UserFunction:
     callables: Callables = field(default_factory=Callables)
     generic_params: list[str] = field(default_factory=list)
     
-    def call(
-        self, codegen, call_position: Position, callee: OverloadValue | None, args: tuple[Arg, ...],
-        **_
-    ):
+    @property
+    def callable_name(self) -> str:
+        return self.name
+    
+    def call(self, codegen, call_position: Position, callee: OverloadValue | None,
+             args: tuple[Arg, ...], **_):
         if (out := codegen.function_manager.handle_callables(
             codegen, call_position, args, self
         )) is not None:
@@ -92,29 +101,25 @@ class UserFunction:
             free=callee.free if callee is not None else None
         )
     
-    def add_modification(
-        self, codegen, name: str, pos: Position, func: Callable,
-        args: tuple[Arg, ...]
-    ) -> None:
+    def add_modification(self, codegen, name: str, pos: Position, func: Callable,
+                         args: tuple[Arg, ...]) -> None:
         param_types = getattr(func, 'param_types', ())
         if not codegen.function_manager.validate_args(tuple(args), param_types):
             pos.error_here(f'No matching overload for modification \'{name}\'')
         
+        debug(f'Adding a modification on {self.callable_name} named {name}')
         self.callables.append(Modification(func, args))
     
-    def add_overload(
-        self, codegen, name: str, returns: Type, param_types: tuple[Param, ...],
-        **kwargs
-    ) -> None:
-        self.overloads[OverloadKey(returns, tuple(param_types))] = OverloadValue(name, **kwargs)
+    def add_overload(self, codegen, name: str, returns: Type, params: tuple[Param, ...],
+                     **kwargs) -> None:
+        params_str = FunctionManager.params_str(params)
+        debug(f'Adding overload on {self.callable_name} named {name} with [{params_str}] -> {returns}')
+        self.overloads[OverloadKey(returns, tuple(params))] = OverloadValue(name, **kwargs)
         codegen.c_manager.reserve(name)
     
-    def new_overload(
-        self, codegen, returns: Type, param_types: tuple[Param, ...],
-        **kwargs
-    ) -> str:
+    def new_overload(self, codegen, returns: Type, params: tuple[Param, ...], **kwargs) -> str:
         name = codegen.get_unique_name(self.name)
-        self.add_overload(codegen, name, returns, param_types, **kwargs)
+        self.add_overload(codegen, name, returns, params, **kwargs)
         return name
 
 class FunctionManager:
@@ -201,9 +206,7 @@ return 0;
             else:
                 used_param_names.append(p)
     
-    def handle_modifications(
-        self, modifications: list[Call]
-    ):
+    def handle_modifications(self, modifications: list[Call]):
         callables = []
         for mod in modifications:
             if isinstance(mod.callee, Identifier):
@@ -308,7 +311,7 @@ args = {args_name};
                 func.name = name
                 
                 @c_dec(
-                    param_types=tuple(params), is_method=True,
+                    params=tuple(params), is_method=True,
                     add_to_class=self.codegen.c_manager, func_name_override=name
                 )
                 def _(_, call_position: Position, *_args):
@@ -321,12 +324,13 @@ args = {args_name};
                     *overload_args, **overload_kwargs
                 )
             
+            # is_valid_body, position, body_type = self.codegen.expect_body_type(
+            #     node.body, return_type, **kwargs)
+            # if not is_valid_body:
+            #     position.error_here(f'Expected return type \'{return_type}\', got \'{body_type}\'')
+            
             body = self.codegen.visit_Body(node.body, **kwargs)
             self.codegen.scope.env[original_name].free = body.free
-            
-            # return types of the `Body` are not reliable enough yet
-            # if body.type != return_type:
-            #     node.pos.error_here(f'Expected return type \'{return_type}\', got \'{body.type}\'')
             
             return Object(
                 self.get_definition_signature(name, return_type, params, str(body)),
@@ -405,8 +409,14 @@ args = {args_name};
                 continue
             
             success, _, _ = self.validate_args(tuple(new_args_or_error), k.params)
+            args_str = ', '.join(str(arg.value) for arg in args)
+            params_str = f'[{self.params_str(k.params)}]'
+            callable_name = v.callable.__name__ if callable(v.callable) else v.callable # type: ignore
             if success:
+                debug(f'Found overload: {params_str} ({callable_name}) -> {args_str}')
                 return v, k.return_type, new_args_or_error
+            else:
+                debug(f'Overload didn\'t match {params_str} ({callable_name}) -> {args_str}')
         
         return None, None, args
 
@@ -424,6 +434,7 @@ args = {args_name};
             
             mod_res = mod.callable(codegen, f, pos, args, *[marg.value for marg in mod_args])
             if mod_res is not None and isinstance(mod_res, Object):
+                debug(f'Modification returned a value: {mod_res}')
                 return mod_res
 
     def get_generic_type(
@@ -487,17 +498,19 @@ args = {args_name};
         if len(generic_args) != len(params):
             pos.error_here(f'Expected {len(params)} generic arguments, got {len(generic_args)}')
         
+        for gt in f.generic_params:
+            generic_type = self.get_generic_type(generic_args, f.generic_params, Type(gt))
+            if generic_type is None:
+                pos.error_here(f'Could not find generic argument for \'{gt}\'')
+            
+            self.codegen.type_checker.set_type_value(Type(gt), generic_type)
+        
         new_params: list[Param] = []
         for param in deepcopy(f.params):
-            p = param
             if any(generic_type in param.type.c_type for generic_type in params):
-                generic_type = self.get_generic_type(generic_args, f.generic_params, param.type)
-                if generic_type is None:
-                    pos.error_here(f'Could not find generic argument for \'{param.type.c_type}\'')
-                
-                p.type = generic_type
+                param.type = self.codegen.type_checker.get_type(param.type)
             
-            new_params.append(p)
+            new_params.append(param)
         
         success, err, position = self.validate_args(tuple(args), tuple(new_params))
         if not success:
@@ -522,6 +535,8 @@ args = {args_name};
         elif isinstance(f, BuiltinFunction):
             f.add_overload(codegen, f.callable, return_type, tuple(new_params))
         
+        generic_args_str = ', '.join(f'{p} = {t}' for p, t in zip(params, generic_args))
+        debug(f'Generated generic function on \'{f.callable_name}\' ({generic_args_str})')
         return {p: t for p, t in zip(params, generic_args)}
 
     def validate_args(self, args: tuple['Arg', ...], params: tuple['Param', ...]):
@@ -535,10 +550,16 @@ args = {args_name};
             if param_type.c_type == 'any':
                 continue # if the parameter type can be anything, don't bother to check it
             elif param.name == self.GREEDY or param_type.c_type == self.GREEDY:
-                return True, '', None # no need to continue if there is a variadic 
+                return True, '', None # no need to continue if there is a variadic
+            
+            for callback in self.codegen.arg_validation_callbacks:
+                success, err = callback(arg, param)
+                if not success:
+                    return success, err, arg.value.position
 
             arg_type, arg_pos = arg.value.type, arg.value.position
             if arg_type != param_type:
+                debug(f'Expected type \'{param_type}\', got \'{arg_type}\'')
                 return False, f'Expected type \'{param_type}\', got \'{arg_type}\'', arg_pos
 
         return True, '', None
@@ -572,6 +593,8 @@ args = {args_name};
             if not success:
                 (position or call_position).error_here(err)
         
+        args_str = ', '.join(str(arg.value) for arg in args)
+        debug(f'Calling function \'{f.callable_name}\' with args [{args_str}]')
         return f.call(codegen, call_position, overload, args, **generic_dict)
     
     def call_type(
@@ -588,4 +611,7 @@ args = {args_name};
             (pos or call_position).error_here(err)
         
         f = UserFunction(func_name, func_info.return_type, params)
+        
+        args_str = ', '.join(str(arg.value) for arg in args)
+        debug(f'Calling function \'{f.callable_name}\' with args [{args_str}]')
         return f.call(codegen, call_position, None, args)

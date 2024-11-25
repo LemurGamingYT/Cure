@@ -7,7 +7,19 @@ extern "C" {
 #endif
 
 
-#include "../osarch_check.h"
+#define bool int
+#define true 1
+#define false 0
+
+#if defined(_WIN32) || defined(_WIN64) || defined(_MSC_VER) || defined(WIN32)
+#define OS_WINDOWS 1
+#elif defined(__APPLE__)
+#define OS_MAC 1
+#elif defined(__linux__)
+#define OS_LINUX 1
+#else
+#error "Unsupported operating system"
+#endif
 
 #if OS_WINDOWS
 #include <windows.h>
@@ -15,8 +27,6 @@ extern "C" {
 // TODO: Support Linux and MacOS. Use XCB/Xlib for Linux
 #error "MiniUI is only supported on Windows"
 #endif
-
-#include <stdbool.h>
 
 typedef char* string;
 typedef void (*click_callback)();

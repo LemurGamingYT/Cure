@@ -3,7 +3,7 @@ use "regex"
 
 
 func main() -> int {
-    re = new Regex("^[a-zA-Z]+$") // Create a new regex pattern
-    print(re.match("abc")) // Check if the regex pattern matches the string
+    re = new Regex("(^[a-zA-Z]+$)") // Create a new regex pattern
+    print(re.match("abc", 1)) // Check if the regex pattern matches the string
     return 0
 }

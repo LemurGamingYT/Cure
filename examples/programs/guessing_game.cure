@@ -1,5 +1,6 @@
 func main() -> int {
-    randnum = Math.random(1, 10)
+    random = new Random()
+    randnum = random.next_int(1, 10)
     print("Guess the number between 1 and 10")
     while true {
         num = input("number> ").parse_int()

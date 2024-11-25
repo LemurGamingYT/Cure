@@ -37,11 +37,11 @@ char* Register_name(int register_name) {{
     def _Register_type(self, _, call_position: Position) -> Object:
         return Object('"Register"', Type('string'), call_position)
     
-    @c_dec(param_types=('Register',))
+    @c_dec(params=('Register',))
     def _Register_to_string(self, _, call_position: Position, _register: Object) -> Object:
         return Object('"class \'Register\'"', Type('string'), call_position)
     
     
-    @c_dec(param_types=('Register',), is_method=True)
+    @c_dec(params=('Register',), is_method=True)
     def _Register_read(self, _, call_position: Position, _register: Object) -> Object:
         return Object('', Type('nil'), call_position)

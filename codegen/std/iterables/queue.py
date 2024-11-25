@@ -6,17 +6,17 @@ from ir.nodes import TypeNode
 class Queue:
     def __init__(self, codegen) -> None:
         self.codegen = codegen
+        codegen.type_checker.add_type('Queue')
         setattr(codegen.type_checker, 'Queue_type', self.queue_type)
         
-        self.codegen.metadata.setdefault('queue_types', [])
-        
         @c_dec(
-            param_types=(Param('size', Type('int')),),
-            can_user_call=True, add_to_class=self, generic_params=('T',), return_type=Type('Queue[T]')
+            params=(Param('size', Type('int')),),
+            add_to_class=self, is_method=True, is_static=True, generic_params=('T',),
+            return_type=Type('Queue[{T}]')
         )
-        def _create_queue(codegen, call_position: Position, size: Object, *, T: Type) -> Object:
+        def _Queue_new(codegen, call_position: Position, size: Object, *, T: Type) -> Object:
             queue_type = self.define_queue_type(T)
-            return codegen.call(f'{queue_type.c_type}_create', [Arg(size)], call_position)
+            return codegen.call(f'{queue_type.c_type}_make', [Arg(size)], call_position)
     
     def queue_type(self, node: TypeNode) -> Type | None:
         if node.array_type is None:
@@ -26,7 +26,7 @@ class Queue:
     
     def define_queue_type(self, type: Type) -> Type:
         queue_type = Type(f'Queue[{type}]', f'{type.c_type}_queue')
-        if type.c_type in self.codegen.metadata['queue_types']:
+        if self.codegen.type_checker.is_valid_type(queue_type):
             return queue_type
         
         self.codegen.add_toplevel_code(f"""typedef struct {{
@@ -47,10 +47,10 @@ class Queue:
         ])
         
         @c_dec(
-            param_types=(Param('size', Type('int')),),
-            add_to_class=c_manager, func_name_override=f'{queue_type.c_type}_create'
+            params=(Param('size', Type('int')),),
+            add_to_class=c_manager, func_name_override=f'{queue_type.c_type}_make'
         )
-        def queue_create(codegen, call_position: Position, size: Object) -> Object:
+        def queue_make(codegen, call_position: Position, size: Object) -> Object:
             queue_free = Free()
             queue: TempVar = codegen.create_temp_var(queue_type, call_position, free=queue_free)
             queue_free.object_name = f'{queue}.data'
@@ -65,7 +65,7 @@ class Queue:
             return queue.OBJECT()
         
         @c_dec(
-            param_types=(Param('queue', queue_type),),
+            params=(Param('queue', queue_type),),
             add_to_class=c_manager, func_name_override=f'{queue_type.c_type}_to_string',
             is_method=True
         )
@@ -100,14 +100,14 @@ if ({i} < ({queue}).length - 1) {{
             return c_manager._StringBuilder_str(codegen, call_position, builder)
         
         @c_dec(
-            param_types=(Param('queue', queue_type),),
+            params=(Param('queue', queue_type),),
             is_property=True, add_to_class=c_manager, func_name_override=f'{queue_type.c_type}_is_full'
         )
         def queue_is_full(_, call_position: Position, queue: Object) -> Object:
             return Object(f'(({queue}).length == ({queue}).capacity)', Type('string'), call_position)
         
         @c_dec(
-            param_types=(Param('queue', queue_type),),
+            params=(Param('queue', queue_type),),
             is_property=True, add_to_class=c_manager,
             func_name_override=f'{queue_type}_is_empty'
         )
@@ -115,7 +115,7 @@ if ({i} < ({queue}).length - 1) {{
             return Object(f'(({queue}).length == 0)', Type('string'), call_position)
         
         @c_dec(
-            param_types=(Param('queue', queue_type), Param('item', type)),
+            params=(Param('queue', queue_type), Param('item', type)),
             is_method=True, add_to_class=c_manager, func_name_override=f'{queue_type.c_type}_enqueue'
         )
         def enqueue(codegen, call_position: Position, queue: Object, item: Object) -> Object:
@@ -131,7 +131,7 @@ if ({i} < ({queue}).length - 1) {{
             return Object.NULL(call_position)
         
         @c_dec(
-            param_types=(Param('queue', queue_type),),
+            params=(Param('queue', queue_type),),
             is_method=True, add_to_class=c_manager, func_name_override=f'{queue_type.c_type}_dequeue'
         )
         def dequeue(codegen, call_position: Position, queue: Object) -> Object:
@@ -148,5 +148,5 @@ if ({i} < ({queue}).length - 1) {{
             
             return item.OBJECT()
 
-        self.codegen.metadata['queue_types'].append(type.c_type)
+        self.codegen.type_checker.add_type(queue_type)
         return queue_type

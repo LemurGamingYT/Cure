@@ -26,5 +26,5 @@ Cure is a programming language that is designed to be **very easy-to-learn, fast
     - LLVM (clang): https://github.com/llvm/llvm-project/releases
 4. Run the compiler
     - Add the 'bin' directory of the compiler to your PATH environment variable
-    - Run the compiler using the command: `cure [options] [file]`
+    - Run the compiler using the command: `cure [actions] [options]`
     - Use `cure -h` to see all available options

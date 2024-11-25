@@ -1,0 +1,128 @@
+use "iterables"
+use "graphics" // Just gotta implement this library to make this file work, fingers crossed
+use "color"
+
+
+const int grid_size = 20
+const int cell_size = 25
+const int screen_size = grid_size * cell_size
+
+
+enum Direction {
+    UP, DOWN, LEFT, RIGHT
+}
+
+class Point {
+    int x
+    int y
+
+    func Point(int x, int y) {
+        this.x = x
+        this.y = y
+    }
+}
+
+class Snake {
+    array[Point] segments
+    int length
+    Direction direction
+
+    func Snake() {
+        this.length = 1
+        this.segments = {new Point(grid_size / 2, grid_size / 2)}
+        this.direction = Direction.RIGHT
+    }
+
+    func draw(Surface surface) {
+        width = cell_size / 2
+        height = cell_size / 2
+        foreach segment in this.segments {
+            x = segment.x * cell_size + 1
+            y = segment.y * cell_size + 1
+            surface.draw_rect(x, y, width, height, surface.get_color(new Color(0, 255, 0)))
+        }
+    }
+}
+
+class Food {
+    Point position
+    Random rand
+
+    func Food() {
+        this.rand = new Random()
+        this.randomize_position()
+    }
+
+    func randomize_position() {
+        this.position = new Point(this.rand.next(grid_size), this.rand.next(grid_size))
+    }
+
+    func draw(Surface surface) {
+        surface.fill_rect(
+            this.position.x * cell_size, this.position.y * cell_size,
+            cell_size, cell_size, surface.get_color(new Color(255, 0, 0))
+        )
+    }
+}
+
+
+func main() -> int {
+    window = new Window("Snake", screen_size, screen_size)
+    snake = new Snake()
+    food = new Food()
+
+    window_surface = window.surface
+    last_move_time = 0
+    move_delay = 150
+    running = true
+    while running {
+        window.clear()
+
+        if window.event == WindowEvent.QUIT {
+            running = false
+        }
+
+        if window.event == WindowEvent.KEY_DOWN {
+            if window.event.key == Key.UP && snake.direction != Direction.DOWN {
+                snake.direction = Direction.UP
+            } else if window.event.key == Key.DOWN && snake.direction != Direction.UP {
+                snake.direction = Direction.DOWN
+            } else if window.event.key == Key.LEFT && snake.direction != Direction.RIGHT {
+                snake.direction = Direction.LEFT
+            } else if window.event.key == Key.RIGHT && snake.direction != Direction.LEFT {
+                snake.direction = Direction.RIGHT
+            }
+        }
+
+        current_ticks = window.ticks
+        if current_ticks - last_move_time >= move_delay {
+            i = snake.length - 1
+            while i > 0 {
+                snake.segments[i] = snake.segments[i - 1]
+            }
+
+            if snake.direction == Direction.UP {
+                snake.segments[0].y -= 1
+            } else if snake.direction == Direction.DOWN {
+                snake.segments[0].y += 1
+            } else if snake.direction == Direction.LEFT {
+                snake.segments[0].x -= 1
+            } else if snake.direction == Direction.RIGHT {
+                snake.segments[0].x += 1
+            }
+
+            if snake.segments[0].x == food.position.x && snake.segments[0].y == food.position.y {
+                snake.length += 1
+                food.randomize_position()
+            }
+        }
+
+        snake.draw(window_surface)
+        food.draw(window_surface)
+
+        window.update(60)
+    }
+
+    window.close()
+    return 0
+}

@@ -94,8 +94,23 @@ class CureVisitor(ParseTreeVisitor):
         return self.visitChildren(ctx)
 
 
+    # Visit a parse tree produced by CureParser#interfaceMethod.
+    def visitInterfaceMethod(self, ctx:CureParser.InterfaceMethodContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by CureParser#interfaceDeclarations.
+    def visitInterfaceDeclarations(self, ctx:CureParser.InterfaceDeclarationsContext):
+        return self.visitChildren(ctx)
+
+
     # Visit a parse tree produced by CureParser#classAssign.
     def visitClassAssign(self, ctx:CureParser.ClassAssignContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by CureParser#interfaceAssign.
+    def visitInterfaceAssign(self, ctx:CureParser.InterfaceAssignContext):
         return self.visitChildren(ctx)
 
 
@@ -191,6 +206,11 @@ class CureVisitor(ParseTreeVisitor):
 
     # Visit a parse tree produced by CureParser#cast.
     def visitCast(self, ctx:CureParser.CastContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by CureParser#new_array.
+    def visitNew_array(self, ctx:CureParser.New_arrayContext):
         return self.visitChildren(ctx)
 
 

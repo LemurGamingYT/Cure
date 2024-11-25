@@ -5,14 +5,13 @@ from codegen.c_manager import c_dec
 class TupleManager:
     def __init__(self, codegen) -> None:
         self.codegen = codegen
-        codegen.metadata.setdefault('tuple_types', [])
     
     def define_tuple(self, types: list[Type]) -> Type:
         tuple_type = Type(
             f'tuple[{", ".join(t.c_type for t in types)}]',
             f'tuple_{"_".join(t.c_type for t in types)}'
         )
-        if tuple_type in self.codegen.metadata['tuple_types']:
+        if self.codegen.type_checker.is_valid_type(tuple_type):
             return tuple_type
         
         self.codegen.add_toplevel_code(f"""typedef struct {{
@@ -28,7 +27,7 @@ class TupleManager:
         ])
         
         @c_dec(
-            param_types=(Param('*', Type('*')),), is_method=True, add_to_class=c_manager,
+            params=(Param('*', Type('*')),), is_method=True, add_to_class=c_manager,
             func_name_override=f'{tuple_type.c_type}_create'
         )
         def create(codegen, call_position: Position, *args: Object) -> Object:
@@ -42,7 +41,7 @@ class TupleManager:
             return tuple.OBJECT()
         
         @c_dec(
-            param_types=(Param('tuple', tuple_type),), is_method=True, add_to_class=c_manager,
+            params=(Param('tuple', tuple_type),), is_method=True, add_to_class=c_manager,
             func_name_override=f'{tuple_type.c_type}_to_string'
         )
         def to_string(codegen, call_position: Position, tuple: Object) -> Object:
@@ -69,7 +68,7 @@ class TupleManager:
             return codegen.c_manager._StringBuilder_str(codegen, call_position, builder)
         
         @c_dec(
-            param_types=(Param('tuple', tuple_type), Param('index', Type('int')),), is_method=True,
+            params=(Param('tuple', tuple_type), Param('index', Type('int')),), is_method=True,
             add_to_class=c_manager, func_name_override=f'{tuple_type.c_type}_get'
         )
         def get(codegen, call_position: Position, tuple: Object, index: Object) -> Object:
@@ -89,7 +88,7 @@ class TupleManager:
             return Object(f'({tuple}).elem{idx}', type_, call_position)
         
         @c_dec(
-            param_types=(Param('a', tuple_type), Param('b', tuple_type)),
+            params=(Param('a', tuple_type), Param('b', tuple_type)),
             is_method=True, add_to_class=c_manager,
             func_name_override=f'{tuple_type.c_type}_eq_{tuple_type.c_type}'
         )
@@ -109,7 +108,7 @@ class TupleManager:
             return is_equal.OBJECT()
         
         @c_dec(
-            param_types=(Param('a', tuple_type), Param('b', tuple_type)),
+            params=(Param('a', tuple_type), Param('b', tuple_type)),
             is_method=True, add_to_class=c_manager,
             func_name_override=f'{tuple_type.c_type}_neq_{tuple_type.c_type}'
         )
@@ -129,12 +128,12 @@ class TupleManager:
             return is_not_equal.OBJECT()
         
         @c_dec(
-            param_types=(Param('tuple', tuple_type), Param('index', Type('int'))),
+            params=(Param('tuple', tuple_type), Param('index', Type('int'))),
             is_method=True, add_to_class=c_manager, return_type=Type('any'),
             func_name_override=f'index_{tuple_type.c_type}'
         )
         def index_tuple(codegen, call_position: Position, tuple: Object, index: Object) -> Object:
             return get(codegen, call_position, tuple, index)
         
-        self.codegen.metadata['tuple_types'].append(tuple_type)
+        self.codegen.type_checker.add_type(tuple_type)
         return tuple_type
