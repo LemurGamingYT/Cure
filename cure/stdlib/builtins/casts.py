@@ -1,6 +1,6 @@
 from llvmlite import ir as lir
 
-from cure.codegen_utils import create_struct_value, create_string_constant
+from cure.codegen_utils import create_struct_value, create_string_constant, create_ternary
 from cure.lib import function, Lib, DefinitionContext
 from cure import ir
 
@@ -57,3 +57,18 @@ class casts(Lib):
     def string_to_string(ctx: DefinitionContext):
         x = ctx.param('x')
         ctx.builder.ret(x.value)
+    
+    @function([ir.Param(ir.Position.zero(), 'x', ir.Type.bool())], ir.Type.string())
+    @staticmethod
+    def bool_to_string(ctx: DefinitionContext):
+        x = ctx.param('x').value
+        ptr = create_ternary(
+            ctx.builder, x,
+            create_string_constant(ctx.module, 'true'), create_string_constant(ctx.module, 'false')
+        )
+
+        length = create_ternary(
+            ctx.builder, x, lir.Constant(lir.IntType(64), 4), lir.Constant(lir.IntType(64), 5)
+        )
+
+        ctx.builder.ret(create_struct_value(ctx.builder, ir.Type.string().type, [ptr, length]))
