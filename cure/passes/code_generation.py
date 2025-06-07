@@ -2,7 +2,7 @@ from typing import cast
 
 from llvmlite import ir as lir, binding as llvm
 
-from cure.codegen_utils import create_string_struct, NULL
+from cure.codegen_utils import create_string_struct, NULL, create_while_loop
 from cure.passes import CompilerPass
 from cure import ir
 
@@ -65,6 +65,134 @@ class CodeGeneration(CompilerPass):
             self.run_on(stmt)
         
         self.scope = cast(ir.Scope, self.scope.parent)
+    
+    def run_on_If(self, node: ir.If):
+        """Manual if-elif-else implementation"""
+        
+        function = self.builder.function
+        merge_block = function.append_basic_block('if_merge')
+        
+        # Handle simple if-else case
+        if not hasattr(node, 'elseifs') or not node.elseifs:
+            return self._build_simple_if_else(node, merge_block)
+        
+        # Handle if-elif-else case
+        return self._build_if_elif_else(node, merge_block)
+
+    def _build_simple_if_else(self, node: ir.If, merge_block):
+        """Build simple if-else"""
+        function = self.builder.function
+        
+        then_block = function.append_basic_block('if_then')
+        else_block = None
+        
+        if hasattr(node, 'else_body') and node.else_body:
+            else_block = function.append_basic_block('if_else')
+        
+        # Test condition
+        condition = self.run_on(node.condition)
+        if not self.builder.block.is_terminated:
+            self.builder.cbranch(condition, then_block, else_block or merge_block)
+        
+        # Build then block
+        self.builder.position_at_end(then_block)
+        self.run_on(node.body)  # or node.then_body depending on your IR structure
+        if not self.builder.block.is_terminated:
+            self.builder.branch(merge_block)
+        
+        # Build else block
+        if else_block:
+            self.builder.position_at_end(else_block)
+            self.run_on(cast(ir.Body, node.else_body))
+            if not self.builder.block.is_terminated:
+                self.builder.branch(merge_block)
+        
+        # Position at merge
+        self.builder.position_at_end(merge_block)
+        return None
+
+    def _build_if_elif_else(self, node: ir.If, merge_block):
+        """Build if-elif-else chain manually"""
+        function = self.builder.function
+        
+        # Create all blocks first
+        then_block = function.append_basic_block('if_then')
+        
+        elif_test_blocks = []
+        elif_then_blocks = []
+        
+        for i, elif_node in enumerate(node.elseifs):
+            elif_test_blocks.append(function.append_basic_block(f'elif_test_{i}'))
+            elif_then_blocks.append(function.append_basic_block(f'elif_then_{i}'))
+        
+        else_block = None
+        if hasattr(node, 'else_body') and node.else_body:
+            else_block = function.append_basic_block('if_else')
+        
+        # Build main if condition
+        condition = self.run_on(node.condition)
+        first_elif_target = elif_test_blocks[0] if elif_test_blocks else (else_block or merge_block)
+        
+        if not self.builder.block.is_terminated:
+            self.builder.cbranch(condition, then_block, first_elif_target)
+        
+        # Build then block
+        self.builder.position_at_end(then_block)
+        self.run_on(node.body)
+        if not self.builder.block.is_terminated:
+            self.builder.branch(merge_block)
+        
+        # Build elif chains
+        for i, elif_node in enumerate(node.elseifs):
+            # Build elif test block
+            self.builder.position_at_end(elif_test_blocks[i])
+            elif_condition = self.run_on(elif_node.condition)
+            
+            # Determine next target if condition fails
+            if i + 1 < len(elif_test_blocks):
+                next_target = elif_test_blocks[i + 1]
+            else:
+                next_target = else_block or merge_block
+            
+            if not self.builder.block.is_terminated:
+                self.builder.cbranch(elif_condition, elif_then_blocks[i], next_target)
+            
+            # Build elif then block
+            self.builder.position_at_end(elif_then_blocks[i])
+            self.run_on(elif_node.body)
+            if not self.builder.block.is_terminated:
+                self.builder.branch(merge_block)
+        
+        # Build else block
+        if else_block:
+            self.builder.position_at_end(else_block)
+            self.run_on(cast(ir.Body, node.else_body))
+            if not self.builder.block.is_terminated:
+                self.builder.branch(merge_block)
+        
+        # Position at merge
+        self.builder.position_at_end(merge_block)
+        return None
+    
+    def run_on_While(self, node: ir.While):
+        def cond(builder):
+            old_builder = self.builder
+            self.builder = builder
+
+            res = self.run_on(node.condition)
+
+            self.builder = old_builder
+            return res
+
+        def body(builder):
+            old_builder = self.builder
+            self.builder = builder
+            
+            self.run_on(node.body)
+
+            self.builder = old_builder
+
+        create_while_loop(self.builder, cond, body)
     
     def run_on_Param(self, node: ir.Param):
         return node.type.type

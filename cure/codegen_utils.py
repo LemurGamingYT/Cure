@@ -371,22 +371,22 @@ class IfBuilder:
             elif_funcs: Functions to call for elif blocks  
             else_func: Function to call for else block
         """
+        # Create all blocks first
+        self.blocks = []
+        for i in range(len(self.conditions)):
+            self.blocks.append(self.function.append_basic_block(f'if_then_{i}'))
+        
+        if else_func:
+            self.else_block = self.function.append_basic_block('if_else')
+        
         self.merge_block = self.function.append_basic_block('if_merge')
         
-        for i, (condition, block) in enumerate(zip(self.conditions, self.blocks)):
-            if i == 0:
-                # First condition (if)
-                next_test = self.blocks[1] if len(self.blocks) > 1 else (
-                    self.else_block if self.else_block else self.merge_block
-                )
-                self.builder.cbranch(condition, block, next_test)
-            else:
-                # Subsequent conditions (elif)
-                self.builder.position_at_end(self.blocks[i-1])
-                next_test = self.blocks[i+1] if i+1 < len(self.blocks) else (
-                    self.else_block if self.else_block else self.merge_block
-                )
-                self.builder.cbranch(condition, block, next_test)
+        # Save current block
+        current_block = self.builder.block
+        
+        # Build the condition chain
+        self.builder.position_at_end(current_block)
+        self._build_condition_chain()
         
         # Build then block
         self.builder.position_at_end(self.blocks[0])
@@ -394,7 +394,10 @@ class IfBuilder:
         if then_result is not None:
             self.phi_values.append(then_result)
             self.phi_blocks.append(self.builder.block)
-        self.builder.branch(self.merge_block)
+        
+        # CRITICAL: Only add branch if block isn't already terminated
+        if not self.builder.block.is_terminated:
+            self.builder.branch(self.merge_block)
         
         # Build elif blocks
         for i, elif_func in enumerate(elif_funcs):
@@ -404,7 +407,10 @@ class IfBuilder:
                 if elif_result is not None:
                     self.phi_values.append(elif_result)
                     self.phi_blocks.append(self.builder.block)
-                self.builder.branch(self.merge_block)
+                
+                # Only add branch if not terminated
+                if not self.builder.block.is_terminated:
+                    self.builder.branch(self.merge_block)
         
         # Build else block
         if self.else_block and else_func:
@@ -413,7 +419,10 @@ class IfBuilder:
             if else_result is not None:
                 self.phi_values.append(else_result)
                 self.phi_blocks.append(self.builder.block)
-            self.builder.branch(self.merge_block)
+            
+            # Only add branch if not terminated
+            if not self.builder.block.is_terminated:
+                self.builder.branch(self.merge_block)
         
         # Position at merge block
         self.builder.position_at_end(self.merge_block)
@@ -481,12 +490,8 @@ def create_if_else(builder: ir.IRBuilder, condition: ir.Value,
 
 
 def create_while_loop(builder: ir.IRBuilder, condition_func, body_func):
-    """Create a while loop
+    """Create a while loop"""
     
-    Args:
-        condition_func: Function that returns condition: condition_func(builder) -> ir.Value
-        body_func: Function for loop body: body_func(builder) -> None
-    """
     function = builder.function
     
     # Create blocks
@@ -494,18 +499,25 @@ def create_while_loop(builder: ir.IRBuilder, condition_func, body_func):
     body_block = function.append_basic_block('while_body')
     exit_block = function.append_basic_block('while_exit')
     
-    # Jump to condition
-    builder.branch(condition_block)
+    # Jump to condition block (only if current block isn't terminated)
+    if not builder.block.is_terminated:
+        builder.branch(condition_block)
     
     # Condition block
     builder.position_at_end(condition_block)
     condition = condition_func(builder)
-    builder.cbranch(condition, body_block, exit_block)
+    
+    # Only add cbranch if the block isn't already terminated
+    if not builder.block.is_terminated:
+        builder.cbranch(condition, body_block, exit_block)
     
     # Body block
     builder.position_at_end(body_block)
     body_func(builder)
-    builder.branch(condition_block)  # Loop back
     
-    # Exit block
+    # Loop back to condition (only if not terminated)
+    if not builder.block.is_terminated:
+        builder.branch(condition_block)
+    
+    # Exit block - position builder here for continuation
     builder.position_at_end(exit_block)

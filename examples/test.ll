@@ -11,28 +11,35 @@ declare void @"exit"(i32 %".1")
 define i32 @"main"()
 {
 .2:
-  %".3" = call i8* @"print.1"(float 0x4034333340000000)
+  br label %"while_condition"
+while_condition:
+  br i1 true, label %"while_body", label %"while_exit"
+while_body:
+  %".5" = insertvalue {i8*, i64} undef, i8* getelementptr ([2 x i8], [2 x i8]* @"str", i32 0, i32 0), 0
+  %".6" = insertvalue {i8*, i64} %".5", i64 1, 1
+  %".7" = call i8* @"print.1"({i8*, i64} %".6")
+  br label %"while_condition"
+while_exit:
+  %".9" = insertvalue {i8*, i64} undef, i8* getelementptr ([2 x i8], [2 x i8]* @"str.1", i32 0, i32 0), 0
+  %".10" = insertvalue {i8*, i64} %".9", i64 1, 1
+  %".11" = call i8* @"print.1"({i8*, i64} %".10")
   ret i32 0
 }
 
-define i8* @"print.1"(float %".1")
+@"str" = internal constant [2 x i8] c"A\00"
+define i8* @"print.1"({i8*, i64} %".1")
 {
 .3:
-  %".4" = call {i8*, i64} @"float_to_string"(float %".1")
+  %".4" = call {i8*, i64} @"string_to_string"({i8*, i64} %".1")
   %".5" = extractvalue {i8*, i64} %".4", 0
   %".6" = call i32 @"puts"(i8* %".5")
   ret i8* null
 }
 
-define {i8*, i64} @"float_to_string"(float %".1")
+define {i8*, i64} @"string_to_string"({i8*, i64} %".1")
 {
 .3:
-  %".4" = fpext float %".1" to double
-  %".5" = call i32 (i8*, i64, i8*, ...) @"snprintf"(i8* getelementptr ([64 x i8], [64 x i8]* @".2", i32 0, i32 0), i64 64, i8* getelementptr ([3 x i8], [3 x i8]* @"str", i32 0, i32 0), double %".4")
-  %".6" = insertvalue {i8*, i64} undef, i8* getelementptr ([64 x i8], [64 x i8]* @".2", i32 0, i32 0), 0
-  %".7" = insertvalue {i8*, i64} %".6", i64 64, 1
-  ret {i8*, i64} %".7"
+  ret {i8*, i64} %".1"
 }
 
-@".2" = internal global [64 x i8] zeroinitializer
-@"str" = internal constant [3 x i8] c"%f\00"
+@"str.1" = internal constant [2 x i8] c"A\00"
