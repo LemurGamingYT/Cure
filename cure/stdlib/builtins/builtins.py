@@ -3,14 +3,16 @@ from llvmlite import ir as lir
 from cure.codegen_utils import NULL, get_struct_field_value
 from cure.stdlib.builtins.operations import operations
 from cure.lib import function, Lib, DefinitionContext
+from cure.stdlib.builtins.string import string
 from cure.stdlib.builtins.casts import casts
 from cure import ir
 
 
 class builtins(Lib):
     def init_lib(self):
-        self.add_lib(operations)
         self.add_lib(casts)
+        self.add_lib(string)
+        self.add_lib(operations)
 
     @function([ir.Param(ir.Position.zero(), 'message', ir.Type.string())])
     @staticmethod

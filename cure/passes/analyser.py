@@ -156,3 +156,9 @@ class Analyser(CompilerPass):
         op_name = ir.op_map[node.op]
         callee = f'{lhs.get_type()}_{op_name}_{rhs.get_type()}'
         return self.run_on(ir.Call(node.pos, callee, [lhs, rhs]))
+    
+    def run_on_Attribute(self, node: ir.Attribute):
+        obj = self.run_on(node.obj)
+        args = [obj] + ([self.run_on(arg) for arg in node.args] if node.args is not None else [])
+        callee = f'{obj.get_type()}_{node.attr}'
+        return self.run_on(ir.Call(node.pos, callee, args))
