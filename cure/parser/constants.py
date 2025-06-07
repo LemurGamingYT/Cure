@@ -1,6 +1,6 @@
 TOKENS = {
+    'float': r'-?\d*\.\d+',
     'int': r'-?\d+',
-    'float': r'\d*\.\d+',
     'string': r'\"[^\"]*\"',
     'bool': r'true|false',
     'nil': r'nil',

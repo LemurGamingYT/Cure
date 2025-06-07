@@ -1,8 +1,10 @@
 from llvmlite import ir as lir
 
-from cure.codegen_utils import create_struct_value, create_string_constant, create_ternary
 from cure.lib import function, Lib, DefinitionContext
 from cure import ir
+from cure.codegen_utils import (
+    create_struct_value, create_string_constant, create_ternary, create_static_buffer
+)
 
 
 class casts(Lib):
@@ -15,18 +17,11 @@ class casts(Lib):
         snprintf = ctx.c_registry.get('snprintf')
 
         x = ctx.param('x')
-        buf_type = lir.ArrayType(lir.IntType(8), BUF_SIZE)
-        buf = lir.GlobalVariable(ctx.module, buf_type, ctx.module.get_unique_name())
-        buf.initializer = lir.Constant(buf_type, None)
-        buf.linkage = 'internal'
-
-        zero = lir.Constant(lir.IntType(32), 0)
-        buf_ptr = lir.Constant.gep(buf, [zero, zero])
-
+        buf = create_static_buffer(ctx.module, lir.IntType(8), BUF_SIZE)
         fmt_ptr = create_string_constant(ctx.module, r'%d')
-        ctx.builder.call(snprintf, [buf_ptr, buf_size, fmt_ptr, x.value])
+        ctx.builder.call(snprintf, [buf, buf_size, fmt_ptr, x.value])
 
-        string_struct = create_struct_value(ctx.builder, ir.Type.string().type, [buf_ptr, buf_size])
+        string_struct = create_struct_value(ctx.builder, ir.Type.string().type, [buf, buf_size])
         ctx.builder.ret(string_struct)
     
     @function([ir.Param(ir.Position.zero(), 'x', ir.Type.float())], ir.Type.string())
@@ -37,19 +32,12 @@ class casts(Lib):
 
         snprintf = ctx.c_registry.get('snprintf')
 
-        x = ctx.param('x')
-        buf_type = lir.ArrayType(lir.IntType(8), BUF_SIZE)
-        buf = lir.GlobalVariable(ctx.module, buf_type, ctx.module.get_unique_name())
-        buf.initializer = lir.Constant(buf_type, None)
-        buf.linkage = 'internal'
-
-        zero = lir.Constant(lir.IntType(32), 0)
-        buf_ptr = lir.Constant.gep(buf, [zero, zero])
-
+        x = ctx.builder.fpext(ctx.param('x').value, lir.DoubleType())
+        buf = create_static_buffer(ctx.module, lir.IntType(8), BUF_SIZE)
         fmt_ptr = create_string_constant(ctx.module, r'%f')
-        ctx.builder.call(snprintf, [buf_ptr, buf_size, fmt_ptr, x.value])
+        ctx.builder.call(snprintf, [buf, buf_size, fmt_ptr, x])
 
-        string_struct = create_struct_value(ctx.builder, ir.Type.string().type, [buf_ptr, buf_size])
+        string_struct = create_struct_value(ctx.builder, ir.Type.string().type, [buf, buf_size])
         ctx.builder.ret(string_struct)
     
     @function([ir.Param(ir.Position.zero(), 'x', ir.Type.string())], ir.Type.string())

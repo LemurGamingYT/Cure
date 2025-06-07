@@ -219,7 +219,7 @@ class CureParser(ParserGenerator):
         @self.error
         def error_handle(token: Token):
             pos = get_pos(token)
-            pos.comptime_error(f'unexpected token {token.gettokentype()}', src)
+            pos.comptime_error(f'unexpected token {token.value}', src)
     
     def parse(self, tokens: LexerStream) -> Node:
         return self.build().parse(tokens)

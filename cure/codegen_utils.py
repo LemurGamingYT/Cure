@@ -21,11 +21,13 @@ def get_or_add_global(module: ir.Module, name: str, global_value: Any):
     module.add_global(global_value)
     return global_value
 
+
 def max_value(type: ir.IntType):
     return 2 ** type.width
 
 def min_value(type: ir.IntType):
     return -(2 ** type.width - 1)
+
 
 def create_identified_struct_type(context: ir.Context, name: str,
                                   field_types: list[ir.Type] | None = None):
@@ -316,6 +318,15 @@ def get_buffer_element(builder: ir.IRBuilder, buffer_ptr: ir.Value,
     """Get buffer element at index"""
     element_ptr = get_buffer_element_ptr(builder, buffer_ptr, index)
     return builder.load(element_ptr)
+
+def create_static_buffer(module: ir.Module, element_type: ir.Type, size: int, name = ''):
+    buf_type = ir.ArrayType(element_type, size)
+    buf = ir.GlobalVariable(module, buf_type, name or module.get_unique_name())
+    buf.initializer = ir.Constant(buf_type, None)
+    buf.linkage = 'internal'
+
+    zero = ir.Constant(ir.IntType(32), 0)
+    return ir.Constant.gep(buf, [zero, zero])
 
 
 def create_ternary(builder: ir.IRBuilder, condition: ir.Value, 
