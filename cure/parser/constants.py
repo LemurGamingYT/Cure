@@ -10,7 +10,6 @@ TOKENS = {
     'ELSE': r'else',
     'WHILE': r'while',
     'id': r'[a-zA-Z_][a-zA-Z_0-9]*',
-    '=': r'=',
     ',': r',',
     '->': r'->',
     '(': r'\(',
@@ -24,23 +23,24 @@ TOKENS = {
     '%': r'%',
     '==': r'==',
     '!=': r'!=',
-    '>': r'>',
-    '<': r'<',
     '>=': r'>=',
     '<=': r'<=',
+    '>': r'>',
+    '<': r'<',
     'and': r'&&',
     'or': r'\|\|',
     '!': r'!',
-    '.': r'\.'
+    '.': r'\.',
+    '=': r'=',
 }
 
 IGNORES = [r'\s+', r'//.*', r'/\*[\s\S]*?\*/']
 PRECEDENCE = [
-    ('left', ['+', '-', '%']),
-    ('left', ['*', '/']),
-    ('right', ['!']),
-    ('left', ['==', '!=', '>', '<', '>=', '<=']),
+    ('left', ['or']),           # Lowest precedence
     ('left', ['and']),
-    ('left', ['or']),
-    ('right', ['=']),
+    ('left', ['==', '!=', '>', '<', '>=', '<=']),
+    ('left', ['+', '-']),
+    ('left', ['*', '/', '%']),
+    ('right', ['!']),           # Highest precedence
+    ('right', ['=']),           # Assignment should be lowest, but separate
 ]

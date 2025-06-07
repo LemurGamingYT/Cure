@@ -2,6 +2,7 @@ from typing import Union, Callable, TypeAlias, Any
 from dataclasses import dataclass, field
 from importlib import import_module
 from sys import exit as sys_exit
+from logging import error
 from pathlib import Path
 from copy import copy
 from abc import ABC
@@ -33,6 +34,7 @@ class Position:
         print(src.splitlines()[self.line - 1])
         print(' ' * (self.column - 1) + '^')
         print(f'{Style.BRIGHT}{Fore.RED}error: {msg}{Style.RESET_ALL}')
+        error(msg)
         sys_exit(1)
 
 @dataclass

@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from logging import debug, info
 from functools import wraps
 from abc import ABC
 
@@ -38,22 +39,29 @@ def function(params: list[ir.Param] | None = None, ret_type: ir.Type | None = No
                 params[i] = ir.Param(param.pos, param.name, arg_type)
             
             if name in module.globals:
+                debug(f'{name} is compiled, using it again')
                 return module.get_global(name)
             
             if func.generic:
-                name += module.get_unique_name()
+                unique_part = module.get_unique_name()
+                debug(f'{name} is generic, adding {unique_part}')
+                name += unique_part
             
             ir_args = [param.type.type for param in params]
             ir_func = lir.Function(module, lir.FunctionType(ret_type.type, ir_args), name)
             builder = lir.IRBuilder(ir_func.append_basic_block())
             def_scope = scope.clone()
             ctx = DefinitionContext(ir.Position.zero(), def_scope, module, builder, c_registry, params)
+            info('Created definition context')
+
             for i, param in enumerate(params):
                 def_scope.symbol_table.add(ir.Symbol(
                     param.name, param.type, ParamPointer(ir_func.args[i], param.type)
                 ))
             
+            info(f'Compiling {name}')
             func(ctx)
+            info(f'Compiled {name}')
             return ir_func
         
         return wrapper

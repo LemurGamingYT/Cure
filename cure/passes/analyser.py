@@ -1,3 +1,5 @@
+from pprint import pformat
+from logging import info
 from typing import cast
 
 from cure.passes import CompilerPass
@@ -10,10 +12,14 @@ INT_MIN = -2_147_483_648
 
 class Analyser(CompilerPass):
     def run_on_Program(self, node: ir.Program):
+        info(f'Analysing program {pformat(node, indent=4)}')
+
         nodes = []
         for n in node.nodes:
+            info(f'Analysing {n.__class__.__name__}')
             nodes.append(self.run_on(n))
         
+        info(f'Finished analysing program {pformat(node, indent=4)}')
         return ir.Program(node.pos, nodes)
     
     def run_on_Type(self, node: ir.Type):
@@ -24,10 +30,14 @@ class Analyser(CompilerPass):
     
     def run_on_Body(self, node: ir.Body):
         self.scope = self.scope.clone()
+
+        info('Entered child scope for body')
         nodes = []
         for n in node.nodes:
+            info(f'Analysing body node {n.__class__.__name__}')
             nodes.append(self.run_on(n))
         
+        info('Exiting body')
         self.scope = cast(ir.Scope, self.scope.parent)
         return ir.Body(node.pos, nodes)
     
@@ -47,16 +57,20 @@ class Analyser(CompilerPass):
     def run_on_Function(self, node: ir.Function):
         params = [self.run_on(param) for param in node.params]
         type = self.run_on(node.type)
+        func = ir.Function(node.pos, node.name, params, type, node.body, node.flags, node.overloads)
+        self.scope.symbol_table.add(ir.Symbol(node.name, ir.Type.function(), func))
+
+        info('Adding parameters to environment')
         for param in params:
             self.scope.symbol_table.add(ir.Symbol(param.name, param.type, param))
         
         body = self.run_on(node.body) if isinstance(node.body, ir.Body) else node.body
 
+        info('Removing parameters from environment')
         for param in params:
             self.scope.symbol_table.remove(param.name)
 
-        func = ir.Function(node.pos, node.name, params, type, body, node.flags, node.overloads)
-        self.scope.symbol_table.add(ir.Symbol(node.name, ir.Type.function(), func))
+        func.body = body
         return func
     
     def run_on_Variable(self, node: ir.Variable):

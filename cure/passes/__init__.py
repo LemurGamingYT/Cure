@@ -15,7 +15,6 @@ class CompilerPass(ABC):
     
     def run_on(self, node: Node):
         method_name = f'run_on_{type(node).__name__}'
-        
         if hasattr(self, method_name):
             method = getattr(self, method_name)
             return method(node)

@@ -1,3 +1,4 @@
+from logging import debug, info
 from typing import cast
 
 from llvmlite import ir as lir, binding as llvm
@@ -21,11 +22,16 @@ class CRegistry:
     
     def is_registered(self, name: str):
         return name in self.__registry
+    
+    def get_registered_functions(self):
+        return [func.name for func in self.__registry.values()]
 
 
 class CodeGeneration(CompilerPass):
     def __init__(self, scope):
         super().__init__(scope)
+
+        info('Initialising LLVM')
 
         llvm.initialize()
         llvm.initialize_native_target()
@@ -35,6 +41,9 @@ class CodeGeneration(CompilerPass):
         self.module.triple = llvm.get_default_triple()
 
         self.builder = lir.IRBuilder()
+
+        info('Created module and builder')
+        debug(f'Target = {self.module.triple}')
 
         self.c_registry = CRegistry(self.module)
         self.c_registry.register('snprintf', lir.FunctionType(lir.IntType(32), [
@@ -51,12 +60,15 @@ class CodeGeneration(CompilerPass):
             lir.IntType(32) # exit_code
         ]))
 
+        debug(f'Registered: {', '.join(self.c_registry.get_registered_functions())}')
+
         setattr(self.module, 'c_registry', self.c_registry)
     
     def run_on_Type(self, node: ir.Type):
         return node.type
     
     def run_on_Program(self, node: ir.Program):
+        info('Compiling program')
         for n in node.nodes:
             self.run_on(n)
         
@@ -64,17 +76,17 @@ class CodeGeneration(CompilerPass):
     
     def run_on_Body(self, node: ir.Body):
         self.scope = self.scope.clone()
+        info('Compiling body')
+
         for stmt in node.nodes:
+            info(f'Compiling body statement {stmt.__class__.__name__}')
             self.run_on(stmt)
+            info(f'Compiled body statement {stmt.__class__.__name__}')
         
+        info('Compiled body')
         self.scope = cast(ir.Scope, self.scope.parent)
     
-    def run_on_Elif(self, node: ir.Elif):
-        pass
-    
     def run_on_If(self, node: ir.If):
-        """Manual if-elif-else implementation"""
-        
         function = self.builder.function
         merge_block = function.append_basic_block('if_merge')
         
@@ -115,7 +127,6 @@ class CodeGeneration(CompilerPass):
         
         # Position at merge
         self.builder.position_at_end(merge_block)
-        return None
 
     def _build_if_elif_else(self, node: ir.If, merge_block):
         """Build if-elif-else chain manually"""
@@ -178,7 +189,6 @@ class CodeGeneration(CompilerPass):
         
         # Position at merge
         self.builder.position_at_end(merge_block)
-        return None
     
     def run_on_While(self, node: ir.While):
         def cond(builder):
@@ -204,10 +214,15 @@ class CodeGeneration(CompilerPass):
         return self.run_on(node.type)
     
     def run_on_Function(self, node: ir.Function):
+        info(f'Compiling function {node.name}')
         ret_type = self.run_on(node.type)
         param_types = [self.run_on(param) for param in node.params]
         func = lir.Function(self.module, lir.FunctionType(ret_type, param_types), node.name)
+        self.scope.symbol_table.add(ir.Symbol(node.name, ir.Type.function(), func))
+        
         if isinstance(node.body, ir.Body):
+            info('Compiling function body')
+
             old_builder = self.builder
             self.builder = lir.IRBuilder(func.append_basic_block())
 
@@ -217,6 +232,7 @@ class CodeGeneration(CompilerPass):
             self.run_on(node.body)
 
             if node.type == ir.Type.nil():
+                info(f'{node.name} has no return type, inserting ret NULL')
                 self.builder.ret(NULL())
 
             for param in node.params:
@@ -224,7 +240,7 @@ class CodeGeneration(CompilerPass):
 
             self.builder = old_builder
 
-        self.scope.symbol_table.add(ir.Symbol(node.name, ir.Type.function(), func))
+        info(f'Finished compiling function {node.name}')
         return func
     
     def run_on_Variable(self, node: ir.Variable):
@@ -248,6 +264,7 @@ class CodeGeneration(CompilerPass):
     def run_on_Return(self, node: ir.Return):
         value = self.run_on(node.value)
         self.builder.ret(value)
+        info('Returning')
         return value
     
     def run_on_Int(self, node: ir.Int):
@@ -270,18 +287,31 @@ class CodeGeneration(CompilerPass):
         if symbol is None:
             return
         
-        return self.builder.load(symbol.value)
+        if hasattr(symbol.value, 'type') and isinstance(symbol.value.type, lir.PointerType):
+            info(f'Loading pointer {node.name}')
+            return self.builder.load(symbol.value)
+        
+        info(f'Loading value {node.name}')
+        return symbol.value
     
     def run_on_Call(self, node: ir.Call):
         symbol = self.scope.symbol_table.get(node.callee)
         if symbol is None:
+            node.pos.comptime_error(f'unknown symbol {node.callee}', self.scope.src)
             return
         
         args = [self.run_on(arg) for arg in node.args]
         arg_types = [arg.get_type() for arg in node.args]
         func = symbol.value
         if isinstance(func, lir.Function):
+            info(f'Calling LLVM function (or compiled stdlib function) {symbol.name}')
             return self.builder.call(func, args)
         elif callable(func):
+            info(f'Calling stdlib function {symbol.name}')
             ir_func = func(self.module, self.scope, arg_types)
             return self.builder.call(ir_func, args)
+        
+        node.pos.comptime_error(f'invalid callable {node.callee}', self.scope.src)
+    
+    def run_on_BinaryOp(self, _):
+        raise NotImplementedError

@@ -167,3 +167,69 @@ class operations(Lib):
 
         ctx.builder.position_at_end(success_block)
         ctx.builder.ret(res)
+    
+    @function([
+        ir.Param(ir.Position.zero(), 'a', ir.Type.int()),
+        ir.Param(ir.Position.zero(), 'b', ir.Type.int())
+    ], ir.Type.bool())
+    @staticmethod
+    def int_eq_int(ctx: DefinitionContext):
+        a = ctx.param('a').value
+        b = ctx.param('b').value
+        res = ctx.builder.icmp_signed('==', a, b)
+        ctx.builder.ret(res)
+    
+    @function([
+        ir.Param(ir.Position.zero(), 'a', ir.Type.int()),
+        ir.Param(ir.Position.zero(), 'b', ir.Type.int())
+    ], ir.Type.bool())
+    @staticmethod
+    def int_neq_int(ctx: DefinitionContext):
+        a = ctx.param('a').value
+        b = ctx.param('b').value
+        res = ctx.builder.icmp_signed('!=', a, b)
+        ctx.builder.ret(res)
+    
+    @function([
+        ir.Param(ir.Position.zero(), 'a', ir.Type.int()),
+        ir.Param(ir.Position.zero(), 'b', ir.Type.int())
+    ], ir.Type.bool())
+    @staticmethod
+    def int_lt_int(ctx: DefinitionContext):
+        a = ctx.param('a').value
+        b = ctx.param('b').value
+        res = ctx.builder.icmp_signed('<', a, b)
+        ctx.builder.ret(res)
+    
+    @function([
+        ir.Param(ir.Position.zero(), 'a', ir.Type.int()),
+        ir.Param(ir.Position.zero(), 'b', ir.Type.int())
+    ], ir.Type.bool())
+    @staticmethod
+    def int_gt_int(ctx: DefinitionContext):
+        a = ctx.param('a').value
+        b = ctx.param('b').value
+        res = ctx.builder.icmp_signed('>', a, b)
+        ctx.builder.ret(res)
+    
+    @function([
+        ir.Param(ir.Position.zero(), 'a', ir.Type.int()),
+        ir.Param(ir.Position.zero(), 'b', ir.Type.int())
+    ], ir.Type.bool())
+    @staticmethod
+    def int_lte_int(ctx: DefinitionContext):
+        a = ctx.param('a').value
+        b = ctx.param('b').value
+        res = ctx.builder.icmp_signed('<=', a, b)
+        ctx.builder.ret(res)
+    
+    @function([
+        ir.Param(ir.Position.zero(), 'a', ir.Type.int()),
+        ir.Param(ir.Position.zero(), 'b', ir.Type.int())
+    ], ir.Type.bool())
+    @staticmethod
+    def int_gte_int(ctx: DefinitionContext):
+        a = ctx.param('a').value
+        b = ctx.param('b').value
+        res = ctx.builder.icmp_signed('>=', a, b)
+        ctx.builder.ret(res)

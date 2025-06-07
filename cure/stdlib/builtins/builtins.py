@@ -1,10 +1,10 @@
 from llvmlite import ir as lir
 
+from cure.codegen_utils import NULL, get_struct_field_value
 from cure.stdlib.builtins.operations import operations
 from cure.lib import function, Lib, DefinitionContext
 from cure.stdlib.builtins.casts import casts
 from cure import ir
-from cure.codegen_utils import NULL, get_struct_field_value
 
 
 class builtins(Lib):
