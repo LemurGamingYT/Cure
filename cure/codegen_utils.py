@@ -21,6 +21,12 @@ def get_or_add_global(module: ir.Module, name: str, global_value: Any):
     module.add_global(global_value)
     return global_value
 
+def max_value(type: ir.IntType):
+    return 2 ** type.width
+
+def min_value(type: ir.IntType):
+    return -(2 ** type.width - 1)
+
 def create_identified_struct_type(context: ir.Context, name: str,
                                   field_types: list[ir.Type] | None = None):
     """Create an identified (named) struct type"""
