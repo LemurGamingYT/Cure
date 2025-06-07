@@ -47,6 +47,10 @@ class CodeGeneration(CompilerPass):
             lir.IntType(8).as_pointer() # str
         ]))
 
+        self.c_registry.register('exit', lir.FunctionType(lir.VoidType(), [
+            lir.IntType(32) # exit_code
+        ]))
+
         setattr(self.module, 'c_registry', self.c_registry)
     
     def run_on_Program(self, node: ir.Program):
@@ -103,7 +107,7 @@ class CodeGeneration(CompilerPass):
     def run_on_Assignment(self, node: ir.Assignment):
         value = self.run_on(node.value)
         symbol = cast(ir.Symbol, self.scope.symbol_table.get(node.name))
-        
+
         ptr = symbol.value
         return self.builder.store(value, ptr)
     

@@ -4,6 +4,10 @@ from cure.passes import CompilerPass
 from cure import ir
 
 
+INT_MAX = 2_147_483_647
+INT_MIN = -2_147_483_648
+
+
 class Analyser(CompilerPass):
     def run_on_Program(self, node: ir.Program):
         nodes = []
@@ -57,6 +61,12 @@ class Analyser(CompilerPass):
         return node
     
     def run_on_Int(self, node: ir.Int):
+        if node.value > INT_MAX:
+            node.pos.comptime_error('integer value is too large for a 32-bit integer', self.scope.src)
+        
+        if node.value < INT_MIN:
+            node.pos.comptime_error('integer value is too small for a 32-bit integer', self.scope.src)
+        
         return node
     
     def run_on_Float(self, node: ir.Float):
@@ -105,3 +115,10 @@ class Analyser(CompilerPass):
             )
         
         return ir.Call(node.pos, node.callee, args, ret_type)
+    
+    def run_on_BinaryOp(self, node: ir.BinaryOp):
+        lhs = self.run_on(node.left)
+        rhs = self.run_on(node.right)
+        op_name = ir.op_map[node.op]
+        callee = f'{lhs.get_type()}_{op_name}_{rhs.get_type()}'
+        return self.run_on(ir.Call(node.pos, callee, [lhs, rhs]))

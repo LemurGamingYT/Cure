@@ -6,16 +6,15 @@ declare i32 @"snprintf"(i8* %".1", i64 %".2", i8* %".3", ...)
 
 declare i32 @"puts"(i8* %".1")
 
+declare void @"exit"(i32 %".1")
+
 define i32 @"main"()
 {
 .2:
   %".3" = alloca i32
-  store i32 20, i32* %".3"
+  store i32 2147483647, i32* %".3"
   %".5" = load i32, i32* %".3"
   %".6" = call i8* @"print.1"(i32 %".5")
-  store i32 10, i32* %".3"
-  %".8" = load i32, i32* %".3"
-  %".9" = call i8* @"print.1"(i32 %".8")
   ret i32 0
 }
 

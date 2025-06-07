@@ -1,8 +1,5 @@
 fn main() -> int {
-    x = 20
-    print(x)
-    
-    x = 10
+    x = 2147483647
     print(x)
     return 0
 }

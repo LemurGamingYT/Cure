@@ -7,7 +7,7 @@ from llvmlite import ir as lir
 from cure.passes.code_generation import CRegistry
 from cure import ir
 from cure.codegen_utils import (
-    create_struct_value, create_string_constant, NULL, get_struct_field_value
+    create_struct_value, create_string_constant, NULL, get_struct_field_value, get_or_add_global
 )
 
 
@@ -135,6 +135,51 @@ class Lib(ABC):
             self.scope.symbol_table.add(ir.Symbol(k, ir.Type.function(), v))
 
 class builtins(Lib):
+    @function([
+        ir.Param(ir.Position.zero(), 'a', ir.Type.int()),
+        ir.Param(ir.Position.zero(), 'b', ir.Type.int())
+    ], ir.Type.int())
+    @staticmethod
+    def int_add_int(ctx: DefinitionContext):
+        a = ctx.param('a').value
+        b = ctx.param('b').value
+        intrinsic_name = f'llvm.sadd.with.overflow.{ir.Type.int().type}'
+        res_type = lir.LiteralStructType([ir.Type.int().type, lir.IntType(1)])
+        intrinsic = get_or_add_global(ctx.module, intrinsic_name, lir.Function(
+            ctx.module, lir.FunctionType(res_type, [lir.IntType(32), lir.IntType(32)]),
+            intrinsic_name
+        ))
+        struct = ctx.builder.call(intrinsic, [a, b])
+        res = get_struct_field_value(ctx.builder, struct, 0)
+        overflow = get_struct_field_value(ctx.builder, struct, 1)
+
+        overflow_block = ctx.builder.function.append_basic_block('overflow')
+        success_block = ctx.builder.function.append_basic_block()
+        ctx.builder.cbranch(overflow, overflow_block, success_block)
+
+        ctx.builder.position_at_end(overflow_block)
+        err_str = 'integer overflow'
+        err_msg = create_string_constant(ctx.module, err_str)
+        err_string_struct = create_struct_value(ctx.builder, ir.Type.string().type, [
+            err_msg, lir.Constant(lir.IntType(64), len(err_str))
+        ])
+        ctx.call('error', [err_string_struct])
+        ctx.builder.ret(lir.Constant(lir.IntType(32), 0))
+
+        ctx.builder.position_at_end(success_block)
+        ctx.builder.ret(res)
+
+    @function([ir.Param(ir.Position.zero(), 'message', ir.Type.string())])
+    @staticmethod
+    def error(ctx: DefinitionContext):
+        exit = ctx.c_registry.get('exit')
+        puts = ctx.c_registry.get('puts')
+
+        message = ctx.param('message')
+        ctx.builder.call(puts, [get_struct_field_value(ctx.builder, message.value, 0)])
+        ctx.builder.call(exit, [lir.Constant(ir.Type.int().type, 1)])
+        ctx.builder.ret(NULL())
+
     @function([ir.Param(ir.Position.zero(), 'x', ir.Type.any())])
     @staticmethod
     def print(ctx: DefinitionContext):

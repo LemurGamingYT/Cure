@@ -13,6 +13,14 @@ def store_in_pointer(builder: ir.IRBuilder, type: ir.Type, value: ir.Value):
     return ptr
 
 
+def get_or_add_global(module: ir.Module, name: str, global_value: Any):
+    """Gets or adds a global value"""
+    if name in module.globals:
+        return module.get_global(name)
+    
+    module.add_global(global_value)
+    return global_value
+
 def create_identified_struct_type(context: ir.Context, name: str,
                                   field_types: list[ir.Type] | None = None):
     """Create an identified (named) struct type"""
