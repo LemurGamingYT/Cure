@@ -16,6 +16,9 @@ class Analyser(CompilerPass):
         
         return ir.Program(node.pos, nodes)
     
+    def run_on_Type(self, node: ir.Type):
+        return node
+    
     def run_on_Param(self, node: ir.Param):
         return ir.Param(node.pos, node.name, self.run_on(node.type))
     
@@ -72,6 +75,10 @@ class Analyser(CompilerPass):
 
         symbol.value = node.value
         return node
+    
+    def run_on_Return(self, node: ir.Return):
+        value = self.run_on(node.value)
+        return ir.Return(node.pos, value)
     
     def run_on_Int(self, node: ir.Int):
         if node.value > INT_MAX:

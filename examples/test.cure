@@ -1,7 +1,3 @@
 fn main() -> int {
-    if true {
-        print("AHHH")
-    }
-    
     return 0
 }

@@ -1,4 +1,3 @@
-from typing import Any, cast
 from copy import copy
 from abc import ABC
 
@@ -15,14 +14,13 @@ class CompilerPass(ABC):
         return self.run_on(program)
     
     def run_on(self, node: Node):
-        method_name = f'run_on_{node.__class__.__name__}'
+        method_name = f'run_on_{type(node).__name__}'
+        
         if hasattr(self, method_name):
             method = getattr(self, method_name)
-            res = cast(Any, method)(node)
-            if res is not None:
-                return res
-        
-        return self.run_on_children(node)
+            return method(node)
+        else:
+            raise AttributeError(f'No method {method_name}')
 
     def run_on_children(self, node: Node):
         new_node = copy(node)

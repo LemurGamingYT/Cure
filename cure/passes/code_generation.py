@@ -53,6 +53,9 @@ class CodeGeneration(CompilerPass):
 
         setattr(self.module, 'c_registry', self.c_registry)
     
+    def run_on_Type(self, node: ir.Type):
+        return node.type
+    
     def run_on_Program(self, node: ir.Program):
         for n in node.nodes:
             self.run_on(n)
@@ -65,6 +68,9 @@ class CodeGeneration(CompilerPass):
             self.run_on(stmt)
         
         self.scope = cast(ir.Scope, self.scope.parent)
+    
+    def run_on_Elif(self, node: ir.Elif):
+        pass
     
     def run_on_If(self, node: ir.If):
         """Manual if-elif-else implementation"""
@@ -195,10 +201,10 @@ class CodeGeneration(CompilerPass):
         create_while_loop(self.builder, cond, body)
     
     def run_on_Param(self, node: ir.Param):
-        return node.type.type
+        return self.run_on(node.type)
     
     def run_on_Function(self, node: ir.Function):
-        ret_type = cast(ir.Type, self.run_on(node.type)).type
+        ret_type = self.run_on(node.type)
         param_types = [self.run_on(param) for param in node.params]
         func = lir.Function(self.module, lir.FunctionType(ret_type, param_types), node.name)
         if isinstance(node.body, ir.Body):
@@ -227,7 +233,7 @@ class CodeGeneration(CompilerPass):
             node.pos.comptime_error('cannot generate code for uninitialised variables', self.scope.src)
             return
         
-        ptr = self.builder.alloca(node.type.type)
+        ptr = self.builder.alloca(self.run_on(node.type))
         self.builder.store(value, ptr)
         self.scope.symbol_table.add(ir.Symbol(node.name, node.type, ptr))
         return ptr
@@ -245,16 +251,16 @@ class CodeGeneration(CompilerPass):
         return value
     
     def run_on_Int(self, node: ir.Int):
-        return lir.Constant(ir.Type.int().type, node.value)
+        return lir.Constant(self.run_on(ir.Type.int()), node.value)
     
     def run_on_Float(self, node: ir.Float):
-        return lir.Constant(ir.Type.float().type, node.value)
+        return lir.Constant(self.run_on(ir.Type.float()), node.value)
     
     def run_on_String(self, node: ir.String):
         return create_string_struct(self.module, self.builder, node.value)
     
     def run_on_Bool(self, node: ir.Bool):
-        return lir.Constant(ir.Type.bool().type, node.value)
+        return lir.Constant(self.run_on(ir.Type.bool()), node.value)
     
     def run_on_Nil(self, _):
         return NULL()
