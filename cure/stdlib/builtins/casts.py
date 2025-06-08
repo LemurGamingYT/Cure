@@ -16,10 +16,10 @@ class casts(Lib):
 
         snprintf = ctx.c_registry.get('snprintf')
 
-        x = ctx.param('x')
+        x = ctx.param('x').value
         buf = create_static_buffer(ctx.module, lir.IntType(8), BUF_SIZE)
         fmt_ptr = create_string_constant(ctx.module, r'%d')
-        ctx.builder.call(snprintf, [buf, buf_size, fmt_ptr, x.value])
+        ctx.builder.call(snprintf, [buf, buf_size, fmt_ptr, x])
 
         string_struct = create_struct_value(ctx.builder, ir.Type.string().type, [buf, buf_size])
         ctx.builder.ret(string_struct)
@@ -68,3 +68,16 @@ class casts(Lib):
             create_string_constant(ctx.module, 'nil'),
             lir.Constant(lir.IntType(64), 3)
         ]))
+    
+
+    @function([ir.Param(ir.Position.zero(), 'x', ir.Type.int())], ir.Type.float())
+    @staticmethod
+    def int_to_float(ctx: DefinitionContext):
+        x = ctx.param('x').value
+        ctx.builder.ret(ctx.builder.sitofp(x, ir.Type.float().type))
+    
+    @function([ir.Param(ir.Position.zero(), 'x', ir.Type.float())], ir.Type.int())
+    @staticmethod
+    def float_to_int(ctx: DefinitionContext):
+        x = ctx.param('x').value
+        ctx.builder.ret(ctx.builder.fptosi(x, ir.Type.int().type))

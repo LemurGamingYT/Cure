@@ -11,36 +11,30 @@ declare external void @"exit"(i32 %".1")
 define i32 @"main"()
 {
 .2:
-  %".3" = call i1 @"not_bool"(i1 false)
-  %".4" = call i8* @"print.1"(i1 %".3")
+  %".3" = insertvalue {i8*, i64} undef, i8* getelementptr ([2 x i8], [2 x i8]* @"str", i32 0, i32 0), 0
+  %".4" = insertvalue {i8*, i64} %".3", i64 1, 1
+  %".5" = call i8* @"assert"(i1 false, {i8*, i64} %".4")
   ret i32 0
 }
 
-define i1 @"not_bool"(i1 %".1")
+@"str" = internal constant [2 x i8] c"A\00"
+define i8* @"assert"(i1 %".1", {i8*, i64} %".2")
 {
-.3:
-  %".4" = xor i1 %".1", -1
-  ret i1 %".4"
-}
-
-define i8* @"print.1"(i1 %".1")
-{
-.3:
-  %".4" = call {i8*, i64} @"bool_to_string"(i1 %".1")
-  %".5" = extractvalue {i8*, i64} %".4", 0
-  %".6" = call i32 @"puts"(i8* %".5")
+.4:
+  %".5" = xor i1 %".1", -1
+  br i1 %".5", label %".4.if", label %".4.endif"
+.4.if:
+  %".7" = call i8* @"error"({i8*, i64} %".2")
+  ret i8* null
+.4.endif:
   ret i8* null
 }
 
-define {i8*, i64} @"bool_to_string"(i1 %".1")
+define i8* @"error"({i8*, i64} %".1")
 {
 .3:
-  %".4" = select  i1 %".1", i8* getelementptr ([5 x i8], [5 x i8]* @"str", i32 0, i32 0), i8* getelementptr ([6 x i8], [6 x i8]* @"str.1", i32 0, i32 0)
-  %".5" = select  i1 %".1", i64 4, i64 5
-  %".6" = insertvalue {i8*, i64} undef, i8* %".4", 0
-  %".7" = insertvalue {i8*, i64} %".6", i64 %".5", 1
-  ret {i8*, i64} %".7"
+  %".4" = extractvalue {i8*, i64} %".1", 0
+  %".5" = call i32 @"puts"(i8* %".4")
+  call void @"exit"(i32 1)
+  ret i8* null
 }
-
-@"str" = internal constant [5 x i8] c"true\00"
-@"str.1" = internal constant [6 x i8] c"false\00"

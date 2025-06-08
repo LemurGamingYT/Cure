@@ -18,6 +18,8 @@ def function(params: list[ir.Param] | None = None, ret_type: ir.Type | None = No
     
     def decorator(func):
         name = func.__name__
+        if name.endswith('_'):
+            name = name[:-1]
 
         setattr(func, 'function', True)
         setattr(func, 'name', name)
@@ -141,4 +143,5 @@ class Lib(ABC):
     
     def __add_instance(self, instance):
         for k, v in getattrs(instance).items():
-            self.scope.symbol_table.add(ir.Symbol(k, ir.Type.function(), v))
+            self.scope.symbol_table.add(ir.Symbol(v.name, ir.Type.function(), v))
+            info(f'Added {v.name} from {instance.__class__.__name__} Lib class')

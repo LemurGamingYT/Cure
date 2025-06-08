@@ -20,8 +20,8 @@ class builtins(Lib):
         exit = ctx.c_registry.get('exit')
         puts = ctx.c_registry.get('puts')
 
-        message = ctx.param('message')
-        ctx.builder.call(puts, [get_struct_field_value(ctx.builder, message.value, 0)])
+        message = ctx.param('message').value
+        ctx.builder.call(puts, [get_struct_field_value(ctx.builder, message, 0)])
         ctx.builder.call(exit, [lir.Constant(ir.Type.int().type, 1)])
         ctx.builder.ret(NULL())
 
@@ -33,4 +33,18 @@ class builtins(Lib):
         x = ctx.param('x')
         x_str = ctx.call(f'{x.type}_to_string', [x.value])
         ctx.builder.call(puts, [get_struct_field_value(ctx.builder, x_str, 0)])
+        ctx.builder.ret(NULL())
+    
+    @function([
+        ir.Param(ir.Position.zero(), 'condition', ir.Type.bool()),
+        ir.Param(ir.Position.zero(), 'fail_message', ir.Type.string())
+    ])
+    @staticmethod
+    def assert_(ctx: DefinitionContext):
+        condition = ctx.param('condition').value
+        with ctx.builder.if_then(ctx.builder.not_(condition)):
+            fail_message = ctx.param('fail_message').value
+            ctx.call('error', [fail_message])
+            ctx.builder.ret(NULL())
+        
         ctx.builder.ret(NULL())

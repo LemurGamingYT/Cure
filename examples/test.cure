@@ -1,4 +1,3 @@
 fn main() -> int {
-    print(!false)
     return 0
 }

@@ -225,7 +225,7 @@ class CodeGeneration(CompilerPass):
             info('Compiling function body')
 
             old_builder = self.builder
-            self.builder = lir.IRBuilder(func.append_basic_block())
+            self.builder = lir.IRBuilder(func.append_basic_block('entry'))
 
             for i, param in enumerate(node.params):
                 self.scope.symbol_table.add(ir.Symbol(param.name, param.type, func.args[i]))
@@ -306,13 +306,19 @@ class CodeGeneration(CompilerPass):
         func = symbol.value
         if isinstance(func, lir.Function):
             info(f'Calling LLVM function (or compiled stdlib function) {symbol.name}')
-            return self.builder.call(func, args)
+            return self.builder.call(func, args, 'func_call')
         elif callable(func):
             info(f'Calling stdlib function {symbol.name}')
             ir_func = func(self.module, self.scope, arg_types)
-            return self.builder.call(ir_func, args)
+            return self.builder.call(ir_func, args, 'stdlib_call')
         
         node.pos.comptime_error(f'invalid callable {node.callee}', self.scope.src)
     
     def run_on_BinaryOp(self, _):
+        raise NotImplementedError
+    
+    def run_on_UnaryOp(self, _):
+        raise NotImplementedError
+    
+    def run_on_Attribute(self, _):
         raise NotImplementedError
