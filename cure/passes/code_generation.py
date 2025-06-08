@@ -3,7 +3,7 @@ from typing import cast
 
 from llvmlite import ir as lir, binding as llvm
 
-from cure.codegen_utils import create_string_struct, NULL, create_while_loop
+from cure.codegen_utils import create_string_struct, NULL, create_while_loop, store_in_pointer
 from cure.passes import CompilerPass
 from cure import ir
 
@@ -250,8 +250,7 @@ class CodeGeneration(CompilerPass):
             node.pos.comptime_error('cannot generate code for uninitialised variables', self.scope.src)
             return
         
-        ptr = self.builder.alloca(self.run_on(node.type))
-        self.builder.store(value, ptr)
+        ptr = store_in_pointer(self.builder, self.run_on(node.type), value)
         self.scope.symbol_table.add(ir.Symbol(node.name, node.type, ptr))
         return ptr
     

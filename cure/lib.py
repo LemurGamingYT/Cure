@@ -122,10 +122,12 @@ class DefinitionContext:
         
         func = symbol.value
         if isinstance(func, lir.Function):
-            return self.builder.call(func, args)
+            return self.builder.call(func, args, 'func_call')
         elif callable(func):
             ir_func = func(self.module, self.scope, args)
-            return self.builder.call(ir_func, args)
+            return self.builder.call(ir_func, args, 'stdlib_call')
+        
+        self.pos.comptime_error('invalid call type', self.scope.src)
 
 class Lib(ABC):
     def __init__(self, scope: ir.Scope):
@@ -140,6 +142,8 @@ class Lib(ABC):
     def add_lib(self, cls: type['Lib']):
         instance = cls(self.scope)
         self.__add_instance(instance)
+
+        info(f'merged {self.__class__.__name__} and {instance.__class__.__name__}')
     
     def __add_instance(self, instance):
         for k, v in getattrs(instance).items():

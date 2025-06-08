@@ -32,43 +32,6 @@ def min_value(bits: int):
     return -(2 ** bits - 1)
 
 
-def create_identified_struct_type(context: ir.Context, name: str,
-                                  field_types: list[ir.Type] | None = None):
-    """Create an identified (named) struct type"""
-    struct_type = context.get_identified_type(name)
-    if field_types:
-        struct_type.set_body(*field_types)
-    
-    return struct_type
-
-def set_struct_body(struct_type: ir.IdentifiedStructType, field_types: list[ir.Type]):
-    """Set the body of an identified struct type"""
-    struct_type.set_body(*field_types)
-
-def create_recursive_struct(context: ir.Context, name: str, field_types: list[ir.Type], 
-                           self_ref_indices: list[int]):
-    """Create a struct that can reference itself
-    
-    Args:
-        context: LLVM context
-        name: Struct name
-        field_types: List of field types (use None for self-reference positions)
-        self_ref_indices: Indices where self-references should be placed
-    """
-    struct_type = context.get_identified_type(name)
-    
-    # Replace None entries with self-pointer references
-    final_types = []
-    for i, field_type in enumerate(field_types):
-        if i in self_ref_indices:
-            final_types.append(struct_type.as_pointer())
-        else:
-            final_types.append(field_type)
-    
-    struct_type.set_body(*final_types)
-    return struct_type
-
-
 def create_struct_type(field_types: list[ir.Type], packed: bool = False):
     """Create a struct type from field types"""
     return ir.LiteralStructType(field_types, packed)
