@@ -172,6 +172,10 @@ class Type(Node):
         )
     
     @staticmethod
+    def string_literal():
+        return Type(Position.zero(), 'string_literal', lir.IntType(8).as_pointer())
+    
+    @staticmethod
     def bool():
         return Type(Position.zero(), 'bool', lir.IntType(1))
     
@@ -282,6 +286,14 @@ class Nil(Node):
     @property
     def type(self) -> 'Type':
         return Type.nil()
+
+@dataclass
+class StringLiteral(Node):
+    value: str
+    
+    @property
+    def type(self) -> 'Type':
+        return Type.string_literal()
 
 @dataclass
 class Id(Node):

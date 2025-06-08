@@ -1,0 +1,278 @@
+14:15:51 [INFO] __add_instance (line 151) - Added error from builtins Lib class
+14:15:51 [INFO] __add_instance (line 151) - Added print from builtins Lib class
+14:15:51 [INFO] __add_instance (line 151) - Added bool_to_string from casts Lib class
+14:15:51 [INFO] __add_instance (line 151) - Added float_to_int from casts Lib class
+14:15:51 [INFO] __add_instance (line 151) - Added float_to_string from casts Lib class
+14:15:51 [INFO] __add_instance (line 151) - Added int_to_float from casts Lib class
+14:15:51 [INFO] __add_instance (line 151) - Added int_to_string from casts Lib class
+14:15:51 [INFO] __add_instance (line 151) - Added nil_to_string from casts Lib class
+14:15:51 [INFO] __add_instance (line 151) - Added string_to_string from casts Lib class
+14:15:51 [INFO] __add_instance (line 151) - Added bool_to_string from casts Lib class
+14:15:51 [INFO] __add_instance (line 151) - Added float_to_int from casts Lib class
+14:15:51 [INFO] __add_instance (line 151) - Added float_to_string from casts Lib class
+14:15:51 [INFO] __add_instance (line 151) - Added int_to_float from casts Lib class
+14:15:51 [INFO] __add_instance (line 151) - Added int_to_string from casts Lib class
+14:15:51 [INFO] __add_instance (line 151) - Added nil_to_string from casts Lib class
+14:15:51 [INFO] __add_instance (line 151) - Added string_to_string from casts Lib class
+14:15:51 [INFO] add_lib (line 146) - merged builtins and casts
+14:15:51 [INFO] __add_instance (line 151) - Added string_length from string Lib class
+14:15:51 [INFO] __add_instance (line 151) - Added string_new from string Lib class
+14:15:51 [INFO] __add_instance (line 151) - Added string_length from string Lib class
+14:15:51 [INFO] __add_instance (line 151) - Added string_new from string Lib class
+14:15:51 [INFO] add_lib (line 146) - merged builtins and string
+14:15:51 [INFO] __add_instance (line 151) - Added assert from testing Lib class
+14:15:51 [INFO] __add_instance (line 151) - Added assert_not from testing Lib class
+14:15:51 [INFO] __add_instance (line 151) - Added assert from testing Lib class
+14:15:51 [INFO] __add_instance (line 151) - Added assert_not from testing Lib class
+14:15:51 [INFO] add_lib (line 146) - merged builtins and testing
+14:15:51 [INFO] __add_instance (line 151) - Added bool_and_bool from operations Lib class
+14:15:51 [INFO] __add_instance (line 151) - Added bool_eq_bool from operations Lib class
+14:15:51 [INFO] __add_instance (line 151) - Added bool_neq_bool from operations Lib class
+14:15:51 [INFO] __add_instance (line 151) - Added bool_or_bool from operations Lib class
+14:15:51 [INFO] __add_instance (line 151) - Added float_add_float from operations Lib class
+14:15:51 [INFO] __add_instance (line 151) - Added float_div_float from operations Lib class
+14:15:51 [INFO] __add_instance (line 151) - Added float_eq_float from operations Lib class
+14:15:51 [INFO] __add_instance (line 151) - Added float_gt_float from operations Lib class
+14:15:51 [INFO] __add_instance (line 151) - Added float_gte_float from operations Lib class
+14:15:51 [INFO] __add_instance (line 151) - Added float_lt_float from operations Lib class
+14:15:51 [INFO] __add_instance (line 151) - Added float_lte_float from operations Lib class
+14:15:51 [INFO] __add_instance (line 151) - Added float_mod_float from operations Lib class
+14:15:51 [INFO] __add_instance (line 151) - Added float_mul_float from operations Lib class
+14:15:51 [INFO] __add_instance (line 151) - Added float_neq_float from operations Lib class
+14:15:51 [INFO] __add_instance (line 151) - Added float_sub_float from operations Lib class
+14:15:51 [INFO] __add_instance (line 151) - Added int_add_int from operations Lib class
+14:15:51 [INFO] __add_instance (line 151) - Added int_div_int from operations Lib class
+14:15:51 [INFO] __add_instance (line 151) - Added int_eq_int from operations Lib class
+14:15:51 [INFO] __add_instance (line 151) - Added int_gt_int from operations Lib class
+14:15:51 [INFO] __add_instance (line 151) - Added int_gte_int from operations Lib class
+14:15:51 [INFO] __add_instance (line 151) - Added int_lt_int from operations Lib class
+14:15:51 [INFO] __add_instance (line 151) - Added int_lte_int from operations Lib class
+14:15:51 [INFO] __add_instance (line 151) - Added int_mod_int from operations Lib class
+14:15:51 [INFO] __add_instance (line 151) - Added int_mul_int from operations Lib class
+14:15:51 [INFO] __add_instance (line 151) - Added int_neq_int from operations Lib class
+14:15:51 [INFO] __add_instance (line 151) - Added int_sub_int from operations Lib class
+14:15:51 [INFO] __add_instance (line 151) - Added not_bool from operations Lib class
+14:15:51 [INFO] __add_instance (line 151) - Added bool_and_bool from operations Lib class
+14:15:51 [INFO] __add_instance (line 151) - Added bool_eq_bool from operations Lib class
+14:15:51 [INFO] __add_instance (line 151) - Added bool_neq_bool from operations Lib class
+14:15:51 [INFO] __add_instance (line 151) - Added bool_or_bool from operations Lib class
+14:15:51 [INFO] __add_instance (line 151) - Added float_add_float from operations Lib class
+14:15:51 [INFO] __add_instance (line 151) - Added float_div_float from operations Lib class
+14:15:51 [INFO] __add_instance (line 151) - Added float_eq_float from operations Lib class
+14:15:51 [INFO] __add_instance (line 151) - Added float_gt_float from operations Lib class
+14:15:51 [INFO] __add_instance (line 151) - Added float_gte_float from operations Lib class
+14:15:51 [INFO] __add_instance (line 151) - Added float_lt_float from operations Lib class
+14:15:51 [INFO] __add_instance (line 151) - Added float_lte_float from operations Lib class
+14:15:51 [INFO] __add_instance (line 151) - Added float_mod_float from operations Lib class
+14:15:51 [INFO] __add_instance (line 151) - Added float_mul_float from operations Lib class
+14:15:51 [INFO] __add_instance (line 151) - Added float_neq_float from operations Lib class
+14:15:51 [INFO] __add_instance (line 151) - Added float_sub_float from operations Lib class
+14:15:51 [INFO] __add_instance (line 151) - Added int_add_int from operations Lib class
+14:15:51 [INFO] __add_instance (line 151) - Added int_div_int from operations Lib class
+14:15:51 [INFO] __add_instance (line 151) - Added int_eq_int from operations Lib class
+14:15:51 [INFO] __add_instance (line 151) - Added int_gt_int from operations Lib class
+14:15:51 [INFO] __add_instance (line 151) - Added int_gte_int from operations Lib class
+14:15:51 [INFO] __add_instance (line 151) - Added int_lt_int from operations Lib class
+14:15:51 [INFO] __add_instance (line 151) - Added int_lte_int from operations Lib class
+14:15:51 [INFO] __add_instance (line 151) - Added int_mod_int from operations Lib class
+14:15:51 [INFO] __add_instance (line 151) - Added int_mul_int from operations Lib class
+14:15:51 [INFO] __add_instance (line 151) - Added int_neq_int from operations Lib class
+14:15:51 [INFO] __add_instance (line 151) - Added int_sub_int from operations Lib class
+14:15:51 [INFO] __add_instance (line 151) - Added not_bool from operations Lib class
+14:15:51 [INFO] add_lib (line 146) - merged builtins and operations
+14:15:51 [INFO] compile_to_ll (line 28) - Compiling examples/test.cure to an LLVM IR file (.ll)
+14:15:51 [INFO] compile_to_str (line 14) - Compiling examples/test.cure to string
+14:15:51 [INFO] compile_to_str (line 21) - Parsed examples/test.cure
+14:15:51 [DEBUG] compile_to_str (line 22) - IR = Program(pos=Position(line=0, column=0),
+        nodes=[   Function(pos=Position(line=1, column=1),
+                           name='main',
+                           params=[],
+                           type=int,
+                           body=Body(pos=Position(line=1, column=18),
+                                     nodes=[   Call(pos=Position(line=2,
+                                                                 column=5),
+                                                    callee='print',
+                                                    args=[   String(pos=Position(line=2,
+                                                                                 column=11),
+                                                                    value='H')],
+                                                    type=any),
+                                               Return(pos=Position(line=3,
+                                                                   column=5),
+                                                      value=Int(pos=Position(line=3,
+                                                                             column=12),
+                                                                value=0))]),
+                           flags=FunctionFlags(static=False,
+                                               extern=False,
+                                               public=False,
+                                               property=False,
+                                               method=False),
+                           overloads=[])])
+14:15:51 [INFO] run_on_Program (line 16) - Analysing program Program(pos=Position(line=0, column=0),
+        nodes=[   Function(pos=Position(line=1, column=1),
+                           name='main',
+                           params=[],
+                           type=int,
+                           body=Body(pos=Position(line=1, column=18),
+                                     nodes=[   Call(pos=Position(line=2,
+                                                                 column=5),
+                                                    callee='print',
+                                                    args=[   String(pos=Position(line=2,
+                                                                                 column=11),
+                                                                    value='H')],
+                                                    type=any),
+                                               Return(pos=Position(line=3,
+                                                                   column=5),
+                                                      value=Int(pos=Position(line=3,
+                                                                             column=12),
+                                                                value=0))]),
+                           flags=FunctionFlags(static=False,
+                                               extern=False,
+                                               public=False,
+                                               property=False,
+                                               method=False),
+                           overloads=[])])
+14:15:51 [INFO] run_on_Program (line 20) - Analysing Function
+14:15:51 [INFO] run_on_Function (line 64) - Adding parameters to environment
+14:15:51 [INFO] run_on_Body (line 35) - Entered child scope for body
+14:15:51 [INFO] run_on_Body (line 38) - Analysing body node Call
+14:15:51 [INFO] run_on_Body (line 38) - Analysing body node Return
+14:15:51 [INFO] run_on_Body (line 41) - Exiting body
+14:15:51 [INFO] run_on_Function (line 70) - Removing parameters from environment
+14:15:51 [INFO] run_on_Program (line 23) - Finished analysing program Program(pos=Position(line=0, column=0),
+        nodes=[   Function(pos=Position(line=1, column=1),
+                           name='main',
+                           params=[],
+                           type=int,
+                           body=Body(pos=Position(line=1, column=18),
+                                     nodes=[   Call(pos=Position(line=2,
+                                                                 column=5),
+                                                    callee='print',
+                                                    args=[   String(pos=Position(line=2,
+                                                                                 column=11),
+                                                                    value='H')],
+                                                    type=any),
+                                               Return(pos=Position(line=3,
+                                                                   column=5),
+                                                      value=Int(pos=Position(line=3,
+                                                                             column=12),
+                                                                value=0))]),
+                           flags=FunctionFlags(static=False,
+                                               extern=False,
+                                               public=False,
+                                               property=False,
+                                               method=False),
+                           overloads=[])])
+14:15:51 [DEBUG] compile_to_str (line 24) - Analysed IR = Program(pos=Position(line=0, column=0),
+        nodes=[   Function(pos=Position(line=1, column=1),
+                           name='main',
+                           params=[],
+                           type=int,
+                           body=Body(pos=Position(line=1, column=18),
+                                     nodes=[   Call(pos=Position(line=2,
+                                                                 column=5),
+                                                    callee='print',
+                                                    args=[   Call(pos=Position(line=2,
+                                                                               column=11),
+                                                                  callee='string_new',
+                                                                  args=[   StringLiteral(pos=Position(line=2,
+                                                                                                      column=11),
+                                                                                         value='H'),
+                                                                           Int(pos=Position(line=2,
+                                                                                            column=11),
+                                                                               value=1)],
+                                                                  type=string)],
+                                                    type=nil),
+                                               Return(pos=Position(line=3,
+                                                                   column=5),
+                                                      value=Int(pos=Position(line=3,
+                                                                             column=12),
+                                                                value=0))]),
+                           flags=FunctionFlags(static=False,
+                                               extern=False,
+                                               public=False,
+                                               property=False,
+                                               method=False),
+                           overloads=[])])
+14:15:51 [INFO] __init__ (line 35) - Initialising LLVM
+14:15:51 [INFO] __init__ (line 46) - Created module and builder
+14:15:51 [DEBUG] __init__ (line 47) - Target = x86_64-pc-windows-msvc
+14:15:51 [DEBUG] __init__ (line 78) - Registered: snprintf, puts, exit, malloc, free, memcpy
+14:15:51 [INFO] run_on_Program (line 86) - Compiling program
+14:15:51 [INFO] run_on_Function (line 232) - Compiling function main
+14:15:51 [INFO] run_on_Function (line 239) - Compiling function body
+14:15:51 [INFO] run_on_Body (line 94) - Compiling body
+14:15:51 [INFO] run_on_Body (line 97) - Compiling body statement Call
+14:15:51 [INFO] run_on_Call (line 327) - Calling stdlib function string_new
+14:15:51 [INFO] wrapper (line 57) - Created definition context
+14:15:51 [INFO] wrapper (line 64) - Compiling string_new
+14:15:51 [INFO] wrapper (line 66) - Compiled string_new
+14:15:51 [INFO] run_on_Call (line 327) - Calling stdlib function print
+14:15:51 [DEBUG] wrapper (line 49) - print is generic, adding .1
+14:15:51 [INFO] wrapper (line 57) - Created definition context
+14:15:51 [INFO] wrapper (line 64) - Compiling print.1
+14:15:51 [INFO] wrapper (line 57) - Created definition context
+14:15:51 [INFO] wrapper (line 64) - Compiling string_to_string
+14:15:51 [INFO] wrapper (line 66) - Compiled string_to_string
+14:15:51 [INFO] wrapper (line 66) - Compiled print.1
+14:15:51 [INFO] run_on_Body (line 99) - Compiled body statement Call
+14:15:51 [INFO] run_on_Body (line 97) - Compiling body statement Return
+14:15:51 [INFO] run_on_Return (line 281) - Returning
+14:15:51 [INFO] run_on_Body (line 99) - Compiled body statement Return
+14:15:51 [INFO] run_on_Body (line 101) - Compiled body
+14:15:51 [INFO] run_on_Function (line 258) - Finished compiling function main
+14:15:51 [DEBUG] compile_to_ll (line 30) - LLVM IR = ; ModuleID = "main"
+target triple = "x86_64-pc-windows-msvc"
+target datalayout = ""
+
+declare external i32 @"snprintf"(i8* %".1", i64 %".2", i8* %".3", ...)
+
+declare external i32 @"puts"(i8* %".1")
+
+declare external void @"exit"(i32 %".1")
+
+declare external i8* @"malloc"(i64 %".1")
+
+declare external void @"free"(i8* %".1")
+
+declare external i8* @"memcpy"(i8* %".1", i8* %".2", i64 %".3")
+
+define i32 @"main"()
+{
+entry:
+  %"stdlib_call" = call {i8*, i64} @"string_new"(i8* getelementptr ([2 x i8], [2 x i8]* @"str", i32 0, i32 0), i32 1)
+  %"stdlib_call.1" = call i8* @"print.1"({i8*, i64} %"stdlib_call")
+  ret i32 0
+}
+
+@"str" = internal constant [2 x i8] c"H\00"
+define {i8*, i64} @"string_new"(i8* %".1", i32 %".2")
+{
+.4:
+  %".5" = zext i32 %".2" to i64
+  %".6" = add i64 %".5", 1
+  %".7" = call i8* @"malloc"(i64 %".6")
+  %".8" = call i8* @"memcpy"(i8* %".7", i8* %".1", i64 %".5")
+  %".9" = getelementptr i8, i8* %".7", i64 %".5"
+  store i8 0, i8* %".9"
+  %".11" = insertvalue {i8*, i64} undef, i8* %".7", 0
+  %".12" = insertvalue {i8*, i64} %".11", i64 %".5", 1
+  ret {i8*, i64} %".12"
+}
+
+define i8* @"print.1"({i8*, i64} %".1")
+{
+.3:
+  %"stdlib_call" = call {i8*, i64} @"string_to_string"({i8*, i64} %".1")
+  %".4" = extractvalue {i8*, i64} %"stdlib_call", 0
+  %".5" = call i32 @"puts"(i8* %".4")
+  ret i8* null
+}
+
+define {i8*, i64} @"string_to_string"({i8*, i64} %".1")
+{
+.3:
+  ret {i8*, i64} %".1"
+}
+
+14:15:51 [INFO] compile_to_ll (line 33) - Wrote to examples/test.ll
+14:15:51 [INFO] compile_to_exe (line 39) - Compiling to executable file examples/test.exe using clang

@@ -1,3 +1,4 @@
 fn main() -> int {
+    print("H")
     return 0
 }

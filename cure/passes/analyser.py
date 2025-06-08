@@ -108,12 +108,18 @@ class Analyser(CompilerPass):
         return node
     
     def run_on_String(self, node: ir.String):
-        return node
+        return self.run_on(ir.Call(node.pos, 'string_new', [
+            ir.StringLiteral(node.pos, node.value),
+            ir.Int(node.pos, len(node.value))
+        ]))
     
     def run_on_Bool(self, node: ir.Bool):
         return node
     
     def run_on_Nil(self, node: ir.Nil):
+        return node
+    
+    def run_on_StringLiteral(self, node: ir.StringLiteral):
         return node
     
     def run_on_Id(self, node: ir.Id):

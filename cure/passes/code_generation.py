@@ -3,7 +3,7 @@ from typing import cast
 
 from llvmlite import ir as lir, binding as llvm
 
-from cure.codegen_utils import create_string_struct, NULL, create_while_loop, store_in_pointer
+from cure.codegen_utils import NULL, create_while_loop, store_in_pointer, create_string_constant
 from cure.passes import CompilerPass
 from cure import ir
 
@@ -49,7 +49,7 @@ class CodeGeneration(CompilerPass):
         self.c_registry = CRegistry(self.module)
         self.c_registry.register('snprintf', lir.FunctionType(lir.IntType(32), [
             lir.IntType(8).as_pointer(), # buf
-            lir.IntType(64), # buf_len
+            lir.IntType(64), # buflen
             lir.IntType(8).as_pointer() # fmt
         ], True))
 
@@ -58,7 +58,21 @@ class CodeGeneration(CompilerPass):
         ]))
 
         self.c_registry.register('exit', lir.FunctionType(lir.VoidType(), [
-            lir.IntType(32) # exit_code
+            lir.IntType(32) # exitcode
+        ]))
+
+        self.c_registry.register('malloc', lir.FunctionType(lir.IntType(8).as_pointer(), [
+            lir.IntType(64) # size
+        ]))
+
+        self.c_registry.register('free', lir.FunctionType(lir.VoidType(), [
+            lir.IntType(8).as_pointer() # ptr
+        ]))
+
+        self.c_registry.register('memcpy', lir.FunctionType(lir.IntType(8).as_pointer(), [
+            lir.IntType(8).as_pointer(), # dest
+            lir.IntType(8).as_pointer(), # src
+            lir.IntType(64) # size
         ]))
 
         debug(f'Registered: {', '.join(self.c_registry.get_registered_functions())}')
@@ -274,13 +288,16 @@ class CodeGeneration(CompilerPass):
         return lir.Constant(self.run_on(ir.Type.float()), node.value)
     
     def run_on_String(self, node: ir.String):
-        return create_string_struct(self.module, self.builder, node.value)
+        raise NotImplementedError
     
     def run_on_Bool(self, node: ir.Bool):
         return lir.Constant(self.run_on(ir.Type.bool()), node.value)
     
     def run_on_Nil(self, _):
         return NULL()
+    
+    def run_on_StringLiteral(self, node: ir.StringLiteral):
+        return create_string_constant(self.module, node.value)
     
     def run_on_Id(self, node: ir.Id):
         symbol = self.scope.symbol_table.get(node.name)
