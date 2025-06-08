@@ -19,6 +19,7 @@ class CRegistry:
     
     def register(self, name: str, signature: lir.FunctionType):
         self.__registry[name] = lir.Function(self.module, signature, name)
+        self.__registry[name].linkage = 'external'
     
     def is_registered(self, name: str):
         return name in self.__registry

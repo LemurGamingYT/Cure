@@ -2,12 +2,13 @@ from pprint import pformat
 from logging import info
 from typing import cast
 
+from cure.codegen_utils import max_value, min_value
 from cure.passes import CompilerPass
 from cure import ir
 
 
-INT_MAX = 2_147_483_647
-INT_MIN = -2_147_483_648
+INT_MAX = max_value(32)
+INT_MIN = min_value(32)
 
 
 class Analyser(CompilerPass):
@@ -153,12 +154,38 @@ class Analyser(CompilerPass):
     def run_on_BinaryOp(self, node: ir.BinaryOp):
         lhs = self.run_on(node.left)
         rhs = self.run_on(node.right)
+        ltype = lhs.get_type()
+        rtype = rhs.get_type()
         op_name = ir.op_map[node.op]
-        callee = f'{lhs.get_type()}_{op_name}_{rhs.get_type()}'
+        callee = f'{ltype}_{op_name}_{rtype}'
+        if not self.scope.symbol_table.has(callee):
+            node.pos.comptime_error(
+                f'unsupported operation \'{node.op}\' between types \'{ltype}\' and \'{rtype}\'',
+                self.scope.src
+            )
+        
         return self.run_on(ir.Call(node.pos, callee, [lhs, rhs]))
+    
+    def run_on_UnaryOp(self, node: ir.UnaryOp):
+        expr = self.run_on(node.expr)
+        op_name = ir.op_map[node.op]
+        callee = f'{op_name}_{expr.get_type()}'
+        if not self.scope.symbol_table.has(callee):
+            node.pos.comptime_error(
+                f'unsupported operation \'{node.op}\' on type \'{expr.get_type()}\'',
+                self.scope.src
+            )
+        
+        return self.run_on(ir.Call(node.pos, callee, [expr]))
     
     def run_on_Attribute(self, node: ir.Attribute):
         obj = self.run_on(node.obj)
         args = [obj] + ([self.run_on(arg) for arg in node.args] if node.args is not None else [])
         callee = f'{obj.get_type()}_{node.attr}'
+        if not self.scope.symbol_table.has(callee):
+            node.pos.comptime_error(
+                f'unknown attribute \'{node.attr}\' on type \'{obj.get_type()}\'',
+                self.scope.src
+            )
+        
         return self.run_on(ir.Call(node.pos, callee, args))

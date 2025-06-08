@@ -2,51 +2,45 @@
 target triple = "x86_64-pc-windows-msvc"
 target datalayout = ""
 
-declare i32 @"snprintf"(i8* %".1", i64 %".2", i8* %".3", ...)
+declare external i32 @"snprintf"(i8* %".1", i64 %".2", i8* %".3", ...)
 
-declare i32 @"puts"(i8* %".1")
+declare external i32 @"puts"(i8* %".1")
 
-declare void @"exit"(i32 %".1")
+declare external void @"exit"(i32 %".1")
 
 define i32 @"main"()
 {
 .2:
-  %".3" = insertvalue {i8*, i64} undef, i8* getelementptr ([12 x i8], [12 x i8]* @"str", i32 0, i32 0), 0
-  %".4" = insertvalue {i8*, i64} %".3", i64 11, 1
-  %".5" = alloca {i8*, i64}
-  store {i8*, i64} %".4", {i8*, i64}* %".5"
-  %".7" = load {i8*, i64}, {i8*, i64}* %".5"
-  %".8" = call i32 @"string_length"({i8*, i64} %".7")
-  %".9" = call i8* @"print.1"(i32 %".8")
+  %".3" = call i1 @"not_bool"(i1 false)
+  %".4" = call i8* @"print.1"(i1 %".3")
   ret i32 0
 }
 
-@"str" = internal constant [12 x i8] c"Hello world\00"
-define i32 @"string_length"({i8*, i64} %".1")
+define i1 @"not_bool"(i1 %".1")
 {
 .3:
-  %".4" = extractvalue {i8*, i64} %".1", 1
-  %".5" = trunc i64 %".4" to i32
-  ret i32 %".5"
+  %".4" = xor i1 %".1", -1
+  ret i1 %".4"
 }
 
-define i8* @"print.1"(i32 %".1")
+define i8* @"print.1"(i1 %".1")
 {
 .3:
-  %".4" = call {i8*, i64} @"int_to_string"(i32 %".1")
+  %".4" = call {i8*, i64} @"bool_to_string"(i1 %".1")
   %".5" = extractvalue {i8*, i64} %".4", 0
   %".6" = call i32 @"puts"(i8* %".5")
   ret i8* null
 }
 
-define {i8*, i64} @"int_to_string"(i32 %".1")
+define {i8*, i64} @"bool_to_string"(i1 %".1")
 {
 .3:
-  %".4" = call i32 (i8*, i64, i8*, ...) @"snprintf"(i8* getelementptr ([16 x i8], [16 x i8]* @".2", i32 0, i32 0), i64 16, i8* getelementptr ([3 x i8], [3 x i8]* @"str.1", i32 0, i32 0), i32 %".1")
-  %".5" = insertvalue {i8*, i64} undef, i8* getelementptr ([16 x i8], [16 x i8]* @".2", i32 0, i32 0), 0
-  %".6" = insertvalue {i8*, i64} %".5", i64 16, 1
-  ret {i8*, i64} %".6"
+  %".4" = select  i1 %".1", i8* getelementptr ([5 x i8], [5 x i8]* @"str", i32 0, i32 0), i8* getelementptr ([6 x i8], [6 x i8]* @"str.1", i32 0, i32 0)
+  %".5" = select  i1 %".1", i64 4, i64 5
+  %".6" = insertvalue {i8*, i64} undef, i8* %".4", 0
+  %".7" = insertvalue {i8*, i64} %".6", i64 %".5", 1
+  ret {i8*, i64} %".7"
 }
 
-@".2" = internal global [16 x i8] zeroinitializer
-@"str.1" = internal constant [3 x i8] c"%d\00"
+@"str" = internal constant [5 x i8] c"true\00"
+@"str.1" = internal constant [6 x i8] c"false\00"

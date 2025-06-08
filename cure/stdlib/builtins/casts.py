@@ -60,3 +60,11 @@ class casts(Lib):
         )
 
         ctx.builder.ret(create_struct_value(ctx.builder, ir.Type.string().type, [ptr, length]))
+    
+    @function([ir.Param(ir.Position.zero(), 'x', ir.Type.nil())], ir.Type.string())
+    @staticmethod
+    def nil_to_string(ctx: DefinitionContext):
+        ctx.builder.ret(create_struct_value(ctx.builder, ir.Type.string().type, [
+            create_string_constant(ctx.module, 'nil'),
+            lir.Constant(lir.IntType(64), 3)
+        ]))
