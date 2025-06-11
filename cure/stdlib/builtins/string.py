@@ -1,8 +1,10 @@
 from llvmlite import ir as lir
 
-from cure.codegen_utils import get_struct_field_value, create_struct_value
 from cure.lib import function, Lib, DefinitionContext
 from cure import ir
+from cure.codegen_utils import (
+    get_struct_field_value, create_struct_value, NULL, get_struct_field_ptr
+)
 
 
 class string(Lib):
@@ -32,8 +34,27 @@ class string(Lib):
         null_ptr = ctx.builder.gep(data_ptr, [length])
         ctx.builder.store(null_byte, null_ptr)
 
-        struct = create_struct_value(ctx.builder, string_type, [data_ptr, length])
+        # Create a null function pointer for now - we'll handle destruction differently
+        func_ptr_type = lir.FunctionType(
+            lir.IntType(8).as_pointer(), [lir.IntType(8).as_pointer()]
+        ).as_pointer()
+        null_func_ptr = lir.Constant(func_ptr_type, None)
+        
+        ref = ctx.call('Ref_new', [data_ptr, null_func_ptr])
+
+        struct = create_struct_value(ctx.builder, string_type, [data_ptr, length, ref])
         ctx.builder.ret(struct)
+    
+    @function([ir.Param(ir.Position.zero(), 's', ir.Type.string().as_pointer())])
+    @staticmethod
+    def string_destroy(ctx: DefinitionContext):
+        s = ctx.param('s').value
+
+        ref_ptr = get_struct_field_ptr(ctx.builder, s, 2)
+        ref = ctx.builder.load(ref_ptr)
+        
+        ctx.call('Ref_dec', [ref])
+        ctx.builder.ret(NULL())
 
 
     @function([ir.Param(ir.Position.zero(), 's', ir.Type.string())], ir.Type.int())

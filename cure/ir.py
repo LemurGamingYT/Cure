@@ -47,6 +47,9 @@ class Symbol:
 class SymbolTable:
     symbols: dict[str, Symbol] = field(default_factory=dict)
 
+    def __iter__(self):
+        return iter(self.symbols.values())
+
     def add(self, symbol: Symbol, name: Union[str, None] = None):
         self.symbols[name or symbol.name] = symbol
 
@@ -168,7 +171,11 @@ class Type(Node):
     def string():
         return Type(
             Position.zero(), 'string',
-            lir.LiteralStructType([lir.IntType(8).as_pointer(), lir.IntType(64)])
+            lir.LiteralStructType([
+                lir.IntType(8).as_pointer(), # char*
+                lir.IntType(64), # size_t
+                Type.Ref().type.as_pointer() # Ref*
+            ])
         )
     
     @staticmethod
@@ -190,6 +197,15 @@ class Type(Node):
     @staticmethod
     def function():
         return Type(Position.zero(), 'function', lir.IntType(8).as_pointer())
+
+
+    @staticmethod
+    def Ref():
+        return Type(Position.zero(), 'Ref', lir.LiteralStructType([
+            lir.IntType(8).as_pointer(), # void*
+            lir.FunctionType(Type.nil().type, [Type.any().type]).as_pointer(), # nil (*destroy)(void*)
+            lir.IntType(64), # size_t
+        ]))
 
 
     @staticmethod
@@ -236,7 +252,7 @@ class Type(Node):
         return self.destroy_method(scope) is not None
     
     def destroy_method(self, scope: Scope):
-        symbol = scope.symbol_table.get(f'{self}__destroy')
+        symbol = scope.symbol_table.get(f'{self}_destroy')
         if symbol is None or symbol.type != Type.function():
             return
         
@@ -395,3 +411,9 @@ class If(Node):
 class While(Node):
     condition: Node
     body: Body
+
+
+@dataclass
+class Ref(Node):
+    name: str
+    type: Type

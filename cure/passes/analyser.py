@@ -37,7 +37,7 @@ class Analyser(CompilerPass):
         for n in node.nodes:
             info(f'Analysing body node {n.__class__.__name__}')
             nodes.append(self.run_on(n))
-        
+
         info('Exiting body')
         self.scope = cast(ir.Scope, self.scope.parent)
         return ir.Body(node.pos, nodes)

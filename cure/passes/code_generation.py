@@ -93,8 +93,20 @@ class CodeGeneration(CompilerPass):
         self.scope = self.scope.clone()
         info('Compiling body')
 
-        for stmt in node.nodes:
+        for i, stmt in enumerate(node.nodes):
             info(f'Compiling body statement {stmt.__class__.__name__}')
+            if isinstance(stmt, ir.Return):
+                info('Inserting destruction methods')
+                for symbol in self.scope.symbol_table:
+                    destroy_method = symbol.type.destroy_method(self.scope)
+                    if destroy_method is None:
+                        continue
+
+                    self.run_on(ir.Call(node.pos, destroy_method.name, [
+                        ir.Ref(node.pos, symbol.name, symbol.type)
+                    ]))
+                    info(f'Calling {destroy_method.name} with id {symbol.name}')
+            
             self.run_on(stmt)
             info(f'Compiled body statement {stmt.__class__.__name__}')
         
@@ -309,6 +321,14 @@ class CodeGeneration(CompilerPass):
             return self.builder.load(symbol.value)
         
         info(f'Loading value {node.name}')
+        return symbol.value
+    
+    def run_on_Ref(self, node: ir.Ref):
+        symbol = self.scope.symbol_table.get(node.name)
+        if symbol is None:
+            return
+        
+        info(f'Returning pointer of {node.name}')
         return symbol.value
     
     def run_on_Call(self, node: ir.Call):

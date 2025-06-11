@@ -9,12 +9,16 @@ from cure.passes.code_generation import CRegistry
 from cure import ir
 
 
-def function(params: list[ir.Param] | None = None, ret_type: ir.Type | None = None):
+def function(params: list[ir.Param] | None = None, ret_type: ir.Type | None = None,
+             flags: ir.FunctionFlags | None = None):
     if params is None:
         params = []
     
     if ret_type is None:
         ret_type = ir.Type.nil()
+    
+    if flags is None:
+        flags = ir.FunctionFlags()
     
     def decorator(func):
         name = func.__name__
@@ -25,6 +29,7 @@ def function(params: list[ir.Param] | None = None, ret_type: ir.Type | None = No
         setattr(func, 'name', name)
         setattr(func, 'params', params)
         setattr(func, 'ret_type', ret_type)
+        setattr(func, 'flags', flags)
         setattr(func, 'generic', any(param.type == ir.Type.any() for param in params))
 
         @wraps(func)
@@ -110,6 +115,19 @@ class DefinitionContext:
                 return symbol.value
 
         self.pos.comptime_error(f'unknown param {name}', self.scope.src)
+    
+    def create_function(self, name: str) -> lir.Function | None:
+        symbol = self.scope.symbol_table.get(name)
+        if symbol is None:
+            self.pos.comptime_error(f'no function named {name}', self.scope.src)
+            return None
+        
+        func = symbol.value
+        if callable(func):
+            arg_types = [param.type for param in func.params]
+            return func(self.module, self.scope, arg_types)
+        
+        return func
     
     def call(self, name: str, args: list[lir.Value] | None = None):
         if args is None:
