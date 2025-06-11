@@ -6,11 +6,40 @@ from llvmlite import ir
 def NULL():
     return ir.Constant(ir.IntType(8).as_pointer(), None) # void*
 
+def NULL_BYTE():
+    return ir.Constant(ir.IntType(8), None) # \0
+
 def store_in_pointer(builder: ir.IRBuilder, type: ir.Type, value: ir.Value):
     """Stores a value in as a pointer"""
     ptr = builder.alloca(type)
     builder.store(value, ptr)
     return ptr
+
+
+def cast_value(builder: ir.IRBuilder, value: ir.Value, type: ir.Type):
+    """Converts the value to the type in any possible way."""
+    value_type = value.type
+    if isinstance(type, ir.IntType) and isinstance(value_type, ir.IntType):
+        if type.width > value_type.width:
+            return builder.zext(value, type)
+        elif type.width < value_type.width:
+            return builder.trunc(value, type)
+        else:
+            return value
+    elif isinstance(type, ir.FloatType) and isinstance(value_type, ir.IntType):
+        return builder.sitofp(value, type)
+    elif isinstance(type, ir.IntType) and isinstance(value_type, ir.FloatType):
+        return builder.fptosi(value, type)
+    elif isinstance(type, ir.DoubleType) and isinstance(value_type, ir.FloatType):
+        return builder.fpext(value, type)
+    elif isinstance(type, ir.FloatType) and isinstance(value_type, ir.DoubleType):
+        return builder.fptrunc(value, type)
+    elif isinstance(type, ir.IntType) and isinstance(value_type, ir.PointerType):
+        return builder.ptrtoint(value, type)
+    elif isinstance(type, ir.PointerType) and isinstance(value_type, ir.IntType):
+        return builder.inttoptr(value, type)
+    else:
+        return builder.bitcast(value, type)
 
 
 def get_or_add_global(module: ir.Module, name: str, global_value: Any, **kwargs):

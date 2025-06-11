@@ -3,7 +3,7 @@ from llvmlite import ir as lir
 from cure.lib import function, Lib, DefinitionContext
 from cure import ir
 from cure.codegen_utils import (
-    get_struct_field_value, create_struct_value, NULL, get_struct_field_ptr
+    get_struct_field_value, create_struct_value, NULL, get_struct_field_ptr, cast_value, NULL_BYTE
 )
 
 
@@ -15,7 +15,7 @@ class string(Lib):
     @staticmethod
     def string_new(ctx: DefinitionContext):
         literal = ctx.param('literal').value
-        length = ctx.builder.zext(ctx.param('length').value, lir.IntType(64))
+        length = cast_value(ctx.builder, ctx.param('length').value, lir.IntType(64))
         string_type = ir.Type.string().type
 
         malloc = ctx.c_registry.get('malloc')
@@ -30,11 +30,9 @@ class string(Lib):
         )
         ctx.builder.call(memcpy, [data_ptr, literal, length])
 
-        null_byte = lir.Constant(lir.IntType(8), 0)
         null_ptr = ctx.builder.gep(data_ptr, [length])
-        ctx.builder.store(null_byte, null_ptr)
+        ctx.builder.store(NULL_BYTE(), null_ptr)
 
-        # Create a null function pointer for now - we'll handle destruction differently
         func_ptr_type = lir.FunctionType(
             lir.IntType(8).as_pointer(), [lir.IntType(8).as_pointer()]
         ).as_pointer()
@@ -62,5 +60,4 @@ class string(Lib):
     def string_length(ctx: DefinitionContext):
         s = ctx.param('s').value
         length = get_struct_field_value(ctx.builder, s, 1)
-        length_i32 = ctx.builder.trunc(length, ir.Type.int().type)
-        ctx.builder.ret(length_i32)
+        ctx.builder.ret(cast_value(ctx.builder, length, ir.Type.int().type))

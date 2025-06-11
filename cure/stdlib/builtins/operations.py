@@ -1,8 +1,10 @@
 from llvmlite import ir as lir
 
-from cure.codegen_utils import create_string_constant, create_struct_value
 from cure.lib import function, Lib, DefinitionContext
 from cure import ir
+from cure.codegen_utils import (
+    create_string_constant, create_struct_value, get_struct_field_value, cast_value
+)
 
 
 class operations(Lib):
@@ -25,6 +27,39 @@ class operations(Lib):
         a = ctx.param('a').value
         b = ctx.param('b').value
         ctx.builder.ret(ctx.builder.fadd(a, b))
+    
+    @function([
+        ir.Param(ir.Position.zero(), 'a', ir.Type.string()),
+        ir.Param(ir.Position.zero(), 'b', ir.Type.string())
+    ], ir.Type.string())
+    @staticmethod
+    def string_add_string(ctx: DefinitionContext):
+        a = ctx.param('a').value
+        b = ctx.param('b').value
+
+        memcpy = ctx.c_registry.get('memcpy')
+        malloc = ctx.c_registry.get('malloc')
+
+        a_len = get_struct_field_value(ctx.builder, a, 1)
+        b_len = get_struct_field_value(ctx.builder, b, 1)
+        total_length = ctx.builder.add(a_len, b_len)
+        ptr = ctx.builder.call(malloc, [ctx.builder.add(
+            total_length, lir.Constant(lir.IntType(64), 1)
+        )])
+
+        a_buf = get_struct_field_value(ctx.builder, a, 0)
+        b_buf = get_struct_field_value(ctx.builder, b, 0)
+        ctx.builder.call(memcpy, [ptr, a_buf, a_len])
+
+        ptr_offset = ctx.builder.gep(ptr, [a_len])
+        ctx.builder.call(memcpy, [ptr_offset, b_buf, b_len])
+
+        null_pos = ctx.builder.gep(ptr, [total_length])
+        null_byte = lir.Constant(lir.IntType(8), 0)
+        ctx.builder.store(null_byte, null_pos)
+        
+        res = ctx.call('string_new', [ptr, cast_value(ctx.builder, total_length, ir.Type.int().type)])
+        ctx.builder.ret(res)
     
     @function([
         ir.Param(ir.Position.zero(), 'a', ir.Type.int()),

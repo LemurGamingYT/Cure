@@ -1,0 +1,217 @@
+22:21:04 [INFO] __add_instance (line 169) - Added error from builtins Lib class
+22:21:04 [INFO] __add_instance (line 169) - Added print from builtins Lib class
+22:21:04 [INFO] __add_instance (line 169) - Added Ref_dec from Ref Lib class
+22:21:04 [INFO] __add_instance (line 169) - Added Ref_inc from Ref Lib class
+22:21:04 [INFO] __add_instance (line 169) - Added Ref_new from Ref Lib class
+22:21:04 [INFO] __add_instance (line 169) - Added free_wrapper from Ref Lib class
+22:21:04 [INFO] __add_instance (line 169) - Added Ref_dec from Ref Lib class
+22:21:04 [INFO] __add_instance (line 169) - Added Ref_inc from Ref Lib class
+22:21:04 [INFO] __add_instance (line 169) - Added Ref_new from Ref Lib class
+22:21:04 [INFO] __add_instance (line 169) - Added free_wrapper from Ref Lib class
+22:21:04 [INFO] add_lib (line 164) - merged builtins and Ref
+22:21:04 [INFO] __add_instance (line 169) - Added bool_to_string from casts Lib class
+22:21:04 [INFO] __add_instance (line 169) - Added float_to_int from casts Lib class
+22:21:04 [INFO] __add_instance (line 169) - Added float_to_string from casts Lib class
+22:21:04 [INFO] __add_instance (line 169) - Added int_to_float from casts Lib class
+22:21:04 [INFO] __add_instance (line 169) - Added int_to_string from casts Lib class
+22:21:04 [INFO] __add_instance (line 169) - Added nil_to_string from casts Lib class
+22:21:04 [INFO] __add_instance (line 169) - Added string_to_string from casts Lib class
+22:21:04 [INFO] __add_instance (line 169) - Added bool_to_string from casts Lib class
+22:21:04 [INFO] __add_instance (line 169) - Added float_to_int from casts Lib class
+22:21:04 [INFO] __add_instance (line 169) - Added float_to_string from casts Lib class
+22:21:04 [INFO] __add_instance (line 169) - Added int_to_float from casts Lib class
+22:21:04 [INFO] __add_instance (line 169) - Added int_to_string from casts Lib class
+22:21:04 [INFO] __add_instance (line 169) - Added nil_to_string from casts Lib class
+22:21:04 [INFO] __add_instance (line 169) - Added string_to_string from casts Lib class
+22:21:04 [INFO] add_lib (line 164) - merged builtins and casts
+22:21:04 [INFO] __add_instance (line 169) - Added string_destroy from string Lib class
+22:21:04 [INFO] __add_instance (line 169) - Added string_length from string Lib class
+22:21:04 [INFO] __add_instance (line 169) - Added string_new from string Lib class
+22:21:04 [INFO] __add_instance (line 169) - Added string_destroy from string Lib class
+22:21:04 [INFO] __add_instance (line 169) - Added string_length from string Lib class
+22:21:04 [INFO] __add_instance (line 169) - Added string_new from string Lib class
+22:21:04 [INFO] add_lib (line 164) - merged builtins and string
+22:21:04 [INFO] __add_instance (line 169) - Added assert from testing Lib class
+22:21:04 [INFO] __add_instance (line 169) - Added assert_not from testing Lib class
+22:21:04 [INFO] __add_instance (line 169) - Added assert from testing Lib class
+22:21:04 [INFO] __add_instance (line 169) - Added assert_not from testing Lib class
+22:21:04 [INFO] add_lib (line 164) - merged builtins and testing
+22:21:04 [INFO] __add_instance (line 169) - Added bool_and_bool from operations Lib class
+22:21:04 [INFO] __add_instance (line 169) - Added bool_eq_bool from operations Lib class
+22:21:04 [INFO] __add_instance (line 169) - Added bool_neq_bool from operations Lib class
+22:21:04 [INFO] __add_instance (line 169) - Added bool_or_bool from operations Lib class
+22:21:04 [INFO] __add_instance (line 169) - Added float_add_float from operations Lib class
+22:21:04 [INFO] __add_instance (line 169) - Added float_div_float from operations Lib class
+22:21:04 [INFO] __add_instance (line 169) - Added float_eq_float from operations Lib class
+22:21:04 [INFO] __add_instance (line 169) - Added float_gt_float from operations Lib class
+22:21:04 [INFO] __add_instance (line 169) - Added float_gte_float from operations Lib class
+22:21:04 [INFO] __add_instance (line 169) - Added float_lt_float from operations Lib class
+22:21:04 [INFO] __add_instance (line 169) - Added float_lte_float from operations Lib class
+22:21:04 [INFO] __add_instance (line 169) - Added float_mod_float from operations Lib class
+22:21:04 [INFO] __add_instance (line 169) - Added float_mul_float from operations Lib class
+22:21:04 [INFO] __add_instance (line 169) - Added float_neq_float from operations Lib class
+22:21:04 [INFO] __add_instance (line 169) - Added float_sub_float from operations Lib class
+22:21:04 [INFO] __add_instance (line 169) - Added int_add_int from operations Lib class
+22:21:04 [INFO] __add_instance (line 169) - Added int_div_int from operations Lib class
+22:21:04 [INFO] __add_instance (line 169) - Added int_eq_int from operations Lib class
+22:21:04 [INFO] __add_instance (line 169) - Added int_gt_int from operations Lib class
+22:21:04 [INFO] __add_instance (line 169) - Added int_gte_int from operations Lib class
+22:21:04 [INFO] __add_instance (line 169) - Added int_lt_int from operations Lib class
+22:21:04 [INFO] __add_instance (line 169) - Added int_lte_int from operations Lib class
+22:21:04 [INFO] __add_instance (line 169) - Added int_mod_int from operations Lib class
+22:21:04 [INFO] __add_instance (line 169) - Added int_mul_int from operations Lib class
+22:21:04 [INFO] __add_instance (line 169) - Added int_neq_int from operations Lib class
+22:21:04 [INFO] __add_instance (line 169) - Added int_sub_int from operations Lib class
+22:21:04 [INFO] __add_instance (line 169) - Added not_bool from operations Lib class
+22:21:04 [INFO] __add_instance (line 169) - Added string_add_string from operations Lib class
+22:21:04 [INFO] __add_instance (line 169) - Added bool_and_bool from operations Lib class
+22:21:04 [INFO] __add_instance (line 169) - Added bool_eq_bool from operations Lib class
+22:21:04 [INFO] __add_instance (line 169) - Added bool_neq_bool from operations Lib class
+22:21:04 [INFO] __add_instance (line 169) - Added bool_or_bool from operations Lib class
+22:21:04 [INFO] __add_instance (line 169) - Added float_add_float from operations Lib class
+22:21:04 [INFO] __add_instance (line 169) - Added float_div_float from operations Lib class
+22:21:04 [INFO] __add_instance (line 169) - Added float_eq_float from operations Lib class
+22:21:04 [INFO] __add_instance (line 169) - Added float_gt_float from operations Lib class
+22:21:04 [INFO] __add_instance (line 169) - Added float_gte_float from operations Lib class
+22:21:04 [INFO] __add_instance (line 169) - Added float_lt_float from operations Lib class
+22:21:04 [INFO] __add_instance (line 169) - Added float_lte_float from operations Lib class
+22:21:04 [INFO] __add_instance (line 169) - Added float_mod_float from operations Lib class
+22:21:04 [INFO] __add_instance (line 169) - Added float_mul_float from operations Lib class
+22:21:04 [INFO] __add_instance (line 169) - Added float_neq_float from operations Lib class
+22:21:04 [INFO] __add_instance (line 169) - Added float_sub_float from operations Lib class
+22:21:04 [INFO] __add_instance (line 169) - Added int_add_int from operations Lib class
+22:21:04 [INFO] __add_instance (line 169) - Added int_div_int from operations Lib class
+22:21:04 [INFO] __add_instance (line 169) - Added int_eq_int from operations Lib class
+22:21:04 [INFO] __add_instance (line 169) - Added int_gt_int from operations Lib class
+22:21:04 [INFO] __add_instance (line 169) - Added int_gte_int from operations Lib class
+22:21:04 [INFO] __add_instance (line 169) - Added int_lt_int from operations Lib class
+22:21:04 [INFO] __add_instance (line 169) - Added int_lte_int from operations Lib class
+22:21:04 [INFO] __add_instance (line 169) - Added int_mod_int from operations Lib class
+22:21:04 [INFO] __add_instance (line 169) - Added int_mul_int from operations Lib class
+22:21:04 [INFO] __add_instance (line 169) - Added int_neq_int from operations Lib class
+22:21:04 [INFO] __add_instance (line 169) - Added int_sub_int from operations Lib class
+22:21:04 [INFO] __add_instance (line 169) - Added not_bool from operations Lib class
+22:21:04 [INFO] __add_instance (line 169) - Added string_add_string from operations Lib class
+22:21:04 [INFO] add_lib (line 164) - merged builtins and operations
+22:21:04 [INFO] compile_to_ll (line 28) - Compiling examples/test.cure to an LLVM IR file (.ll)
+22:21:04 [INFO] compile_to_str (line 14) - Compiling examples/test.cure to string
+22:21:04 [INFO] compile_to_str (line 21) - Parsed examples/test.cure
+22:21:04 [DEBUG] compile_to_str (line 22) - IR = Program(pos=Position(line=0, column=0),
+        nodes=[   Function(pos=Position(line=1, column=1),
+                           name='test',
+                           params=[   Param(pos=Position(line=0, column=0),
+                                            name='a',
+                                            type=int)],
+                           type=int,
+                           body=Body(pos=Position(line=1, column=23),
+                                     nodes=[   Return(pos=Position(line=2,
+                                                                   column=5),
+                                                      value=BinaryOp(pos=Position(line=2,
+                                                                                  column=14),
+                                                                     left=Id(pos=Position(line=2,
+                                                                                          column=12),
+                                                                             name='a',
+                                                                             type=any),
+                                                                     op='+',
+                                                                     right=Int(pos=Position(line=2,
+                                                                                            column=16),
+                                                                               value=1),
+                                                                     type=any))]),
+                           flags=FunctionFlags(static=False,
+                                               extern=False,
+                                               public=False,
+                                               property=False,
+                                               method=False),
+                           overloads=[]),
+                  Function(pos=Position(line=5, column=1),
+                           name='main',
+                           params=[],
+                           type=int,
+                           body=Body(pos=Position(line=5, column=18),
+                                     nodes=[   Call(pos=Position(line=6,
+                                                                 column=5),
+                                                    callee='print',
+                                                    args=[   Call(pos=Position(line=6,
+                                                                               column=11),
+                                                                  callee='test',
+                                                                  args=[   Float(pos=Position(line=6,
+                                                                                              column=16),
+                                                                                 value=10.2)],
+                                                                  type=any)],
+                                                    type=any),
+                                               Return(pos=Position(line=7,
+                                                                   column=5),
+                                                      value=Int(pos=Position(line=7,
+                                                                             column=12),
+                                                                value=0))]),
+                           flags=FunctionFlags(static=False,
+                                               extern=False,
+                                               public=False,
+                                               property=False,
+                                               method=False),
+                           overloads=[])])
+22:21:04 [INFO] run_on_Program (line 16) - Analysing program Program(pos=Position(line=0, column=0),
+        nodes=[   Function(pos=Position(line=1, column=1),
+                           name='test',
+                           params=[   Param(pos=Position(line=0, column=0),
+                                            name='a',
+                                            type=int)],
+                           type=int,
+                           body=Body(pos=Position(line=1, column=23),
+                                     nodes=[   Return(pos=Position(line=2,
+                                                                   column=5),
+                                                      value=BinaryOp(pos=Position(line=2,
+                                                                                  column=14),
+                                                                     left=Id(pos=Position(line=2,
+                                                                                          column=12),
+                                                                             name='a',
+                                                                             type=any),
+                                                                     op='+',
+                                                                     right=Int(pos=Position(line=2,
+                                                                                            column=16),
+                                                                               value=1),
+                                                                     type=any))]),
+                           flags=FunctionFlags(static=False,
+                                               extern=False,
+                                               public=False,
+                                               property=False,
+                                               method=False),
+                           overloads=[]),
+                  Function(pos=Position(line=5, column=1),
+                           name='main',
+                           params=[],
+                           type=int,
+                           body=Body(pos=Position(line=5, column=18),
+                                     nodes=[   Call(pos=Position(line=6,
+                                                                 column=5),
+                                                    callee='print',
+                                                    args=[   Call(pos=Position(line=6,
+                                                                               column=11),
+                                                                  callee='test',
+                                                                  args=[   Float(pos=Position(line=6,
+                                                                                              column=16),
+                                                                                 value=10.2)],
+                                                                  type=any)],
+                                                    type=any),
+                                               Return(pos=Position(line=7,
+                                                                   column=5),
+                                                      value=Int(pos=Position(line=7,
+                                                                             column=12),
+                                                                value=0))]),
+                           flags=FunctionFlags(static=False,
+                                               extern=False,
+                                               public=False,
+                                               property=False,
+                                               method=False),
+                           overloads=[])])
+22:21:04 [INFO] run_on_Program (line 20) - Analysing Function
+22:21:04 [INFO] run_on_Function (line 64) - Adding parameters to environment
+22:21:04 [INFO] run_on_Body (line 35) - Entered child scope for body
+22:21:04 [INFO] run_on_Body (line 38) - Analysing body node Return
+22:21:04 [INFO] run_on_Body (line 41) - Exiting body
+22:21:04 [INFO] run_on_Function (line 70) - Removing parameters from environment
+22:21:04 [INFO] run_on_Program (line 20) - Analysing Function
+22:21:04 [INFO] run_on_Function (line 64) - Adding parameters to environment
+22:21:04 [INFO] run_on_Body (line 35) - Entered child scope for body
+22:21:04 [INFO] run_on_Body (line 38) - Analysing body node Call
+22:21:04 [ERROR] comptime_error (line 37) - argument #1 (type 'float') does not match expected type 'int'

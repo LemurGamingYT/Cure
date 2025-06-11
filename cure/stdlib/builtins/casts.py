@@ -3,7 +3,7 @@ from llvmlite import ir as lir
 from cure.lib import function, Lib, DefinitionContext
 from cure import ir
 from cure.codegen_utils import (
-    create_struct_value, create_string_constant, create_ternary, create_static_buffer
+    create_string_constant, create_ternary, create_static_buffer, cast_value
 )
 
 
@@ -20,9 +20,9 @@ class casts(Lib):
         buf = create_static_buffer(ctx.module, lir.IntType(8), BUF_SIZE)
         fmt_ptr = create_string_constant(ctx.module, r'%d')
         ctx.builder.call(snprintf, [buf, buf_size, fmt_ptr, x])
-
-        string_struct = create_struct_value(ctx.builder, ir.Type.string().type, [buf, buf_size])
-        ctx.builder.ret(string_struct)
+        ctx.builder.ret(ctx.call('string_new', [
+            buf, cast_value(ctx.builder, buf_size, ir.Type.int().type)
+        ]))
     
     @function([ir.Param(ir.Position.zero(), 'x', ir.Type.float())], ir.Type.string())
     @staticmethod
@@ -32,13 +32,14 @@ class casts(Lib):
 
         snprintf = ctx.c_registry.get('snprintf')
 
-        x = ctx.builder.fpext(ctx.param('x').value, lir.DoubleType())
+        x = cast_value(ctx.builder, ctx.param('x').value, lir.DoubleType())
         buf = create_static_buffer(ctx.module, lir.IntType(8), BUF_SIZE)
         fmt_ptr = create_string_constant(ctx.module, r'%f')
         ctx.builder.call(snprintf, [buf, buf_size, fmt_ptr, x])
 
-        string_struct = create_struct_value(ctx.builder, ir.Type.string().type, [buf, buf_size])
-        ctx.builder.ret(string_struct)
+        ctx.builder.ret(ctx.call('string_new', [
+            buf, cast_value(ctx.builder, buf_size, ir.Type.int().type)
+        ]))
     
     @function([ir.Param(ir.Position.zero(), 'x', ir.Type.string())], ir.Type.string())
     @staticmethod
@@ -56,17 +57,17 @@ class casts(Lib):
         )
 
         length = create_ternary(
-            ctx.builder, x, lir.Constant(lir.IntType(64), 4), lir.Constant(lir.IntType(64), 5)
+            ctx.builder, x, lir.Constant(lir.IntType(32), 4), lir.Constant(lir.IntType(32), 5)
         )
 
-        ctx.builder.ret(create_struct_value(ctx.builder, ir.Type.string().type, [ptr, length]))
+        ctx.builder.ret(ctx.call('string_new', [ptr, length]))
     
     @function([ir.Param(ir.Position.zero(), 'x', ir.Type.nil())], ir.Type.string())
     @staticmethod
     def nil_to_string(ctx: DefinitionContext):
-        ctx.builder.ret(create_struct_value(ctx.builder, ir.Type.string().type, [
+        ctx.builder.ret(ctx.call('string_new', [
             create_string_constant(ctx.module, 'nil'),
-            lir.Constant(lir.IntType(64), 3)
+            lir.Constant(lir.IntType(32), 3)
         ]))
     
 
@@ -74,10 +75,10 @@ class casts(Lib):
     @staticmethod
     def int_to_float(ctx: DefinitionContext):
         x = ctx.param('x').value
-        ctx.builder.ret(ctx.builder.sitofp(x, ir.Type.float().type))
+        ctx.builder.ret(cast_value(ctx.builder, x, ir.Type.float().type))
     
     @function([ir.Param(ir.Position.zero(), 'x', ir.Type.float())], ir.Type.int())
     @staticmethod
     def float_to_int(ctx: DefinitionContext):
         x = ctx.param('x').value
-        ctx.builder.ret(ctx.builder.fptosi(x, ir.Type.int().type))
+        ctx.builder.ret(cast_value(ctx.builder, x, ir.Type.int().type))

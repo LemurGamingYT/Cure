@@ -200,6 +200,10 @@ class Type(Node):
 
 
     @staticmethod
+    def pointer():
+        return Type(Position.zero(), 'pointer', lir.IntType(8).as_pointer())
+
+    @staticmethod
     def Ref():
         return Type(Position.zero(), 'Ref', lir.LiteralStructType([
             lir.IntType(8).as_pointer(), # void*

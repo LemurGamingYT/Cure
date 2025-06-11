@@ -9,7 +9,7 @@ from cure import ir
 
 class Ref(Lib):
     @function([
-        ir.Param(ir.Position.zero(), 'data', ir.Type.any()),
+        ir.Param(ir.Position.zero(), 'data', ir.Type.pointer()),
         ir.Param(ir.Position.zero(), 'destroy_fn', ir.Type.any())
     ], ir.Type.Ref().as_pointer())
     @staticmethod
