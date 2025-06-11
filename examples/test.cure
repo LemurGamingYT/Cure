@@ -1,5 +1,3 @@
 fn main() -> int {
-    x = "Hello world"
-    print(x)
     return 0
 }
