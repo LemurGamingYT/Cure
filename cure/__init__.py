@@ -37,5 +37,7 @@ def compile_to_exe(scope: ir.Scope):
     ll_file = compile_to_ll(scope)
     exe_file = scope.file.with_suffix(f'.{scope.target.exe_ext}')
     info(f'Compiling to executable file {exe_file.as_posix()} using clang')
+    # flags = ['-fno-omit-frame-pointer', '-fsanitize=address']
+    # flags_str = ' '.join(flags)
     run(f'clang {ll_file.absolute().as_posix()} -o {exe_file}')
     return exe_file
