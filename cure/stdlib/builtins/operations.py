@@ -16,7 +16,7 @@ class operations(Lib):
     def int_add_int(ctx: DefinitionContext):
         a = ctx.param('a').value
         b = ctx.param('b').value
-        ctx.builder.ret(ctx.builder.add(a, b))
+        return ctx.builder.add(a, b)
     
     @function([
         ir.Param(ir.Position.zero(), 'a', ir.Type.float()),
@@ -26,7 +26,7 @@ class operations(Lib):
     def float_add_float(ctx: DefinitionContext):
         a = ctx.param('a').value
         b = ctx.param('b').value
-        ctx.builder.ret(ctx.builder.fadd(a, b))
+        return ctx.builder.fadd(a, b)
     
     @function([
         ir.Param(ir.Position.zero(), 'a', ir.Type.string()),
@@ -58,8 +58,7 @@ class operations(Lib):
         null_byte = lir.Constant(lir.IntType(8), 0)
         ctx.builder.store(null_byte, null_pos)
         
-        res = ctx.call('string_new', [ptr, cast_value(ctx.builder, total_length, ir.Type.int().type)])
-        ctx.builder.ret(res)
+        return ctx.call('string_new', [ptr, cast_value(ctx.builder, total_length, ir.Type.int().type)])
     
     @function([
         ir.Param(ir.Position.zero(), 'a', ir.Type.int()),
@@ -69,7 +68,7 @@ class operations(Lib):
     def int_sub_int(ctx: DefinitionContext):
         a = ctx.param('a').value
         b = ctx.param('b').value
-        ctx.builder.ret(ctx.builder.sub(a, b))
+        return ctx.builder.sub(a, b)
 
     @function([
         ir.Param(ir.Position.zero(), 'a', ir.Type.float()),
@@ -79,7 +78,7 @@ class operations(Lib):
     def float_sub_float(ctx: DefinitionContext):
         a = ctx.param('a').value
         b = ctx.param('b').value
-        ctx.builder.ret(ctx.builder.fsub(a, b))
+        return ctx.builder.fsub(a, b)
 
     @function([
         ir.Param(ir.Position.zero(), 'a', ir.Type.int()),
@@ -89,7 +88,7 @@ class operations(Lib):
     def int_mul_int(ctx: DefinitionContext):
         a = ctx.param('a').value
         b = ctx.param('b').value
-        ctx.builder.ret(ctx.builder.mul(a, b))
+        return ctx.builder.mul(a, b)
     
     @function([
         ir.Param(ir.Position.zero(), 'a', ir.Type.float()),
@@ -99,7 +98,7 @@ class operations(Lib):
     def float_mul_float(ctx: DefinitionContext):
         a = ctx.param('a').value
         b = ctx.param('b').value
-        ctx.builder.ret(ctx.builder.fmul(a, b))
+        return ctx.builder.fmul(a, b)
     
     @function([
         ir.Param(ir.Position.zero(), 'a', ir.Type.int()),
@@ -122,8 +121,7 @@ class operations(Lib):
             ctx.call('error', [err_string_struct])
             ctx.builder.ret(zero)
         
-        res = ctx.builder.sdiv(a, b)
-        ctx.builder.ret(res)
+        return ctx.builder.sdiv(a, b)
     
     @function([
         ir.Param(ir.Position.zero(), 'a', ir.Type.float()),
@@ -146,8 +144,7 @@ class operations(Lib):
             ctx.call('error', [err_string_struct])
             ctx.builder.ret(zero)
         
-        res = ctx.builder.fdiv(a, b)
-        ctx.builder.ret(res)
+        return ctx.builder.fdiv(a, b)
 
     @function([
         ir.Param(ir.Position.zero(), 'a', ir.Type.int()),
@@ -169,8 +166,7 @@ class operations(Lib):
             ctx.call('error', [err_string_struct])
             ctx.builder.ret(zero)
         
-        res = ctx.builder.srem(a, b)
-        ctx.builder.ret(res)
+        return ctx.builder.srem(a, b)
     
     @function([
         ir.Param(ir.Position.zero(), 'a', ir.Type.float()),
@@ -191,10 +187,8 @@ class operations(Lib):
                 err_msg, lir.Constant(lir.IntType(64), len(err_str))
             ])
             ctx.call('error', [err_string_struct])
-            ctx.builder.ret(zero)
         
-        res = ctx.builder.fdiv(a, b)
-        ctx.builder.ret(res)
+        return ctx.builder.frem(a, b)
     
     @function([
         ir.Param(ir.Position.zero(), 'a', ir.Type.int()),
@@ -204,8 +198,7 @@ class operations(Lib):
     def int_eq_int(ctx: DefinitionContext):
         a = ctx.param('a').value
         b = ctx.param('b').value
-        res = ctx.builder.icmp_signed('==', a, b)
-        ctx.builder.ret(res)
+        return ctx.builder.icmp_signed('==', a, b)
     
     @function([
         ir.Param(ir.Position.zero(), 'a', ir.Type.float()),
@@ -215,8 +208,7 @@ class operations(Lib):
     def float_eq_float(ctx: DefinitionContext):
         a = ctx.param('a').value
         b = ctx.param('b').value
-        res = ctx.builder.fcmp_ordered('==', a, b)
-        ctx.builder.ret(res)
+        return ctx.builder.fcmp_ordered('==', a, b)
     
     @function([
         ir.Param(ir.Position.zero(), 'a', ir.Type.bool()),
@@ -226,8 +218,7 @@ class operations(Lib):
     def bool_eq_bool(ctx: DefinitionContext):
         a = ctx.param('a').value
         b = ctx.param('b').value
-        res = ctx.builder.icmp_signed('==', a, b)
-        ctx.builder.ret(res)
+        return ctx.builder.icmp_signed('==', a, b)
     
     @function([
         ir.Param(ir.Position.zero(), 'a', ir.Type.int()),
@@ -237,8 +228,7 @@ class operations(Lib):
     def int_neq_int(ctx: DefinitionContext):
         a = ctx.param('a').value
         b = ctx.param('b').value
-        res = ctx.builder.icmp_signed('!=', a, b)
-        ctx.builder.ret(res)
+        return ctx.builder.icmp_signed('!=', a, b)
     
     @function([
         ir.Param(ir.Position.zero(), 'a', ir.Type.float()),
@@ -248,8 +238,7 @@ class operations(Lib):
     def float_neq_float(ctx: DefinitionContext):
         a = ctx.param('a').value
         b = ctx.param('b').value
-        res = ctx.builder.fcmp_ordered('!=', a, b)
-        ctx.builder.ret(res)
+        return ctx.builder.fcmp_ordered('!=', a, b)
     
     @function([
         ir.Param(ir.Position.zero(), 'a', ir.Type.bool()),
@@ -259,8 +248,7 @@ class operations(Lib):
     def bool_neq_bool(ctx: DefinitionContext):
         a = ctx.param('a').value
         b = ctx.param('b').value
-        res = ctx.builder.icmp_signed('!=', a, b)
-        ctx.builder.ret(res)
+        return ctx.builder.icmp_signed('!=', a, b)
     
     @function([
         ir.Param(ir.Position.zero(), 'a', ir.Type.int()),
@@ -270,8 +258,7 @@ class operations(Lib):
     def int_lt_int(ctx: DefinitionContext):
         a = ctx.param('a').value
         b = ctx.param('b').value
-        res = ctx.builder.icmp_signed('<', a, b)
-        ctx.builder.ret(res)
+        return ctx.builder.icmp_signed('<', a, b)
     
     @function([
         ir.Param(ir.Position.zero(), 'a', ir.Type.float()),
@@ -281,8 +268,7 @@ class operations(Lib):
     def float_lt_float(ctx: DefinitionContext):
         a = ctx.param('a').value
         b = ctx.param('b').value
-        res = ctx.builder.fcmp_ordered('<', a, b)
-        ctx.builder.ret(res)
+        return ctx.builder.fcmp_ordered('<', a, b)
     
     @function([
         ir.Param(ir.Position.zero(), 'a', ir.Type.int()),
@@ -292,8 +278,7 @@ class operations(Lib):
     def int_gt_int(ctx: DefinitionContext):
         a = ctx.param('a').value
         b = ctx.param('b').value
-        res = ctx.builder.icmp_signed('>', a, b)
-        ctx.builder.ret(res)
+        return ctx.builder.icmp_signed('>', a, b)
     
     @function([
         ir.Param(ir.Position.zero(), 'a', ir.Type.float()),
@@ -303,8 +288,7 @@ class operations(Lib):
     def float_gt_float(ctx: DefinitionContext):
         a = ctx.param('a').value
         b = ctx.param('b').value
-        res = ctx.builder.fcmp_ordered('>', a, b)
-        ctx.builder.ret(res)
+        return ctx.builder.fcmp_ordered('>', a, b)
     
     @function([
         ir.Param(ir.Position.zero(), 'a', ir.Type.int()),
@@ -314,8 +298,7 @@ class operations(Lib):
     def int_lte_int(ctx: DefinitionContext):
         a = ctx.param('a').value
         b = ctx.param('b').value
-        res = ctx.builder.icmp_signed('<=', a, b)
-        ctx.builder.ret(res)
+        return ctx.builder.icmp_signed('<=', a, b)
     
     @function([
         ir.Param(ir.Position.zero(), 'a', ir.Type.float()),
@@ -325,8 +308,7 @@ class operations(Lib):
     def float_lte_float(ctx: DefinitionContext):
         a = ctx.param('a').value
         b = ctx.param('b').value
-        res = ctx.builder.fcmp_ordered('<=', a, b)
-        ctx.builder.ret(res)
+        return ctx.builder.fcmp_ordered('<=', a, b)
     
     @function([
         ir.Param(ir.Position.zero(), 'a', ir.Type.int()),
@@ -336,8 +318,7 @@ class operations(Lib):
     def int_gte_int(ctx: DefinitionContext):
         a = ctx.param('a').value
         b = ctx.param('b').value
-        res = ctx.builder.icmp_signed('>=', a, b)
-        ctx.builder.ret(res)
+        return ctx.builder.icmp_signed('>=', a, b)
     
     @function([
         ir.Param(ir.Position.zero(), 'a', ir.Type.float()),
@@ -347,8 +328,7 @@ class operations(Lib):
     def float_gte_float(ctx: DefinitionContext):
         a = ctx.param('a').value
         b = ctx.param('b').value
-        res = ctx.builder.fcmp_ordered('>=', a, b)
-        ctx.builder.ret(res)
+        return ctx.builder.fcmp_ordered('>=', a, b)
 
     @function([
         ir.Param(ir.Position.zero(), 'a', ir.Type.bool()),
@@ -358,8 +338,7 @@ class operations(Lib):
     def bool_and_bool(ctx: DefinitionContext):
         a = ctx.param('a').value
         b = ctx.param('b').value
-        res = ctx.builder.and_(a, b)
-        ctx.builder.ret(res)
+        return ctx.builder.and_(a, b)
     
     @function([
         ir.Param(ir.Position.zero(), 'a', ir.Type.bool()),
@@ -369,12 +348,10 @@ class operations(Lib):
     def bool_or_bool(ctx: DefinitionContext):
         a = ctx.param('a').value
         b = ctx.param('b').value
-        res = ctx.builder.or_(a, b)
-        ctx.builder.ret(res)
+        return ctx.builder.or_(a, b)
     
     @function([ir.Param(ir.Position.zero(), 'a', ir.Type.bool())], ir.Type.bool())
     @staticmethod
     def not_bool(ctx: DefinitionContext):
         a = ctx.param('a').value
-        res = ctx.builder.not_(a)
-        ctx.builder.ret(res)
+        return ctx.builder.not_(a)

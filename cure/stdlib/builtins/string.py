@@ -3,7 +3,7 @@ from llvmlite import ir as lir
 from cure.lib import function, Lib, DefinitionContext
 from cure import ir
 from cure.codegen_utils import (
-    get_struct_field_value, create_struct_value, NULL, get_struct_field_ptr, cast_value, NULL_BYTE
+    get_struct_field_value, create_struct_value, get_struct_field_ptr, cast_value, NULL_BYTE
 )
 
 
@@ -11,7 +11,7 @@ class string(Lib):
     @function([
         ir.Param(ir.Position.zero(), 'literal', ir.Type.string_literal()),
         ir.Param(ir.Position.zero(), 'length', ir.Type.int())
-    ], ir.Type.string())
+    ], ir.Type.string(), flags=ir.FunctionFlags(static=True, method=True))
     @staticmethod
     def string_new(ctx: DefinitionContext):
         literal = ctx.param('literal').value
@@ -39,9 +39,7 @@ class string(Lib):
         null_func_ptr = lir.Constant(func_ptr_type, None)
         
         ref = ctx.call('Ref_new', [data_ptr, null_func_ptr])
-
-        struct = create_struct_value(ctx.builder, string_type, [data_ptr, length, ref])
-        ctx.builder.ret(struct)
+        return create_struct_value(ctx.builder, string_type, [data_ptr, length, ref])
     
     @function([ir.Param(ir.Position.zero(), 's', ir.Type.string().as_pointer())])
     @staticmethod
@@ -52,12 +50,12 @@ class string(Lib):
         ref = ctx.builder.load(ref_ptr)
         
         ctx.call('Ref_dec', [ref])
-        ctx.builder.ret(NULL())
 
 
-    @function([ir.Param(ir.Position.zero(), 's', ir.Type.string())], ir.Type.int())
+    @function([ir.Param(ir.Position.zero(), 's', ir.Type.string())], ir.Type.int(),
+              flags=ir.FunctionFlags(method=True))
     @staticmethod
     def string_length(ctx: DefinitionContext):
         s = ctx.param('s').value
         length = get_struct_field_value(ctx.builder, s, 1)
-        ctx.builder.ret(cast_value(ctx.builder, length, ir.Type.int().type))
+        return cast_value(ctx.builder, length, ir.Type.int().type)

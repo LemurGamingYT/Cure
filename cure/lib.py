@@ -1,11 +1,13 @@
 from dataclasses import dataclass
 from logging import debug, info
 from functools import wraps
+from typing import Callable
 from abc import ABC
 
 from llvmlite import ir as lir
 
 from cure.passes.code_generation import CRegistry
+from cure.codegen_utils import NULL
 from cure import ir
 
 
@@ -25,12 +27,14 @@ def function(params: list[ir.Param] | None = None, ret_type: ir.Type | None = No
         if name.endswith('_'):
             name = name[:-1]
 
-        setattr(func, 'function', True)
-        setattr(func, 'name', name)
-        setattr(func, 'params', params)
-        setattr(func, 'ret_type', ret_type)
-        setattr(func, 'flags', flags)
-        setattr(func, 'generic', any(param.type == ir.Type.any() for param in params))
+        func.function = True
+        func.name = name
+        func.params = params
+        func.ret_type = ret_type
+        func.flags = flags
+        func.generic = any(param.type == ir.Type.any() for param in params)
+        func.overloads = []
+        func.compiled_function = None
 
         @wraps(func)
         def wrapper(*args):
@@ -39,39 +43,87 @@ def function(params: list[ir.Param] | None = None, ret_type: ir.Type | None = No
             _, module, scope, arg_types = args
             c_registry = module.c_registry
 
+            generic_param_indexes = []
+            callee_params = []
             for i, (arg_type, param) in enumerate(zip(arg_types, params)):
-                if param.type != ir.Type.any():
-                    continue
-
-                params[i] = ir.Param(param.pos, param.name, arg_type)
+                if param.type == ir.Type.any():
+                    callee_params.append(ir.Param(param.pos, param.name, arg_type))
+                    generic_param_indexes.append(i)
+                else:
+                    callee_params.append(ir.Param(param.pos, param.name, param.type))
             
-            if name in module.globals:
-                debug(f'{name} is compiled, using it again')
-                return module.get_global(name)
-            
+            callee = name
             if func.generic:
-                unique_part = module.get_unique_name()
-                debug(f'{name} is generic, adding {unique_part}')
-                name += unique_part
+                generic_types = [
+                    str(callee_params[i].type)
+                    for i in generic_param_indexes
+                ]
+
+                callee += '_'.join(map(lambda x: f'_{x}', generic_types))
             
-            ir_args = [param.type.type for param in params]
-            ir_func = lir.Function(module, lir.FunctionType(ret_type.type, ir_args), name)
+            if callee in module.globals:
+                debug(f'{callee} is compiled, using it again')
+                return module.get_global(callee)
+            
+            ir_args = [param.type.type for param in callee_params]
+            ir_func = lir.Function(module, lir.FunctionType(ret_type.type, ir_args), callee)
             builder = lir.IRBuilder(ir_func.append_basic_block())
             def_scope = scope.clone()
-            ctx = DefinitionContext(ir.Position.zero(), def_scope, module, builder, c_registry, params)
+            ctx = DefinitionContext(
+                ir.Position.zero(), def_scope, module, builder, c_registry, callee_params
+            )
+
             info('Created definition context')
 
-            for i, param in enumerate(params):
+            for i, param in enumerate(callee_params):
                 def_scope.symbol_table.add(ir.Symbol(
                     param.name, param.type, ParamPointer(ir_func.args[i], param.type)
                 ))
             
-            info(f'Compiling {name}')
-            func(ctx)
-            info(f'Compiled {name}')
+            info(f'Compiling {callee}')
+            result = func(ctx)
+
+            # utility and ease of use if statements
+            if result is not None:
+                ctx.builder.ret(result)
+            elif ret_type == ir.Type.nil() and not ctx.builder.block.is_terminated:
+                ctx.builder.ret(NULL())
+            
+            info(f'Compiled {callee}')
+            if not func.generic:
+                func.compiled_function = ir_func
+            
             return ir_func
         
         return wrapper
+    
+    return decorator
+
+def overload(overload_of: Callable, params: list[ir.Param] | None = None,
+             ret_type: ir.Type | None = None):
+    if params is None:
+        params = []
+    
+    if ret_type is None:
+        ret_type = ir.Type.nil()
+    
+    def decorator(func):
+        name = func.__name__
+        if name.endswith('_'):
+            name = name[:-1]
+
+        func.function = True
+        func.name = name
+        func.params = params
+        func.ret_type = ret_type
+        func.flags = overload_of.flags
+        func.generic = any(param.type == ir.Type.any() for param in params)
+        func.compiled_function = None
+        func.overload_of = overload_of
+
+        overload_of.overloads.append(func)
+
+        return func
     
     return decorator
 
@@ -104,17 +156,16 @@ class DefinitionContext:
     c_registry: CRegistry
     params: list[ir.Param]
 
-    def param(self, name: str):
+    def param(self, name: str) -> ParamPointer:
         for param in self.params:
             if param.name == name:
                 symbol = self.scope.symbol_table.get(name)
                 if symbol is None:
-                    self.pos.comptime_error(f'invalid param {name}', self.scope.src)
-                    return
+                    return self.pos.comptime_error(f'invalid param {name}', self.scope.src)
                 
                 return symbol.value
 
-        self.pos.comptime_error(f'unknown param {name}', self.scope.src)
+        return self.pos.comptime_error(f'unknown param {name}', self.scope.src)
     
     def create_function(self, name: str) -> lir.Function | None:
         symbol = self.scope.symbol_table.get(name)

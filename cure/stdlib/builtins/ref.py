@@ -11,7 +11,7 @@ class Ref(Lib):
     @function([
         ir.Param(ir.Position.zero(), 'data', ir.Type.pointer()),
         ir.Param(ir.Position.zero(), 'destroy_fn', ir.Type.any())
-    ], ir.Type.Ref().as_pointer())
+    ], ir.Type.Ref().as_pointer(), flags=ir.FunctionFlags(static=True, method=True))
     @staticmethod
     def Ref_new(ctx: DefinitionContext):
         malloc = ctx.c_registry.get('malloc')
@@ -38,9 +38,10 @@ class Ref(Lib):
         set_struct_field(ctx.builder, ptr, 1, destroy_fn)
         set_struct_field(ctx.builder, ptr, 2, lir.Constant(lir.IntType(64), 1))
 
-        ctx.builder.ret(ptr)
+        return ptr
     
-    @function([ir.Param(ir.Position.zero(), 'self', ir.Type.Ref().as_pointer())])
+    @function([ir.Param(ir.Position.zero(), 'self', ir.Type.Ref().as_pointer())],
+              flags=ir.FunctionFlags(method=True))
     @staticmethod
     def Ref_inc(ctx: DefinitionContext):
         self = ctx.param('self').value
@@ -51,9 +52,9 @@ class Ref(Lib):
         one = lir.Constant(lir.IntType(64), 1)
         new_count = ctx.builder.add(ref_count, one)
         ctx.builder.store(new_count, ref_count_ptr)
-        ctx.builder.ret(NULL())
     
-    @function([ir.Param(ir.Position.zero(), 'self', ir.Type.Ref().as_pointer())])
+    @function([ir.Param(ir.Position.zero(), 'self', ir.Type.Ref().as_pointer())],
+              flags=ir.FunctionFlags(method=True))
     @staticmethod
     def Ref_dec(ctx: DefinitionContext):
         self = ctx.param('self').value
@@ -90,8 +91,6 @@ class Ref(Lib):
             
             self_cast = ctx.builder.bitcast(self, lir.IntType(8).as_pointer())
             ctx.builder.call(free, [self_cast])
-
-        ctx.builder.ret(NULL())
     
 
     @function([ir.Param(ir.Position.zero(), 'ptr', ir.Type.any())], ir.Type.any())

@@ -341,7 +341,7 @@ class CodeGeneration(CompilerPass):
         arg_types = [arg.get_type() for arg in node.args]
         func = symbol.value
         if isinstance(func, lir.Function):
-            info(f'Calling LLVM function (or compiled stdlib function) {symbol.name}')
+            info(f'Calling LLVM function {symbol.name}')
             return self.builder.call(func, args, 'func_call')
         elif callable(func):
             info(f'Calling stdlib function {symbol.name}')

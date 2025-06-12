@@ -38,6 +38,8 @@ def cast_value(builder: ir.IRBuilder, value: ir.Value, type: ir.Type):
         return builder.ptrtoint(value, type)
     elif isinstance(type, ir.PointerType) and isinstance(value_type, ir.IntType):
         return builder.inttoptr(value, type)
+    elif isinstance(type, ir.PointerType) and isinstance(value_type, ir.FunctionType):
+        return builder.bitcast(value, type)
     else:
         return builder.bitcast(value, type)
 
