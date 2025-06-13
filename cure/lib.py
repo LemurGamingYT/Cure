@@ -70,7 +70,8 @@ def function(params: list[ir.Param] | None = None, ret_type: ir.Type | None = No
             builder = lir.IRBuilder(ir_func.append_basic_block())
             def_scope = scope.clone()
             ctx = DefinitionContext(
-                ir.Position.zero(), def_scope, module, builder, c_registry, callee_params
+                ir.Position.zero(), def_scope, module, builder, c_registry, callee_params,
+                ret_type
             )
 
             info('Created definition context')
@@ -155,6 +156,7 @@ class DefinitionContext:
     builder: lir.IRBuilder
     c_registry: CRegistry
     params: list[ir.Param]
+    ret_type: ir.Type
 
     def param(self, name: str) -> ParamPointer:
         for param in self.params:
@@ -190,6 +192,7 @@ class DefinitionContext:
             return
         
         func = symbol.value
+        self.ret_type = func.ret_type
         if isinstance(func, lir.Function):
             return self.builder.call(func, args, 'func_call')
         elif callable(func):

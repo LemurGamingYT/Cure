@@ -124,11 +124,15 @@ class Analyser(CompilerPass):
     
     def run_on_Id(self, node: ir.Id):
         symbol = self.scope.symbol_table.get(node.name)
-        if symbol is None:
+        type = ir.Type.get(node.name)
+        if symbol is None and type is None:
             node.pos.comptime_error(f'unknown identifier \'{node.name}\'', self.scope.src)
             return
         
-        return ir.Id(node.pos, symbol.name, symbol.type)
+        if symbol is not None:
+            return ir.Id(node.pos, symbol.name, symbol.type)
+        
+        return ir.Id(node.pos, node.name, type)
     
     def run_on_Call(self, node: ir.Call):
         symbol = self.scope.symbol_table.get(node.callee)
@@ -137,13 +141,17 @@ class Analyser(CompilerPass):
             return
         
         args = [self.run_on(arg) for arg in node.args]
-        params = symbol.value.params
+        func = symbol.value
+        if func.flags.static:
+            args = args[1:]
+
+        params = func.params
         if len(args) > len(params):
             node.pos.comptime_error('too many arguments', self.scope.src)
         elif len(args) < len(params):
             node.pos.comptime_error('not enough arguments', self.scope.src)
 
-        ret_type = symbol.value.ret_type
+        ret_type = func.ret_type
         for i, (arg, param) in enumerate(zip(args, params), 1):
             arg_type = arg.get_type()
             param_type = param.type

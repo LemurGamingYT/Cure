@@ -1,17 +1,14 @@
 from logging import basicConfig, DEBUG
-from pathlib import Path
+from sys import argv
 
-from click import command, argument
 from colorama import init
 
-from cure import compile_to_exe, ir
+from cure import CureArgParser
 
 
-@command()
-@argument('file', type=Path)
-def main(file: Path):
-    scope = ir.Scope(file)
-    compile_to_exe(scope)
+def main():
+    arg_parser = CureArgParser(argv)
+    arg_parser.parse()
 
 
 def setup_logger():

@@ -6,6 +6,7 @@ from cure.lib import function, Lib, DefinitionContext
 from cure.stdlib.builtins.testing import testing
 from cure.stdlib.builtins.string import string
 from cure.stdlib.builtins.casts import casts
+from cure.stdlib.builtins.Math import Math
 from cure.stdlib.builtins.ref import Ref
 from cure import ir
 
@@ -13,6 +14,7 @@ from cure import ir
 class builtins(Lib):
     def init_lib(self):
         self.add_lib(Ref)
+        self.add_lib(Math)
         self.add_lib(casts)
         self.add_lib(string)
         self.add_lib(testing)

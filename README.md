@@ -22,7 +22,7 @@ Cure is a simple programming language that is designed to **bring many features 
     - If you don't have `git`, then you can install the repository as a .zip by clicking the drop down menu: 'Code' and then 'Download ZIP'
 2. Install Python (not needed if you use the .exe file)
     - Install Python 3.12.0 or higher: https://www.python.org/downloads/
-    - During the setup, add Python to PATH and install pip and run the command: pip install -r requirements.txt in the directory you have downloaded this repository.
+    - During the setup, add Python to PATH and install pip and run the command: `pip install -r requirements`.txt in the directory you have downloaded this repository.
 3. Install LLVM from https://releases.llvm.org/
 4. Run the compiler
     - Add the 'bin' directory of the compiler to your PATH environment variable

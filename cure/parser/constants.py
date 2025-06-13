@@ -36,11 +36,12 @@ TOKENS = {
 
 IGNORES = [r'\s+', r'//.*', r'/\*[\s\S]*?\*/']
 PRECEDENCE = [
+    ('right', ['=']),           # Assignment should be lowest, but separate
     ('left', ['or']),           # Lowest precedence
     ('left', ['and']),
     ('left', ['==', '!=', '>', '<', '>=', '<=']),
     ('left', ['+', '-']),
     ('left', ['*', '/', '%']),
     ('right', ['!']),           # Highest precedence
-    ('right', ['=']),           # Assignment should be lowest, but separate
+    ('left', ['.'])
 ]

@@ -10,22 +10,31 @@ from cure import ir
 
 class CRegistry:
     def __init__(self, module: lir.Module):
-        self.__registry: dict[str, lir.Function] = {}
+        self.__registry: dict[str, lir.Function | lir.FunctionType] = {}
         
         self.module = module
     
     def get(self, name: str):
-        return self.__registry[name]
+        if name not in self.__registry:
+            return None
+        
+        value = self.__registry[name]
+        if isinstance(value, lir.FunctionType):
+            func = lir.Function(self.module, value, name)
+            self.__registry[name] = func
+
+            return func
+        else:
+            return value
     
     def register(self, name: str, signature: lir.FunctionType):
-        self.__registry[name] = lir.Function(self.module, signature, name)
-        self.__registry[name].linkage = 'external'
+        self.__registry[name] = signature
     
     def is_registered(self, name: str):
         return name in self.__registry
     
     def get_registered_functions(self):
-        return [func.name for func in self.__registry.values()]
+        return list(self.__registry.keys())
 
 
 class CodeGeneration(CompilerPass):
@@ -73,6 +82,18 @@ class CodeGeneration(CompilerPass):
             lir.IntType(8).as_pointer(), # dest
             lir.IntType(8).as_pointer(), # src
             lir.IntType(64) # size
+        ]))
+
+        self.c_registry.register('sinf', lir.FunctionType(lir.FloatType(), [
+            lir.FloatType() # arg
+        ]))
+
+        self.c_registry.register('cosf', lir.FunctionType(lir.FloatType(), [
+            lir.FloatType() # arg
+        ]))
+
+        self.c_registry.register('tanf', lir.FunctionType(lir.FloatType(), [
+            lir.FloatType() # arg
         ]))
 
         debug(f'Registered: {', '.join(self.c_registry.get_registered_functions())}')
