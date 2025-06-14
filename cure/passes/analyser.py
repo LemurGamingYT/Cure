@@ -3,6 +3,7 @@ from logging import info
 from typing import cast
 
 from cure.codegen_utils import max_value, min_value
+from cure.ir import match_to_overloads
 from cure.passes import CompilerPass
 from cure import ir
 
@@ -142,27 +143,14 @@ class Analyser(CompilerPass):
         
         args = [self.run_on(arg) for arg in node.args]
         func = symbol.value
-        if func.flags.static:
-            args = args[1:]
 
-        params = func.params
-        if len(args) > len(params):
-            node.pos.comptime_error('too many arguments', self.scope.src)
-        elif len(args) < len(params):
-            node.pos.comptime_error('not enough arguments', self.scope.src)
+        # attributes
+        if func.flags.static and len(func.params) - 1 == len(args):
+            args = args[1:]
+        
+        func = match_to_overloads(func, [arg.get_type() for arg in args])
 
         ret_type = func.ret_type
-        for i, (arg, param) in enumerate(zip(args, params), 1):
-            arg_type = arg.get_type()
-            param_type = param.type
-            if param_type == arg_type or param_type == ir.Type.any():
-                continue
-
-            arg.pos.comptime_error(
-                f'argument #{i} (type \'{arg_type}\') does not match expected type \'{param_type}\'',
-                self.scope.src
-            )
-        
         return ir.Call(node.pos, node.callee, args, ret_type)
     
     def run_on_BinaryOp(self, node: ir.BinaryOp):

@@ -21,6 +21,33 @@ op_map = {
 }
 
 
+def params_match(func, arg_types: list['Type']):
+    params = func.params
+    if len(arg_types) > len(params):
+        return False
+    elif len(arg_types) < len(params):
+        return False
+
+    for arg_type, param in zip(arg_types, params):
+        param_type = param.type
+        if param_type == arg_type or param_type == Type.any():
+            continue
+
+        return False
+    
+    return True
+
+def match_to_overloads(func, arg_types: list['Type']):
+    for overload in getattr(func, 'overloads', []):
+        if not params_match(overload, arg_types):
+            continue
+
+        # TODO: check for ambiguous function call (function types match multiple overloads)
+        return overload
+    
+    return func
+
+
 @dataclass
 class Position:
     line: int
@@ -35,6 +62,7 @@ class Position:
         print(' ' * (self.column - 1) + '^')
         print(f'{Style.BRIGHT}{Fore.RED}error: {msg}{Style.RESET_ALL}')
         error(msg)
+        raise Exception
         sys_exit(1)
 
 @dataclass

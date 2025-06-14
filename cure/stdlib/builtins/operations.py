@@ -211,6 +211,30 @@ class operations(Lib):
         return ctx.builder.fcmp_ordered('==', a, b)
     
     @function([
+        ir.Param(ir.Position.zero(), 'a', ir.Type.string()),
+        ir.Param(ir.Position.zero(), 'b', ir.Type.string())
+    ], ir.Type.bool())
+    @staticmethod
+    def string_eq_string(ctx: DefinitionContext):
+        a = ctx.param('a').value
+        b = ctx.param('b').value
+        
+        memcmp = ctx.c_registry.get('memcmp')
+
+        a_len = get_struct_field_value(ctx.builder, a, 1)
+        b_len = get_struct_field_value(ctx.builder, b, 1)
+        with ctx.builder.if_then(ctx.builder.icmp_signed('!=', a_len, b_len)):
+            ctx.builder.ret(lir.Constant(ir.Type.bool().type, 0))
+        
+        a_ptr = get_struct_field_value(ctx.builder, a, 0)
+        b_ptr = get_struct_field_value(ctx.builder, b, 0)
+        return ctx.builder.icmp_signed(
+            '==',
+            ctx.builder.call(memcmp, [a_ptr, b_ptr, a_len]),
+            lir.Constant(ir.Type.bool().type, 0)
+        )
+    
+    @function([
         ir.Param(ir.Position.zero(), 'a', ir.Type.bool()),
         ir.Param(ir.Position.zero(), 'b', ir.Type.bool())
     ], ir.Type.bool())
@@ -239,6 +263,30 @@ class operations(Lib):
         a = ctx.param('a').value
         b = ctx.param('b').value
         return ctx.builder.fcmp_ordered('!=', a, b)
+    
+    @function([
+        ir.Param(ir.Position.zero(), 'a', ir.Type.string()),
+        ir.Param(ir.Position.zero(), 'b', ir.Type.string())
+    ], ir.Type.bool())
+    @staticmethod
+    def string_neq_string(ctx: DefinitionContext):
+        a = ctx.param('a').value
+        b = ctx.param('b').value
+        
+        memcmp = ctx.c_registry.get('memcmp')
+
+        a_len = get_struct_field_value(ctx.builder, a, 1)
+        b_len = get_struct_field_value(ctx.builder, b, 1)
+        with ctx.builder.if_then(ctx.builder.icmp_signed('==', a_len, b_len)):
+            ctx.builder.ret(lir.Constant(ir.Type.bool().type, 0))
+        
+        a_ptr = get_struct_field_value(ctx.builder, a, 0)
+        b_ptr = get_struct_field_value(ctx.builder, b, 0)
+        return ctx.builder.icmp_signed(
+            '!=',
+            ctx.builder.call(memcmp, [a_ptr, b_ptr, a_len]),
+            lir.Constant(ir.Type.bool().type, 0)
+        )
     
     @function([
         ir.Param(ir.Position.zero(), 'a', ir.Type.bool()),

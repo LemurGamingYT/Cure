@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from logging import debug, info
-from functools import wraps
 from typing import Callable
+from functools import wraps
 from abc import ABC
 
 from llvmlite import ir as lir
@@ -9,6 +9,64 @@ from llvmlite import ir as lir
 from cure.passes.code_generation import CRegistry
 from cure.codegen_utils import NULL
 from cure import ir
+
+
+def run_function(func, module: lir.Module, scope: ir.Scope, arg_types: list[ir.Type]):
+    info(f'Running {func.name}')
+
+    c_registry = module.c_registry
+    is_generic = any(param.type == ir.Type.any() for param in func.params)
+
+    generic_param_indexes = []
+    callee_params = []
+    for i, (arg_type, param) in enumerate(zip(arg_types, func.params)):
+        if param.type == ir.Type.any():
+            callee_params.append(ir.Param(param.pos, param.name, arg_type))
+            generic_param_indexes.append(i)
+        else:
+            callee_params.append(ir.Param(param.pos, param.name, param.type))
+    
+    callee = func.name
+    if is_generic:
+        generic_types = [
+            str(callee_params[i].type)
+            for i in generic_param_indexes
+        ]
+
+        callee += '_'.join(map(lambda x: f'_{x}', generic_types))
+        debug(f'Generic function name: {callee}')
+    
+    if callee in module.globals:
+        debug(f'{callee} is compiled, using it again')
+        return module.get_global(callee)
+    
+    ir_args = [param.type.type for param in callee_params]
+    ir_func = lir.Function(module, lir.FunctionType(func.ret_type.type, ir_args), callee)
+    builder = lir.IRBuilder(ir_func.append_basic_block())
+    def_scope = scope.clone()
+    ctx = DefinitionContext(
+        ir.Position.zero(), def_scope, module, builder, c_registry, callee_params,
+        func.ret_type
+    )
+
+    info('Created definition context')
+
+    for i, param in enumerate(callee_params):
+        def_scope.symbol_table.add(ir.Symbol(
+            param.name, param.type, ParamPointer(ir_func.args[i], param.type)
+        ))
+    
+    info(f'Compiling {callee}')
+    result = func(ctx)
+
+    # utility and ease of use if statements
+    if result is not None:
+        ctx.builder.ret(result)
+    elif func.ret_type == ir.Type.nil() and not ctx.builder.block.is_terminated:
+        ctx.builder.ret(NULL())
+
+    info(f'Compiled {callee}')
+    return ir_func
 
 
 def function(params: list[ir.Param] | None = None, ret_type: ir.Type | None = None,
@@ -32,69 +90,14 @@ def function(params: list[ir.Param] | None = None, ret_type: ir.Type | None = No
         func.params = params
         func.ret_type = ret_type
         func.flags = flags
-        func.generic = any(param.type == ir.Type.any() for param in params)
         func.overloads = []
-        func.compiled_function = None
 
         @wraps(func)
         def wrapper(*args):
             nonlocal name
 
             _, module, scope, arg_types = args
-            c_registry = module.c_registry
-
-            generic_param_indexes = []
-            callee_params = []
-            for i, (arg_type, param) in enumerate(zip(arg_types, params)):
-                if param.type == ir.Type.any():
-                    callee_params.append(ir.Param(param.pos, param.name, arg_type))
-                    generic_param_indexes.append(i)
-                else:
-                    callee_params.append(ir.Param(param.pos, param.name, param.type))
-            
-            callee = name
-            if func.generic:
-                generic_types = [
-                    str(callee_params[i].type)
-                    for i in generic_param_indexes
-                ]
-
-                callee += '_'.join(map(lambda x: f'_{x}', generic_types))
-            
-            if callee in module.globals:
-                debug(f'{callee} is compiled, using it again')
-                return module.get_global(callee)
-            
-            ir_args = [param.type.type for param in callee_params]
-            ir_func = lir.Function(module, lir.FunctionType(ret_type.type, ir_args), callee)
-            builder = lir.IRBuilder(ir_func.append_basic_block())
-            def_scope = scope.clone()
-            ctx = DefinitionContext(
-                ir.Position.zero(), def_scope, module, builder, c_registry, callee_params,
-                ret_type
-            )
-
-            info('Created definition context')
-
-            for i, param in enumerate(callee_params):
-                def_scope.symbol_table.add(ir.Symbol(
-                    param.name, param.type, ParamPointer(ir_func.args[i], param.type)
-                ))
-            
-            info(f'Compiling {callee}')
-            result = func(ctx)
-
-            # utility and ease of use if statements
-            if result is not None:
-                ctx.builder.ret(result)
-            elif ret_type == ir.Type.nil() and not ctx.builder.block.is_terminated:
-                ctx.builder.ret(NULL())
-            
-            info(f'Compiled {callee}')
-            if not func.generic:
-                func.compiled_function = ir_func
-            
-            return ir_func
+            return run_function(func, module, scope, arg_types)
         
         return wrapper
     
@@ -118,13 +121,17 @@ def overload(overload_of: Callable, params: list[ir.Param] | None = None,
         func.params = params
         func.ret_type = ret_type
         func.flags = overload_of.flags
-        func.generic = any(param.type == ir.Type.any() for param in params)
-        func.compiled_function = None
         func.overload_of = overload_of
 
-        overload_of.overloads.append(func)
+        @wraps(func)
+        def wrapper(*args):
+            nonlocal name
 
-        return func
+            module, scope, arg_types = args
+            return run_function(func, module, scope, arg_types)
+        
+        overload_of.overloads.append(wrapper)
+        return wrapper
     
     return decorator
 
@@ -218,6 +225,6 @@ class Lib(ABC):
         info(f'merged {self.__class__.__name__} and {instance.__class__.__name__}')
     
     def __add_instance(self, instance):
-        for k, v in getattrs(instance).items():
+        for v in getattrs(instance).values():
             self.scope.symbol_table.add(ir.Symbol(v.name, ir.Type.function(), v))
             info(f'Added {v.name} from {instance.__class__.__name__} Lib class')

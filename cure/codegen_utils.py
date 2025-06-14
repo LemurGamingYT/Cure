@@ -9,9 +9,9 @@ def NULL():
 def NULL_BYTE():
     return ir.Constant(ir.IntType(8), None) # \0
 
-def store_in_pointer(builder: ir.IRBuilder, type: ir.Type, value: ir.Value):
+def store_in_pointer(builder: ir.IRBuilder, type: ir.Type, value: ir.Value, name: str = ''):
     """Stores a value in as a pointer"""
-    ptr = builder.alloca(type)
+    ptr = builder.alloca(type, name=name)
     builder.store(value, ptr)
     return ptr
 

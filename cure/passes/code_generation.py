@@ -4,6 +4,7 @@ from typing import cast
 from llvmlite import ir as lir, binding as llvm
 
 from cure.codegen_utils import NULL, create_while_loop, store_in_pointer, create_string_constant
+from cure.ir import match_to_overloads
 from cure.passes import CompilerPass
 from cure import ir
 
@@ -96,9 +97,44 @@ class CodeGeneration(CompilerPass):
             lir.FloatType() # arg
         ]))
 
+        # self.c_registry.register('__acrt_iob_func', lir.FunctionType(
+        #     lir.LiteralStructType([lir.IntType(8).as_pointer()]),
+        #     [lir.IntType(32)])
+        # )
+
+        # self.c_registry.register('fgets', lir.FunctionType(lir.IntType(8).as_pointer(), [
+        #     lir.IntType(8).as_pointer(), # buf
+        #     lir.IntType(32), # size
+        #     lir.LiteralStructType([lir.IntType(8).as_pointer()]) # file
+        # ]))
+
+        # self.c_registry.register('strlen', lir.FunctionType(lir.IntType(64), [
+        #     lir.IntType(8).as_pointer() # str
+        # ]))
+
+        self.c_registry.register('memcmp', lir.FunctionType(lir.IntType(1), [
+            lir.IntType(8).as_pointer(), # lhs
+            lir.IntType(8).as_pointer(), # rhs
+            lir.IntType(64) # count
+        ]))
+
         debug(f'Registered: {', '.join(self.c_registry.get_registered_functions())}')
 
         setattr(self.module, 'c_registry', self.c_registry)
+    
+    def run_on(self, node: ir.Node):
+        if isinstance(node, (ir.Type, ir.Ref)):
+            return super().run_on(node)
+
+        node_type = node.get_type()
+        if not node_type.needs_free(self.scope):
+            return super().run_on(node)
+        
+        value = super().run_on(node)
+
+        ptr = store_in_pointer(self.builder, node_type.type, value, 'temp_var')
+        self.scope.symbol_table.add(ir.Symbol(ptr.name, node_type, ptr))
+        return self.builder.load(ptr, 'temp')
     
     def run_on_Type(self, node: ir.Type):
         return node.type
@@ -114,7 +150,7 @@ class CodeGeneration(CompilerPass):
         self.scope = self.scope.clone()
         info('Compiling body')
 
-        for i, stmt in enumerate(node.nodes):
+        for stmt in node.nodes:
             info(f'Compiling body statement {stmt.__class__.__name__}')
             if isinstance(stmt, ir.Return):
                 info('Inserting destruction methods')
@@ -297,7 +333,7 @@ class CodeGeneration(CompilerPass):
             node.pos.comptime_error('cannot generate code for uninitialised variables', self.scope.src)
             return
         
-        ptr = store_in_pointer(self.builder, self.run_on(node.type), value)
+        ptr = store_in_pointer(self.builder, self.run_on(node.type), value, node.name)
         self.scope.symbol_table.add(ir.Symbol(node.name, node.type, ptr))
         return ptr
     
@@ -339,7 +375,7 @@ class CodeGeneration(CompilerPass):
         
         if hasattr(symbol.value, 'type') and isinstance(symbol.value.type, lir.PointerType):
             info(f'Loading pointer {node.name}')
-            return self.builder.load(symbol.value)
+            return self.builder.load(symbol.value, f'load_{node.name}')
         
         info(f'Loading value {node.name}')
         return symbol.value
@@ -360,7 +396,7 @@ class CodeGeneration(CompilerPass):
         
         args = [self.run_on(arg) for arg in node.args]
         arg_types = [arg.get_type() for arg in node.args]
-        func = symbol.value
+        func = match_to_overloads(symbol.value, arg_types)
         if isinstance(func, lir.Function):
             info(f'Calling LLVM function {symbol.name}')
             return self.builder.call(func, args, 'func_call')
