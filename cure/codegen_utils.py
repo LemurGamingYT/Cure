@@ -15,6 +15,19 @@ def store_in_pointer(builder: ir.IRBuilder, type: ir.Type, value: ir.Value, name
     builder.store(value, ptr)
     return ptr
 
+def get_type_size(builder: ir.IRBuilder, llvm_type: ir.Type):
+    """Get the size of a type using the GEP trick"""
+    # Create a null pointer of the type
+    null_ptr = ir.Constant(llvm_type.as_pointer(), None)
+    
+    # GEP to the next element (index 1)
+    size_ptr = builder.gep(null_ptr, [ir.Constant(ir.IntType(32), 1)])
+    
+    # Convert pointer to integer to get the size
+    size = builder.ptrtoint(size_ptr, ir.IntType(64))
+    
+    return size
+
 
 def cast_value(builder: ir.IRBuilder, value: ir.Value, type: ir.Type):
     """Converts the value to the type in any possible way."""
@@ -25,6 +38,7 @@ def cast_value(builder: ir.IRBuilder, value: ir.Value, type: ir.Type):
         elif type.width < value_type.width:
             return builder.trunc(value, type)
         else:
+            # type.width == value_type.width
             return value
     elif isinstance(type, ir.FloatType) and isinstance(value_type, ir.IntType):
         return builder.sitofp(value, type)
@@ -38,8 +52,6 @@ def cast_value(builder: ir.IRBuilder, value: ir.Value, type: ir.Type):
         return builder.ptrtoint(value, type)
     elif isinstance(type, ir.PointerType) and isinstance(value_type, ir.IntType):
         return builder.inttoptr(value, type)
-    elif isinstance(type, ir.PointerType) and isinstance(value_type, ir.FunctionType):
-        return builder.bitcast(value, type)
     else:
         return builder.bitcast(value, type)
 
@@ -57,10 +69,10 @@ def get_or_add_global(module: ir.Module, name: str, global_value: Any, **kwargs)
 
 
 def max_value(bits: int):
-    return 2 ** bits
+    return 2 ** (bits - 1) - 1
 
 def min_value(bits: int):
-    return -(2 ** bits - 1)
+    return -2 ** (bits - 1)
 
 
 def create_struct_type(field_types: list[ir.Type], packed: bool = False):

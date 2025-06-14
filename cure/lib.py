@@ -6,8 +6,8 @@ from abc import ABC
 
 from llvmlite import ir as lir
 
+from cure.codegen_utils import NULL, store_in_pointer
 from cure.passes.code_generation import CRegistry
-from cure.codegen_utils import NULL
 from cure import ir
 
 
@@ -52,9 +52,8 @@ def run_function(func, module: lir.Module, scope: ir.Scope, arg_types: list[ir.T
     info('Created definition context')
 
     for i, param in enumerate(callee_params):
-        def_scope.symbol_table.add(ir.Symbol(
-            param.name, param.type, ParamPointer(ir_func.args[i], param.type)
-        ))
+        ptr = store_in_pointer(ctx.builder, param.type.type, ir_func.args[i], f'param_{param.name}_ptr')
+        def_scope.symbol_table.add(ir.Symbol(param.name, param.type, ptr))
     
     info(f'Compiling {callee}')
     result = func(ctx)
@@ -172,7 +171,7 @@ class DefinitionContext:
                 if symbol is None:
                     return self.pos.comptime_error(f'invalid param {name}', self.scope.src)
                 
-                return symbol.value
+                return ParamPointer(self.builder.load(symbol.value, symbol.name), symbol.type)
 
         return self.pos.comptime_error(f'unknown param {name}', self.scope.src)
     

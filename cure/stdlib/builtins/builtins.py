@@ -9,7 +9,7 @@ from cure.stdlib.builtins.Math import Math
 from cure.stdlib.builtins.ref import Ref
 from cure import ir
 from cure.codegen_utils import (
-    get_struct_field_value#, create_static_buffer, create_string_constant, cast_value, NULL_BYTE
+    get_struct_field_value#, create_static_buffer, cast_value, NULL_BYTE
 )
 
 
@@ -42,6 +42,15 @@ class builtins(Lib):
         x = ctx.param('x')
         x_str = ctx.call(f'{x.type}_to_string', [x.value])
         ctx.builder.call(puts, [get_struct_field_value(ctx.builder, x_str, 0)])
+
+    @function([ir.Param(ir.Position.zero(), 'x', ir.Type.string())],
+              flags=ir.FunctionFlags(public=True))
+    @staticmethod
+    def print_literal(ctx: DefinitionContext):
+        printf = ctx.c_registry.get('printf')
+
+        x = ctx.param('x').value
+        ctx.builder.call(printf, [get_struct_field_value(ctx.builder, x, 0)])
     
     # @function([ir.Param(ir.Position.zero(), 'prompt', ir.Type.string())], ir.Type.string(),
     #           flags=ir.FunctionFlags(public=True))

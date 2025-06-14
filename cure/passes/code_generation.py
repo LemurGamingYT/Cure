@@ -67,6 +67,10 @@ class CodeGeneration(CompilerPass):
             lir.IntType(8).as_pointer() # str
         ]))
 
+        self.c_registry.register('printf', lir.FunctionType(lir.IntType(32), [
+            lir.IntType(8).as_pointer() # fmt
+        ], var_arg=True))
+
         self.c_registry.register('exit', lir.FunctionType(lir.VoidType(), [
             lir.IntType(32) # exitcode
         ]))
@@ -311,7 +315,9 @@ class CodeGeneration(CompilerPass):
             self.builder = lir.IRBuilder(func.append_basic_block('entry'))
 
             for i, param in enumerate(node.params):
-                self.scope.symbol_table.add(ir.Symbol(param.name, param.type, func.args[i]))
+                self.scope.symbol_table.add(ir.Symbol(param.name, param.type, store_in_pointer(
+                    self.builder, param.type.type, func.args[i], f'param_{param.name}_ptr'
+                )))
             
             self.run_on(node.body)
 
@@ -366,7 +372,8 @@ class CodeGeneration(CompilerPass):
         return NULL()
     
     def run_on_StringLiteral(self, node: ir.StringLiteral):
-        return create_string_constant(self.module, node.value)
+        s = node.value.encode('utf-8').decode('unicode_escape')
+        return create_string_constant(self.module, s)
     
     def run_on_Id(self, node: ir.Id):
         symbol = self.scope.symbol_table.get(node.name)
