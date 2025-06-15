@@ -2,7 +2,7 @@ from logging import debug
 
 from llvmlite import ir as lir
 
-from cure.codegen_utils import set_struct_field, get_struct_field_ptr, NULL
+from cure.codegen_utils import set_struct_field, get_struct_field_ptr, NULL, get_type_size
 from cure.lib import function, Lib, DefinitionContext
 from cure import ir
 
@@ -20,12 +20,7 @@ class Ref(Lib):
         destroy_fn = ctx.param('destroy_fn').value
 
         ref_type = ir.Type.Ref()
-        
-        struct_size_val = ctx.builder.gep(
-            lir.Constant(ref_type.type.as_pointer(), None), 
-            [lir.Constant(lir.IntType(32), 1)]
-        )
-        struct_size = ctx.builder.ptrtoint(struct_size_val, lir.IntType(64))
+        struct_size = get_type_size(ctx.builder, ref_type.type)
 
         ptr = ctx.builder.bitcast(
             ctx.builder.call(malloc, [struct_size]), 

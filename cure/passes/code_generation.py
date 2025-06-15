@@ -3,39 +3,15 @@ from typing import cast
 
 from llvmlite import ir as lir, binding as llvm
 
-from cure.codegen_utils import NULL, create_while_loop, store_in_pointer, create_string_constant
-from cure.ir import match_to_overloads
+from cure.c_registry import CRegistry
 from cure.passes import CompilerPass
+from cure.lib import run_function
+from cure.target import Target
 from cure import ir
-
-
-class CRegistry:
-    def __init__(self, module: lir.Module):
-        self.__registry: dict[str, lir.Function | lir.FunctionType] = {}
-        
-        self.module = module
-    
-    def get(self, name: str):
-        if name not in self.__registry:
-            return None
-        
-        value = self.__registry[name]
-        if isinstance(value, lir.FunctionType):
-            func = lir.Function(self.module, value, name)
-            self.__registry[name] = func
-
-            return func
-        else:
-            return value
-    
-    def register(self, name: str, signature: lir.FunctionType):
-        self.__registry[name] = signature
-    
-    def is_registered(self, name: str):
-        return name in self.__registry
-    
-    def get_registered_functions(self):
-        return list(self.__registry.keys())
+from cure.codegen_utils import (
+    NULL, create_while_loop, store_in_pointer, create_string_constant, get_struct_field_ptr,
+    get_struct_field_value
+)
 
 
 class CodeGeneration(CompilerPass):
@@ -122,6 +98,11 @@ class CodeGeneration(CompilerPass):
             lir.IntType(64) # count
         ]))
 
+        if scope.target == Target.Windows:
+            self.c_registry.register('GetCurrentProcessId', lir.FunctionType(lir.IntType(32), []))
+        elif scope.target == Target.Linux:
+            self.c_registry.register('getpid', lir.FunctionType(lir.IntType(32), []))
+
         debug(f'Registered: {', '.join(self.c_registry.get_registered_functions())}')
 
         setattr(self.module, 'c_registry', self.c_registry)
@@ -131,10 +112,12 @@ class CodeGeneration(CompilerPass):
             return super().run_on(node)
 
         node_type = node.get_type()
-        if not node_type.needs_free(self.scope):
+        if not node_type.needs_memory_management():
             return super().run_on(node)
         
         value = super().run_on(node)
+        if isinstance(value.type, lir.PointerType):
+            value = self.builder.load(value)
 
         ptr = store_in_pointer(self.builder, node_type.type, value, 'temp_var')
         self.scope.symbol_table.add(ir.Symbol(ptr.name, node_type, ptr))
@@ -159,14 +142,29 @@ class CodeGeneration(CompilerPass):
             if isinstance(stmt, ir.Return):
                 info('Inserting destruction methods')
                 for symbol in self.scope.symbol_table:
-                    destroy_method = symbol.type.destroy_method(self.scope)
-                    if destroy_method is None:
+                    if not symbol.type.needs_memory_management():
                         continue
 
-                    self.run_on(ir.Call(node.pos, destroy_method.name, [
-                        ir.Ref(node.pos, symbol.name, symbol.type)
-                    ]))
-                    info(f'Calling {destroy_method.name} with id {symbol.name}')
+                    llvm_type = symbol.type.type
+                    if not isinstance(llvm_type, lir.LiteralStructType):
+                        continue
+
+                    ref_index = -1
+                    ref_type = ir.Type.Ref().type.as_pointer()
+                    for i, elem in enumerate(llvm_type.elements):
+                        if elem != ref_type:
+                            continue
+
+                        ref_index = i
+                        break
+
+                    struct = symbol.value
+                    if isinstance(struct.type, lir.PointerType):
+                        ref = self.builder.load(get_struct_field_ptr(self.builder, struct, ref_index))
+                    else:
+                        ref = get_struct_field_value(self.builder, struct, ref_index)
+                    
+                    run_function(stmt.pos, self.builder, self.module, self.scope, 'Ref_dec', [ref])
             
             self.run_on(stmt)
             info(f'Compiled body statement {stmt.__class__.__name__}')
@@ -403,7 +401,7 @@ class CodeGeneration(CompilerPass):
         
         args = [self.run_on(arg) for arg in node.args]
         arg_types = [arg.get_type() for arg in node.args]
-        func = match_to_overloads(symbol.value, arg_types)
+        func = ir.match_to_overloads(symbol.value, arg_types)
         if isinstance(func, lir.Function):
             info(f'Calling LLVM function {symbol.name}')
             return self.builder.call(func, args, 'func_call')

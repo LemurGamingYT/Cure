@@ -16,7 +16,7 @@ def store_in_pointer(builder: ir.IRBuilder, type: ir.Type, value: ir.Value, name
     return ptr
 
 def get_type_size(builder: ir.IRBuilder, llvm_type: ir.Type):
-    """Get the size of a type using the GEP trick"""
+    """Get the size of a type"""
     # Create a null pointer of the type
     null_ptr = ir.Constant(llvm_type.as_pointer(), None)
     
@@ -30,7 +30,7 @@ def get_type_size(builder: ir.IRBuilder, llvm_type: ir.Type):
 
 
 def cast_value(builder: ir.IRBuilder, value: ir.Value, type: ir.Type):
-    """Converts the value to the type in any possible way."""
+    """Converts the value to the type in any possible way"""
     value_type = value.type
     if isinstance(type, ir.IntType) and isinstance(value_type, ir.IntType):
         if type.width > value_type.width:

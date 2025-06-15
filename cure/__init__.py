@@ -98,6 +98,12 @@ def compile_to_exe(scope: ir.Scope):
     return exe_file
 
 
+HELP = """usage: cure [action] [options]
+
+actions: build, help
+"""
+
+
 class CureArgParser:
     def __init__(self, args: list[str]):
         self.args = args
@@ -116,7 +122,7 @@ class CureArgParser:
             case 'help':
                 self.__help()
             case _:
-                print(f"""cure [action] [options]
+                print(f"""{HELP}
 invalid action {action}'""")
     
     def get(self, arg_index: int):
@@ -126,7 +132,7 @@ invalid action {action}'""")
         return self.args[arg_index]
     
     def __help(self):
-        print('cure [action] [options]')
+        print(HELP)
     
     def __run(self):
         file_str = self.get(2)

@@ -62,7 +62,6 @@ class Position:
         print(' ' * (self.column - 1) + '^')
         print(f'{Style.BRIGHT}{Fore.RED}error: {msg}{Style.RESET_ALL}')
         error(msg)
-        raise Exception
         sys_exit(1)
 
 @dataclass
@@ -280,15 +279,14 @@ class Type(Node):
     def __repr__(self):
         return self.display
     
-    def needs_free(self, scope: Scope):
-        return self.destroy_method(scope) is not None
-    
-    def destroy_method(self, scope: Scope):
-        symbol = scope.symbol_table.get(f'{self}_destroy')
-        if symbol is None or symbol.type != Type.function():
-            return
-        
-        return symbol
+    def needs_memory_management(self):
+        if not isinstance(self.type, lir.LiteralStructType):
+            return False
+
+        if not any(elem == Type.Ref().type.as_pointer() for elem in self.type.elements):
+            return False
+
+        return True
 
     def as_pointer(self):
         return Type(self.pos, f'{self.display}&', self.type.as_pointer())

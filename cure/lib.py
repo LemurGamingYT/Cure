@@ -7,12 +7,12 @@ from abc import ABC
 from llvmlite import ir as lir
 
 from cure.codegen_utils import NULL, store_in_pointer
-from cure.passes.code_generation import CRegistry
+from cure.c_registry import CRegistry
 from cure import ir
 
 
-def run_function(func, module: lir.Module, scope: ir.Scope, arg_types: list[ir.Type]):
-    info(f'Running {func.name}')
+def compile_function(func, module: lir.Module, scope: ir.Scope, arg_types: list[ir.Type]):
+    info(f'Compiling {func.name}')
 
     c_registry = module.c_registry
     is_generic = any(param.type == ir.Type.any() for param in func.params)
@@ -52,8 +52,9 @@ def run_function(func, module: lir.Module, scope: ir.Scope, arg_types: list[ir.T
     info('Created definition context')
 
     for i, param in enumerate(callee_params):
-        ptr = store_in_pointer(ctx.builder, param.type.type, ir_func.args[i], f'param_{param.name}_ptr')
-        def_scope.symbol_table.add(ir.Symbol(param.name, param.type, ptr))
+        def_scope.symbol_table.add(ir.Symbol(param.name, param.type, store_in_pointer(
+            ctx.builder, param.type.type, ir_func.args[i], f'param_{param.name}_ptr'
+        )))
     
     info(f'Compiling {callee}')
     result = func(ctx)
@@ -66,6 +67,27 @@ def run_function(func, module: lir.Module, scope: ir.Scope, arg_types: list[ir.T
 
     info(f'Compiled {callee}')
     return ir_func
+
+def run_function(
+    pos: ir.Position, builder: lir.IRBuilder, module: lir.Module,
+    scope: ir.Scope, name: str, args: list[lir.Value] | None = None
+):
+    if args is None:
+        return []
+    
+    symbol = scope.symbol_table.get(name)
+    if symbol is None:
+        pos.comptime_error(f'no function named {name}', scope.src)
+        return
+    
+    func = symbol.value
+    if isinstance(func, lir.Function):
+        return builder.call(func, args, 'func_call')
+    elif callable(func):
+        ir_func = func(module, scope, args)
+        return builder.call(ir_func, args, 'stdlib_call')
+    
+    pos.comptime_error('invalid call type', scope.src)
 
 
 def function(params: list[ir.Param] | None = None, ret_type: ir.Type | None = None,
@@ -96,7 +118,7 @@ def function(params: list[ir.Param] | None = None, ret_type: ir.Type | None = No
             nonlocal name
 
             _, module, scope, arg_types = args
-            return run_function(func, module, scope, arg_types)
+            return compile_function(func, module, scope, arg_types)
         
         return wrapper
     
@@ -127,7 +149,7 @@ def overload(overload_of: Callable, params: list[ir.Param] | None = None,
             nonlocal name
 
             module, scope, arg_types = args
-            return run_function(func, module, scope, arg_types)
+            return compile_function(func, module, scope, arg_types)
         
         overload_of.overloads.append(wrapper)
         return wrapper
@@ -189,23 +211,7 @@ class DefinitionContext:
         return func
     
     def call(self, name: str, args: list[lir.Value] | None = None):
-        if args is None:
-            args = []
-        
-        symbol = self.scope.symbol_table.get(name)
-        if symbol is None:
-            self.pos.comptime_error(f'no function named {name}', self.scope.src)
-            return
-        
-        func = symbol.value
-        self.ret_type = func.ret_type
-        if isinstance(func, lir.Function):
-            return self.builder.call(func, args, 'func_call')
-        elif callable(func):
-            ir_func = func(self.module, self.scope, args)
-            return self.builder.call(ir_func, args, 'stdlib_call')
-        
-        self.pos.comptime_error('invalid call type', self.scope.src)
+        return run_function(self.pos, self.builder, self.module, self.scope, name, args)
 
 class Lib(ABC):
     def __init__(self, scope: ir.Scope):

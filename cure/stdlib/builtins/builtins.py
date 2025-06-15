@@ -4,6 +4,7 @@ from cure.stdlib.builtins.operations import operations
 from cure.lib import function, Lib, DefinitionContext
 from cure.stdlib.builtins.testing import testing
 from cure.stdlib.builtins.string import string
+from cure.stdlib.builtins.System import System
 from cure.stdlib.builtins.casts import casts
 from cure.stdlib.builtins.Math import Math
 from cure.stdlib.builtins.ref import Ref
@@ -18,6 +19,7 @@ class builtins(Lib):
         self.add_lib(Ref)
         self.add_lib(Math)
         self.add_lib(casts)
+        self.add_lib(System)
         self.add_lib(string)
         self.add_lib(testing)
         self.add_lib(operations)

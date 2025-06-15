@@ -145,7 +145,7 @@ class Analyser(CompilerPass):
         func = symbol.value
 
         # attributes
-        if func.flags.static and len(func.params) - 1 == len(args):
+        if func.flags.static:
             args = args[1:]
         
         func = match_to_overloads(func, [arg.get_type() for arg in args])
