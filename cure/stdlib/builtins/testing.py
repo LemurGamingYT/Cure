@@ -4,8 +4,8 @@ from cure import ir
 
 class testing(Lib):
     @function([
-        ir.Param(ir.Position.zero(), 'condition', ir.Type.bool()),
-        ir.Param(ir.Position.zero(), 'fail_message', ir.Type.string())
+        ir.Param(ir.Position.zero(), 'condition', ir.TypeManager.get('bool')),
+        ir.Param(ir.Position.zero(), 'fail_message', ir.TypeManager.get('string'))
     ], flags=ir.FunctionFlags(public=True))
     @staticmethod
     def assert_(ctx: DefinitionContext):
@@ -15,8 +15,8 @@ class testing(Lib):
             ctx.call('error', [fail_message])
     
     @function([
-        ir.Param(ir.Position.zero(), 'condition', ir.Type.bool()),
-        ir.Param(ir.Position.zero(), 'fail_message', ir.Type.string())
+        ir.Param(ir.Position.zero(), 'condition', ir.TypeManager.get('bool')),
+        ir.Param(ir.Position.zero(), 'fail_message', ir.TypeManager.get('string'))
     ], flags=ir.FunctionFlags(public=True))
     @staticmethod
     def assert_not(ctx: DefinitionContext):

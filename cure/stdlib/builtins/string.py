@@ -7,14 +7,14 @@ from cure import ir
 
 class string(Lib):
     @function([
-        ir.Param(ir.Position.zero(), 'literal', ir.Type.string_literal()),
-        ir.Param(ir.Position.zero(), 'length', ir.Type.int())
-    ], ir.Type.string(), flags=ir.FunctionFlags(method=True))
+        ir.Param(ir.Position.zero(), 'literal', ir.TypeManager.get('pointer')),
+        ir.Param(ir.Position.zero(), 'length', ir.TypeManager.get('int'))
+    ], ir.TypeManager.get('string'), flags=ir.FunctionFlags(method=True))
     @staticmethod
     def string_new(ctx: DefinitionContext):
         literal = ctx.param('literal').value
         length = cast_value(ctx.builder, ctx.param('length').value, lir.IntType(64))
-        string_type = ir.Type.string().type
+        string_type = ir.TypeManager.get('string').type
 
         malloc = ctx.c_registry.get('malloc')
         memcpy = ctx.c_registry.get('memcpy')
@@ -40,10 +40,10 @@ class string(Lib):
         return create_struct_value(ctx.builder, string_type, [data_ptr, length, ref])
 
 
-    @function([ir.Param(ir.Position.zero(), 's', ir.Type.string())], ir.Type.int(),
+    @function([ir.Param(ir.Position.zero(), 's', ir.TypeManager.get('string'))], ir.TypeManager.get('int'),
               flags=ir.FunctionFlags(method=True))
     @staticmethod
     def string_length(ctx: DefinitionContext):
         s = ctx.param('s').value
         length = get_struct_field_value(ctx.builder, s, 1)
-        return cast_value(ctx.builder, length, ir.Type.int().type)
+        return cast_value(ctx.builder, length, ir.TypeManager.get('int').type)

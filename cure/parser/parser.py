@@ -8,7 +8,7 @@ from cure.parser.constants import TOKENS, PRECEDENCE
 from cure.ir import (
     Node, Program, Function, Int, Float, String, Bool, Nil, Id, Param, Body, Type, Return, BinaryOp,
     UnaryOp, Call, Variable, If, Elif, While, Attribute,
-    Position
+    Position, TypeManager
 )
 
 
@@ -37,7 +37,7 @@ class CureParser(ParserGenerator):
         
         @self.production('type : id')
         def type(p):
-            return Type.get(p[0].value)
+            return TypeManager.get(p[0].value)
         
         @self.production('stmts : stmt')
         @self.production('stmts : stmts stmt')
@@ -205,7 +205,7 @@ class CureParser(ParserGenerator):
                 case 'nil':
                     return Nil(pos)
                 case 'id':
-                    return Id(pos, value, Type.any())
+                    return Id(pos, value)
         
         @self.production('expr : expr . id')
         def property(p):

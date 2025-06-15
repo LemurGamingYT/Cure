@@ -60,7 +60,7 @@ class Analyser(CompilerPass):
         params = [self.run_on(param) for param in node.params]
         type = self.run_on(node.type)
         func = ir.Function(node.pos, node.name, params, type, node.body, node.flags, node.overloads)
-        self.scope.symbol_table.add(ir.Symbol(node.name, ir.Type.function(), func))
+        self.scope.symbol_table.add(ir.Symbol(node.name, ir.TypeManager.get('function'), func))
 
         info('Adding parameters to environment')
         for param in params:
@@ -125,7 +125,7 @@ class Analyser(CompilerPass):
     
     def run_on_Id(self, node: ir.Id):
         symbol = self.scope.symbol_table.get(node.name)
-        type = ir.Type.get(node.name)
+        type = ir.TypeManager.get(node.name)
         if symbol is None and type is None:
             node.pos.comptime_error(f'unknown identifier \'{node.name}\'', self.scope.src)
             return

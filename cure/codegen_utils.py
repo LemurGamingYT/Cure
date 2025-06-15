@@ -28,6 +28,17 @@ def get_type_size(builder: ir.IRBuilder, llvm_type: ir.Type):
     
     return size
 
+def index_of_type(type: ir.LiteralStructType, elem_type: ir.Type):
+    """Find the index of a type in a LiteralStructType - returns -1 if the type is not found"""
+    ref_index = -1
+    for i, elem in enumerate(type.elements):
+        if elem != elem_type:
+            continue
+
+        ref_index = i
+        break
+
+    return ref_index
 
 def cast_value(builder: ir.IRBuilder, value: ir.Value, type: ir.Type):
     """Converts the value to the type in any possible way"""

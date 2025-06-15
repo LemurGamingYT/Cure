@@ -24,7 +24,7 @@ class builtins(Lib):
         self.add_lib(testing)
         self.add_lib(operations)
 
-    @function([ir.Param(ir.Position.zero(), 'message', ir.Type.string())],
+    @function([ir.Param(ir.Position.zero(), 'message', ir.TypeManager.get('string'))],
               flags=ir.FunctionFlags(public=True))
     @staticmethod
     def error(ctx: DefinitionContext):
@@ -33,9 +33,9 @@ class builtins(Lib):
 
         message = ctx.param('message').value
         ctx.builder.call(puts, [get_struct_field_value(ctx.builder, message, 0)])
-        ctx.builder.call(exit, [lir.Constant(ir.Type.int().type, 1)])
+        ctx.builder.call(exit, [lir.Constant(ir.TypeManager.get('int').type, 1)])
 
-    @function([ir.Param(ir.Position.zero(), 'x', ir.Type.any())],
+    @function([ir.Param(ir.Position.zero(), 'x', ir.TypeManager.get('any'))],
               flags=ir.FunctionFlags(public=True))
     @staticmethod
     def print(ctx: DefinitionContext):
@@ -45,7 +45,7 @@ class builtins(Lib):
         x_str = ctx.call(f'{x.type}_to_string', [x.value])
         ctx.builder.call(puts, [get_struct_field_value(ctx.builder, x_str, 0)])
 
-    @function([ir.Param(ir.Position.zero(), 'x', ir.Type.string())],
+    @function([ir.Param(ir.Position.zero(), 'x', ir.TypeManager.get('string'))],
               flags=ir.FunctionFlags(public=True))
     @staticmethod
     def print_literal(ctx: DefinitionContext):
@@ -53,31 +53,3 @@ class builtins(Lib):
 
         x = ctx.param('x').value
         ctx.builder.call(printf, [get_struct_field_value(ctx.builder, x, 0)])
-    
-    # @function([ir.Param(ir.Position.zero(), 'prompt', ir.Type.string())], ir.Type.string(),
-    #           flags=ir.FunctionFlags(public=True))
-    # @staticmethod
-    # def input(ctx: DefinitionContext):
-    #     INPUT_BUF_SIZE = 256
-
-    #     prompt = ctx.param('prompt').value
-
-    #     acrt_iob_func = ctx.c_registry.get('__acrt_iob_func')
-    #     strlen = ctx.c_registry.get('strlen')
-    #     fgets = ctx.c_registry.get('fgets')
-    #     puts = ctx.c_registry.get('puts')
-
-    #     buf = create_static_buffer(ctx.module, lir.IntType(8), INPUT_BUF_SIZE)
-    #     fmt = create_string_constant(ctx.module, '%s')
-
-    #     prompt_ptr = get_struct_field_value(ctx.builder, prompt, 0)
-    #     ctx.builder.call(puts, [fmt, prompt_ptr])
-
-    #     stdin = ctx.builder.call(acrt_iob_func, [lir.Constant(lir.IntType(32), 0)])
-    #     ctx.builder.call(fgets, [buf, lir.Constant(lir.IntType(32), INPUT_BUF_SIZE), stdin])
-    #     length = ctx.builder.call(strlen, [buf])
-    #     buf_length_ptr = ctx.builder.gep(buf, [lir.Constant(lir.IntType(32), 0), length])
-    #     ctx.builder.store(NULL_BYTE(), buf_length_ptr)
-    #     return ctx.call('string_new', [
-    #         buf, cast_value(ctx.builder, length, ir.Type.int().type)
-    #     ])

@@ -15,12 +15,12 @@ def compile_function(func, module: lir.Module, scope: ir.Scope, arg_types: list[
     info(f'Compiling {func.name}')
 
     c_registry = module.c_registry
-    is_generic = any(param.type == ir.Type.any() for param in func.params)
+    is_generic = any(param.type == ir.TypeManager.get('any') for param in func.params)
 
     generic_param_indexes = []
     callee_params = []
     for i, (arg_type, param) in enumerate(zip(arg_types, func.params)):
-        if param.type == ir.Type.any():
+        if param.type == ir.TypeManager.get('any'):
             callee_params.append(ir.Param(param.pos, param.name, arg_type))
             generic_param_indexes.append(i)
         else:
@@ -62,7 +62,7 @@ def compile_function(func, module: lir.Module, scope: ir.Scope, arg_types: list[
     # utility and ease of use if statements
     if result is not None:
         ctx.builder.ret(result)
-    elif func.ret_type == ir.Type.nil() and not ctx.builder.block.is_terminated:
+    elif func.ret_type == ir.TypeManager.get('nil') and not ctx.builder.block.is_terminated:
         ctx.builder.ret(NULL())
 
     info(f'Compiled {callee}')
@@ -96,7 +96,7 @@ def function(params: list[ir.Param] | None = None, ret_type: ir.Type | None = No
         params = []
     
     if ret_type is None:
-        ret_type = ir.Type.nil()
+        ret_type = ir.TypeManager.get('nil')
     
     if flags is None:
         flags = ir.FunctionFlags()
@@ -130,7 +130,7 @@ def overload(overload_of: Callable, params: list[ir.Param] | None = None,
         params = []
     
     if ret_type is None:
-        ret_type = ir.Type.nil()
+        ret_type = ir.TypeManager.get('nil')
     
     def decorator(func):
         name = func.__name__
@@ -174,6 +174,7 @@ def getattrs(instance):
 @dataclass
 class ParamPointer:
     value: lir.Value
+    ptr: lir.Value
     type: ir.Type
 
 @dataclass
@@ -193,7 +194,9 @@ class DefinitionContext:
                 if symbol is None:
                     return self.pos.comptime_error(f'invalid param {name}', self.scope.src)
                 
-                return ParamPointer(self.builder.load(symbol.value, symbol.name), symbol.type)
+                return ParamPointer(
+                    self.builder.load(symbol.value, symbol.name), symbol.value, symbol.type
+                )
 
         return self.pos.comptime_error(f'unknown param {name}', self.scope.src)
     
@@ -217,8 +220,8 @@ class Lib(ABC):
     def __init__(self, scope: ir.Scope):
         self.scope = scope
 
-        self.__add_instance(self)
         self.init_lib()
+        self.__add_instance(self)
     
     def init_lib(self):
         pass
@@ -231,5 +234,5 @@ class Lib(ABC):
     
     def __add_instance(self, instance):
         for v in getattrs(instance).values():
-            self.scope.symbol_table.add(ir.Symbol(v.name, ir.Type.function(), v))
+            self.scope.symbol_table.add(ir.Symbol(v.name, ir.TypeManager.get('function'), v))
             info(f'Added {v.name} from {instance.__class__.__name__} Lib class')

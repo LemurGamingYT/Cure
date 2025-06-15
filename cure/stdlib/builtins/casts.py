@@ -8,8 +8,10 @@ from cure.codegen_utils import (
 
 
 class casts(Lib):
-    @function([ir.Param(ir.Position.zero(), 'x', ir.Type.int())], ir.Type.string(),
-              flags=ir.FunctionFlags(method=True))
+    @function(
+        [ir.Param(ir.Position.zero(), 'x', ir.TypeManager.get('int'))],
+        ir.TypeManager.get('string'), flags=ir.FunctionFlags(method=True)
+    )
     @staticmethod
     def int_to_string(ctx: DefinitionContext):
         BUF_SIZE = 16
@@ -22,11 +24,13 @@ class casts(Lib):
         fmt_ptr = create_string_constant(ctx.module, r'%d')
         ctx.builder.call(snprintf, [buf, buf_size, fmt_ptr, x])
         return ctx.call('string_new', [
-            buf, cast_value(ctx.builder, buf_size, ir.Type.int().type)
+            buf, cast_value(ctx.builder, buf_size, ir.TypeManager.get('int').type)
         ])
     
-    @function([ir.Param(ir.Position.zero(), 'x', ir.Type.float())], ir.Type.string(),
-              flags=ir.FunctionFlags(method=True))
+    @function(
+        [ir.Param(ir.Position.zero(), 'x', ir.TypeManager.get('float'))],
+        ir.TypeManager.get('float'), flags=ir.FunctionFlags(method=True)
+    )
     @staticmethod
     def float_to_string(ctx: DefinitionContext):
         BUF_SIZE = 64
@@ -39,17 +43,21 @@ class casts(Lib):
         fmt_ptr = create_string_constant(ctx.module, r'%f')
         ctx.builder.call(snprintf, [buf, buf_size, fmt_ptr, x])
         return ctx.call('string_new', [
-            buf, cast_value(ctx.builder, buf_size, ir.Type.int().type)
+            buf, cast_value(ctx.builder, buf_size, ir.TypeManager.get('int').type)
         ])
     
-    @function([ir.Param(ir.Position.zero(), 'x', ir.Type.string())], ir.Type.string(),
-              flags=ir.FunctionFlags(method=True))
+    @function(
+        [ir.Param(ir.Position.zero(), 'x', ir.TypeManager.get('string'))],
+        ir.TypeManager.get('string'), flags=ir.FunctionFlags(method=True)
+    )
     @staticmethod
     def string_to_string(ctx: DefinitionContext):
         return ctx.param('x').value
     
-    @function([ir.Param(ir.Position.zero(), 'x', ir.Type.bool())], ir.Type.string(),
-              flags=ir.FunctionFlags(method=True))
+    @function(
+        [ir.Param(ir.Position.zero(), 'x', ir.TypeManager.get('bool'))],
+        ir.TypeManager.get('string'), flags=ir.FunctionFlags(method=True)
+    )
     @staticmethod
     def bool_to_string(ctx: DefinitionContext):
         x = ctx.param('x').value
@@ -64,24 +72,32 @@ class casts(Lib):
 
         return ctx.call('string_new', [ptr, length])
     
-    @function([ir.Param(ir.Position.zero(), 'x', ir.Type.nil())], ir.Type.string(),
-              flags=ir.FunctionFlags(method=True))
+    @function(
+        [ir.Param(ir.Position.zero(), 'x', ir.TypeManager.get('nil'))],
+        ir.TypeManager.get('string'), flags=ir.FunctionFlags(method=True)
+    )
     @staticmethod
     def nil_to_string(ctx: DefinitionContext):
         return ctx.call('string_new', [
             create_string_constant(ctx.module, 'nil'),
-            lir.Constant(lir.IntType(32), 3)
+            lir.Constant(ir.TypeManager.get('int').type, 3)
         ])
     
 
-    @function([ir.Param(ir.Position.zero(), 'x', ir.Type.int())], ir.Type.float())
+    @function(
+        [ir.Param(ir.Position.zero(), 'x', ir.TypeManager.get('int'))],
+        ir.TypeManager.get('float')
+    )
     @staticmethod
     def int_to_float(ctx: DefinitionContext):
         x = ctx.param('x').value
-        return cast_value(ctx.builder, x, ir.Type.float().type)
+        return cast_value(ctx.builder, x, ir.TypeManager.get('float').type)
     
-    @function([ir.Param(ir.Position.zero(), 'x', ir.Type.float())], ir.Type.int())
+    @function(
+        [ir.Param(ir.Position.zero(), 'x', ir.TypeManager.get('float'))],
+        ir.TypeManager.get('float')
+    )
     @staticmethod
     def float_to_int(ctx: DefinitionContext):
         x = ctx.param('x').value
-        return cast_value(ctx.builder, x, ir.Type.int().type)
+        return cast_value(ctx.builder, x, ir.TypeManager.get('int').type)

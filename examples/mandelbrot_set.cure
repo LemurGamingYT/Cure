@@ -15,7 +15,7 @@ fn in_mandelbrot(float x0, float y0, int n) -> bool {
     return true
 }
 
-fn mandel() -> int {
+fn main() -> int {
     xmin = -2.0
     xmax = 1.0
     ymin = -1.5
@@ -46,8 +46,4 @@ fn mandel() -> int {
     }
 
     return 0
-}
-
-fn main() -> int {
-    return mandel()
 }

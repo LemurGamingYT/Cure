@@ -30,7 +30,7 @@ def params_match(func, arg_types: list['Type']):
 
     for arg_type, param in zip(arg_types, params):
         param_type = param.type
-        if param_type == arg_type or param_type == Type.any():
+        if param_type == arg_type or param_type == TypeManager.get('any'):
             continue
 
         return False
@@ -96,6 +96,32 @@ class SymbolTable:
     def merge(self, other: 'SymbolTable'):
         self.symbols.update(other.symbols)
 
+class TypeManager:
+    type_map: dict[str, lir.Type] = {}
+
+    @staticmethod
+    def get(name: str) -> Any:
+        llvm_type = TypeManager.type_map.get(name)
+        if llvm_type is None:
+            return None
+        
+        return Type(Position.zero(), name, llvm_type)
+    
+    @staticmethod
+    def exists(name: str):
+        return name in TypeManager.type_map
+    
+    @staticmethod
+    def add(name: str, llvm_type: lir.Type):
+        if name in TypeManager.type_map:
+            return
+        
+        TypeManager.type_map[name] = llvm_type
+    
+    @staticmethod
+    def set(name: str, llvm_type: lir.Type):
+        TypeManager.type_map[name] = llvm_type
+
 @dataclass
 class Scope:
     file: Path
@@ -116,6 +142,28 @@ class Scope:
             self.symbol_table = self.parent.symbol_table.clone()
         else:
             self.src = self.file.read_text('utf-8')
+
+            TypeManager.add('nil', lir.IntType(8).as_pointer())
+            TypeManager.add('any', lir.IntType(8).as_pointer())
+            TypeManager.add('Ref', lir.LiteralStructType([
+                lir.IntType(8).as_pointer(), # void*
+                lir.FunctionType(
+                    TypeManager.get('nil').type,
+                    [TypeManager.get('any').type]
+                ).as_pointer(), # nil (*destroy)(void*)
+                lir.IntType(64), # size_t
+            ]))
+
+            TypeManager.add('int', lir.IntType(32))
+            TypeManager.add('float', lir.FloatType())
+            TypeManager.add('string', lir.LiteralStructType([
+                lir.IntType(8).as_pointer(), # char*
+                lir.IntType(64), # size_t
+                TypeManager.get('Ref').type.as_pointer() # Ref*
+            ]))
+            TypeManager.add('bool', lir.IntType(1))
+            TypeManager.add('pointer', lir.IntType(8).as_pointer())
+            TypeManager.add('function', lir.IntType(8).as_pointer())
 
             self.use('builtins', Position.zero())
 
@@ -176,7 +224,7 @@ class Node(ABC):
         return children
 
     def get_type(self) -> 'Type':
-        return getattr(self, 'type', Type.nil())
+        return getattr(self, 'type', TypeManager.get('nil'))
     
     def clone(self):
         return copy(self)
@@ -185,93 +233,6 @@ class Node(ABC):
 class Type(Node):
     display: str
     type: lir.Type
-
-    @staticmethod
-    def int():
-        return Type(Position.zero(), 'int', lir.IntType(32))
-    
-    @staticmethod
-    def float():
-        return Type(Position.zero(), 'float', lir.FloatType())
-    
-    @staticmethod
-    def string():
-        return Type(
-            Position.zero(), 'string',
-            lir.LiteralStructType([
-                lir.IntType(8).as_pointer(), # char*
-                lir.IntType(64), # size_t
-                Type.Ref().type.as_pointer() # Ref*
-            ])
-        )
-    
-    @staticmethod
-    def string_literal():
-        return Type(Position.zero(), 'string_literal', lir.IntType(8).as_pointer())
-    
-    @staticmethod
-    def bool():
-        return Type(Position.zero(), 'bool', lir.IntType(1))
-    
-    @staticmethod
-    def nil():
-        return Type(Position.zero(), 'nil', lir.IntType(8).as_pointer())
-    
-    @staticmethod
-    def any():
-        return Type(Position.zero(), 'any', lir.IntType(8).as_pointer())
-    
-    @staticmethod
-    def function():
-        return Type(Position.zero(), 'function', lir.IntType(8).as_pointer())
-
-
-    @staticmethod
-    def pointer():
-        return Type(Position.zero(), 'pointer', lir.IntType(8).as_pointer())
-
-    @staticmethod
-    def Ref():
-        return Type(Position.zero(), 'Ref', lir.LiteralStructType([
-            lir.IntType(8).as_pointer(), # void*
-            lir.FunctionType(Type.nil().type, [Type.any().type]).as_pointer(), # nil (*destroy)(void*)
-            lir.IntType(64), # size_t
-        ]))
-
-
-    @staticmethod
-    def get_from_llvm(type: lir.Type):
-        if isinstance(type, lir.IntType):
-            if type.width == 1:
-                return Type.bool()
-            elif type.width == 32:
-                return Type.int()
-        elif isinstance(type, lir.FloatType):
-            return Type.float()
-        elif isinstance(type, lir.LiteralStructType):
-            if len(type.elements) == 2 and isinstance(type.elements[0], lir.PointerType) and\
-                isinstance(type.elements[1], lir.IntType):
-                return Type.string()
-        elif isinstance(type, lir.PointerType):
-            return Type.nil()
-        
-        raise TypeError(f'cannot convert to cure type {type}')
-    
-    @staticmethod
-    def get(name: str):
-        type = getattr(Type, name, Type(Position.zero(), name, name))
-        if isinstance(type, Type):
-            return type
-        
-        return type()
-    
-    @staticmethod
-    def exists(name: str):
-        type = getattr(Type, name, None)
-        if type is None:
-            return
-        
-        return type()
     
     def __str__(self):
         return self.display
@@ -283,7 +244,7 @@ class Type(Node):
         if not isinstance(self.type, lir.LiteralStructType):
             return False
 
-        if not any(elem == Type.Ref().type.as_pointer() for elem in self.type.elements):
+        if not any(elem == TypeManager.get('Ref').type.as_pointer() for elem in self.type.elements):
             return False
 
         return True
@@ -301,7 +262,7 @@ class Int(Node):
 
     @property
     def type(self) -> 'Type':
-        return Type.int()
+        return TypeManager.get('int')
 
 @dataclass
 class Float(Node):
@@ -309,7 +270,7 @@ class Float(Node):
 
     @property
     def type(self) -> 'Type':
-        return Type.float()
+        return TypeManager.get('float')
 
 @dataclass
 class String(Node):
@@ -317,7 +278,7 @@ class String(Node):
 
     @property
     def type(self) -> 'Type':
-        return Type.string()
+        return TypeManager.get('string')
 
 @dataclass
 class Bool(Node):
@@ -325,13 +286,13 @@ class Bool(Node):
 
     @property
     def type(self) -> 'Type':
-        return Type.bool()
+        return TypeManager.get('bool')
 
 @dataclass
 class Nil(Node):
     @property
     def type(self) -> 'Type':
-        return Type.nil()
+        return TypeManager.get('nil')
 
 @dataclass
 class StringLiteral(Node):
@@ -339,38 +300,38 @@ class StringLiteral(Node):
     
     @property
     def type(self) -> 'Type':
-        return Type.string_literal()
+        return TypeManager.get('pointer')
 
 @dataclass
 class Id(Node):
     name: str
-    type: Type = field(default_factory=lambda: Type.any())
+    type: Type = field(default_factory=lambda: TypeManager.get('any'))
 
 @dataclass
 class BinaryOp(Node):
     left: Node
     op: str
     right: Node
-    type: Type = field(default_factory=lambda: Type.any())
+    type: Type = field(default_factory=lambda: TypeManager.get('any'))
 
 @dataclass
 class UnaryOp(Node):
     op: str
     expr: Node
-    type: Type = field(default_factory=lambda: Type.any())
+    type: Type = field(default_factory=lambda: TypeManager.get('any'))
 
 @dataclass
 class Call(Node):
     callee: str
     args: list[Node] = field(default_factory=list)
-    type: Type = field(default_factory=lambda: Type.any())
+    type: Type = field(default_factory=lambda: TypeManager.get('any'))
 
 @dataclass
 class Attribute(Node):
     obj: Node
     attr: str
     args: Union[list[Node], None] = None # default to property call
-    type: Type = field(default_factory=lambda: Type.any())
+    type: Type = field(default_factory=lambda: TypeManager.get('any'))
 
 @dataclass
 class Param(Node):
@@ -393,7 +354,7 @@ class FunctionFlags:
 class Function(Node):
     name: str
     params: list[Param] = field(default_factory=list)
-    type: Type = field(default_factory=lambda: Type.nil())
+    type: Type = field(default_factory=lambda: TypeManager.get('nil'))
     body: BodyType = None
     flags: FunctionFlags = field(default_factory=FunctionFlags)
     overloads: list['Function'] = field(default_factory=list)
@@ -414,7 +375,7 @@ class Return(Node):
 class Variable(Node):
     name: str
     value: Union[Node, None] = None
-    type: Type = field(default_factory=lambda: Type.any())
+    type: Type = field(default_factory=lambda: TypeManager.get('nil'))
 
 @dataclass
 class Assignment(Node):

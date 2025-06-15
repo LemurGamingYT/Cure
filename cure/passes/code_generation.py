@@ -1,4 +1,4 @@
-from logging import debug, info
+from logging import debug, info, warning
 from typing import cast
 
 from llvmlite import ir as lir, binding as llvm
@@ -10,7 +10,13 @@ from cure.target import Target
 from cure import ir
 from cure.codegen_utils import (
     NULL, create_while_loop, store_in_pointer, create_string_constant, get_struct_field_ptr,
-    get_struct_field_value
+    get_struct_field_value, index_of_type
+)
+
+
+DONT_MANAGE_MEMORY = (
+    ir.Type, ir.Param, ir.Function, ir.Variable, ir.Id, ir.Body, ir.Assignment, ir.Elif,
+    ir.If, ir.Ref, ir.While, ir.Return
 )
 
 
@@ -108,7 +114,7 @@ class CodeGeneration(CompilerPass):
         setattr(self.module, 'c_registry', self.c_registry)
     
     def run_on(self, node: ir.Node):
-        if isinstance(node, (ir.Type, ir.Ref)):
+        if isinstance(node, DONT_MANAGE_MEMORY):
             return super().run_on(node)
 
         node_type = node.get_type()
@@ -118,6 +124,14 @@ class CodeGeneration(CompilerPass):
         value = super().run_on(node)
         if isinstance(value.type, lir.PointerType):
             value = self.builder.load(value)
+        
+        if isinstance(value.type, lir.LiteralStructType):
+            ref_index = index_of_type(value.type, ir.TypeManager.get('Ref').type.as_pointer())
+            if ref_index == -1:
+                warning(f'Type {node_type} needs memory management but has no Ref* field')
+            else:
+                ref = get_struct_field_value(self.builder, value, ref_index)
+                run_function(node.pos, self.builder, self.module, self.scope, 'Ref_inc', [ref])
 
         ptr = store_in_pointer(self.builder, node_type.type, value, 'temp_var')
         self.scope.symbol_table.add(ir.Symbol(ptr.name, node_type, ptr))
@@ -140,31 +154,25 @@ class CodeGeneration(CompilerPass):
         for stmt in node.nodes:
             info(f'Compiling body statement {stmt.__class__.__name__}')
             if isinstance(stmt, ir.Return):
-                info('Inserting destruction methods')
+                info('Inserting Ref_dec methods')
                 for symbol in self.scope.symbol_table:
                     if not symbol.type.needs_memory_management():
                         continue
 
-                    llvm_type = symbol.type.type
-                    if not isinstance(llvm_type, lir.LiteralStructType):
+                    struct = symbol.value
+                    llvm_type = cast(lir.LiteralStructType, symbol.type.type)
+                    ref_index = index_of_type(llvm_type, ir.TypeManager.get('Ref').type.as_pointer())
+                    if ref_index == -1:
+                        warning(f'Type {symbol.type} needs memory management but has no Ref* field')
                         continue
 
-                    ref_index = -1
-                    ref_type = ir.Type.Ref().type.as_pointer()
-                    for i, elem in enumerate(llvm_type.elements):
-                        if elem != ref_type:
-                            continue
-
-                        ref_index = i
-                        break
-
-                    struct = symbol.value
-                    if isinstance(struct.type, lir.PointerType):
-                        ref = self.builder.load(get_struct_field_ptr(self.builder, struct, ref_index))
-                    else:
-                        ref = get_struct_field_value(self.builder, struct, ref_index)
+                    ref = self.builder.load(get_struct_field_ptr(self.builder, struct, ref_index)) if\
+                        isinstance(struct.type, lir.PointerType) else\
+                        get_struct_field_value(self.builder, struct, ref_index)
                     
                     run_function(stmt.pos, self.builder, self.module, self.scope, 'Ref_dec', [ref])
+                
+                info('Finished inserting Ref_dec methods')
             
             self.run_on(stmt)
             info(f'Compiled body statement {stmt.__class__.__name__}')
@@ -304,7 +312,7 @@ class CodeGeneration(CompilerPass):
         ret_type = self.run_on(node.type)
         param_types = [self.run_on(param) for param in node.params]
         func = lir.Function(self.module, lir.FunctionType(ret_type, param_types), node.name)
-        self.scope.symbol_table.add(ir.Symbol(node.name, ir.Type.function(), func))
+        self.scope.symbol_table.add(ir.Symbol(node.name, ir.TypeManager.get('function'), func))
         
         if isinstance(node.body, ir.Body):
             info('Compiling function body')
@@ -313,13 +321,25 @@ class CodeGeneration(CompilerPass):
             self.builder = lir.IRBuilder(func.append_basic_block('entry'))
 
             for i, param in enumerate(node.params):
+                param_value = func.args[i]
+                if param.type.needs_memory_management() and\
+                    isinstance(param_value.type, lir.LiteralStructType):
+                    ref_index = index_of_type(
+                        param_value.type, ir.TypeManager.get('Ref').type.as_pointer()
+                    )
+                    if ref_index == -1:
+                        warning(f'Type {param.type} needs memory management but has no Ref* field')
+                    
+                    ref = get_struct_field_value(self.builder, param_value, ref_index)
+                    run_function(node.pos, self.builder, self.module, self.scope, 'Ref_inc', [ref])
+                
                 self.scope.symbol_table.add(ir.Symbol(param.name, param.type, store_in_pointer(
-                    self.builder, param.type.type, func.args[i], f'param_{param.name}_ptr'
+                    self.builder, param.type.type, param_value, f'param_{param.name}_ptr'
                 )))
             
             self.run_on(node.body)
 
-            if node.type == ir.Type.nil():
+            if node.type == ir.TypeManager.get('nil'):
                 info(f'{node.name} has no return type, inserting ret NULL')
                 self.builder.ret(NULL())
 
@@ -337,7 +357,7 @@ class CodeGeneration(CompilerPass):
             node.pos.comptime_error('cannot generate code for uninitialised variables', self.scope.src)
             return
         
-        ptr = store_in_pointer(self.builder, self.run_on(node.type), value, node.name)
+        ptr = store_in_pointer(self.builder, self.run_on(node.type), value, f'{node.name}_ptr')
         self.scope.symbol_table.add(ir.Symbol(node.name, node.type, ptr))
         return ptr
     
@@ -351,20 +371,20 @@ class CodeGeneration(CompilerPass):
     def run_on_Return(self, node: ir.Return):
         value = self.run_on(node.value)
         self.builder.ret(value)
-        info('Returning')
+        info(f'Returning {value}')
         return value
     
     def run_on_Int(self, node: ir.Int):
-        return lir.Constant(self.run_on(ir.Type.int()), node.value)
+        return lir.Constant(self.run_on(ir.TypeManager.get('int')), node.value)
     
     def run_on_Float(self, node: ir.Float):
-        return lir.Constant(self.run_on(ir.Type.float()), node.value)
+        return lir.Constant(self.run_on(ir.TypeManager.get('float')), node.value)
     
-    def run_on_String(self, node: ir.String):
+    def run_on_String(self, _):
         raise NotImplementedError
     
     def run_on_Bool(self, node: ir.Bool):
-        return lir.Constant(self.run_on(ir.Type.bool()), node.value)
+        return lir.Constant(self.run_on(ir.TypeManager.get('bool')), node.value)
     
     def run_on_Nil(self, _):
         return NULL()
@@ -380,7 +400,7 @@ class CodeGeneration(CompilerPass):
         
         if hasattr(symbol.value, 'type') and isinstance(symbol.value.type, lir.PointerType):
             info(f'Loading pointer {node.name}')
-            return self.builder.load(symbol.value, f'load_{node.name}')
+            return self.builder.load(symbol.value, node.name)
         
         info(f'Loading value {node.name}')
         return symbol.value
