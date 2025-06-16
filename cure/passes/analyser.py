@@ -138,17 +138,18 @@ class Analyser(CompilerPass):
     def run_on_Call(self, node: ir.Call):
         symbol = self.scope.symbol_table.get(node.callee)
         if symbol is None:
-            node.pos.comptime_error(f'unknown callable \'{node.callee}\'', self.scope.src)
-            return
+            return node.pos.comptime_error(f'unknown callable \'{node.callee}\'', self.scope.src)
         
         args = [self.run_on(arg) for arg in node.args]
         func = symbol.value
-
-        # attributes
-        if func.flags.static:
-            args = args[1:]
         
-        func = match_to_overloads(func, [arg.get_type() for arg in args])
+        arg_types = [arg.get_type() for arg in args]
+        func = match_to_overloads(func, arg_types)
+        if func is None:
+            return node.pos.comptime_error(
+                f"""no matching overloads for function {node.callee}
+with argument types: [{', '.join(map(str, arg_types))}]""",
+                self.scope.src)
 
         ret_type = func.ret_type
         return ir.Call(node.pos, node.callee, args, ret_type)
@@ -189,5 +190,10 @@ class Analyser(CompilerPass):
                 f'unknown attribute \'{node.attr}\' on type \'{obj.get_type()}\'',
                 self.scope.src
             )
+        
+        symbol = cast(ir.Symbol, self.scope.symbol_table.get(callee))
+        func = symbol.value
+        if func.flags.static and len(args) > 1 and args[0].type == obj.type:
+            args = args[1:]
         
         return self.run_on(ir.Call(node.pos, callee, args))

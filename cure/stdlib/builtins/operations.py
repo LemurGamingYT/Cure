@@ -29,6 +29,26 @@ class operations(Lib):
         return ctx.builder.fadd(a, b)
     
     @function([
+        ir.Param(ir.Position.zero(), 'a', ir.TypeManager.get('int')),
+        ir.Param(ir.Position.zero(), 'b', ir.TypeManager.get('float'))
+    ], ir.TypeManager.get('float'))
+    @staticmethod
+    def int_add_float(ctx: DefinitionContext):
+        a = ctx.param('a').value
+        b = ctx.param('b').value
+        return ctx.builder.fadd(cast_value(ctx.builder, a, ir.TypeManager.get('float').type), b)
+    
+    @function([
+        ir.Param(ir.Position.zero(), 'a', ir.TypeManager.get('float')),
+        ir.Param(ir.Position.zero(), 'b', ir.TypeManager.get('int'))
+    ], ir.TypeManager.get('float'))
+    @staticmethod
+    def float_add_int(ctx: DefinitionContext):
+        a = ctx.param('a').value
+        b = ctx.param('b').value
+        return ctx.builder.fadd(a, cast_value(ctx.builder, b, ir.TypeManager.get('float').type))
+    
+    @function([
         ir.Param(ir.Position.zero(), 'a', ir.TypeManager.get('string')),
         ir.Param(ir.Position.zero(), 'b', ir.TypeManager.get('string'))
     ], ir.TypeManager.get('string'))

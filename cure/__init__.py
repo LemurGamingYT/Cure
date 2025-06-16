@@ -1,6 +1,7 @@
-from logging import debug, info, error
 from ctypes import CFUNCTYPE, c_int
+from dataclasses import dataclass
 from sys import exit as sys_exit
+from logging import debug, info
 from time import perf_counter
 from subprocess import run
 from pprint import pformat
@@ -16,7 +17,12 @@ from cure.parser.lexer import CureLexer
 from cure import ir
 
 
-def parse(scope: ir.Scope):
+@dataclass
+class CompileOptions:
+    optimize: bool
+
+
+def parse(scope: ir.Scope, _: CompileOptions):
     info(f'Compiling {scope.file.as_posix()}')
     lexer = CureLexer()
     tokens = lexer.lex(scope.src)
@@ -28,74 +34,51 @@ def parse(scope: ir.Scope):
     debug(f'IR = {pformat(program)}')
     return program
 
-def compile_and_run(scope: ir.Scope):
-    program = parse(scope)
-    program = Analyser.run(scope, program)
-    debug(f'Analysed IR = {pformat(program, indent=4)}')
-    code = CodeGeneration.run(scope, cast(ir.Program, program))
-
-    info('Creating and verifying assembly code')
-    llvm_ir = llvm.parse_assembly(code)
-
-    try:
-        llvm_ir.verify()
-    except RuntimeError as e:
-        print('An error occurred while generating code')
-        error(f'{e.args}')
-        return 1
-
-    info('Created and verified assembly code')
-    info('Creating target machine')
-    target_machine = llvm.Target.from_default_triple().create_target_machine()
-    engine = llvm.create_mcjit_compiler(llvm_ir, target_machine)
-    engine.finalize_object()
-
-    info('Created target machine')
-    info('Running main function')
-    entry = engine.get_function_address('main')
-    if entry == 0:
-        print('no main function')
-        error('Main function address is null')
-    
-    info(f'Found main function address: {hex(entry)}')
-
-    cfunc = CFUNCTYPE(c_int)(entry)
-
-    info('Running program')
-    start = perf_counter()
-    try:
-        res = cfunc()
-    except Exception as e:
-        error(f'Runtime error: {e}')
-        return 1
-
-    end = perf_counter()
-    info(f'Executed in {(end - start) * 1000:.3f}ms and returned {res}')
-    return res
-
-def compile_to_str(scope: ir.Scope):
-    program = parse(scope)
+def compile_to_str(scope: ir.Scope, options: CompileOptions):
+    program = parse(scope, options)
     program = Analyser.run(scope, program)
     debug(f'Analysed IR = {pformat(program, indent=4)}')
     return CodeGeneration.run(scope, cast(ir.Program, program))
 
-def compile_to_ll(scope: ir.Scope):
+def compile_to_ll(scope: ir.Scope, options: CompileOptions):
     info(f'Compiling {scope.file.as_posix()} to an LLVM IR file (.ll)')
-    code = compile_to_str(scope)
+    code = compile_to_str(scope, options)
     debug(f'LLVM IR = {code}')
     ll_file = scope.file.with_suffix('.ll')
     ll_file.write_text(code)
     info(f'Wrote to {ll_file.as_posix()}')
     return ll_file
 
-def compile_to_exe(scope: ir.Scope):
-    ll_file = compile_to_ll(scope)
+def compile_to_exe(scope: ir.Scope, options: CompileOptions):
+    ll_file = compile_to_ll(scope, options)
     exe_file = scope.file.with_suffix(f'.{scope.target.exe_ext}')
     info(f'Compiling to executable file {exe_file.as_posix()} using clang')
-    # flags = ['-fno-omit-frame-pointer', '-fsanitize=address']
-    # flags_str = ' '.join(flags)
-    run(f'clang {ll_file.absolute().as_posix()} -o {exe_file}')
+    flags: list[str] = []
+    if options.optimize:
+        flags.append('-O2')
+    
+    flags_str = ' '.join(flags)
+    run(f'clang {ll_file.absolute().as_posix()} -o {exe_file} {flags_str}')
     return exe_file
+
+def jit(scope: ir.Scope, options: CompileOptions):
+    opt = 0 if not options.optimize else 2
+
+    code = compile_to_str(scope, options)
+    target_machine = llvm.Target.from_default_triple().create_target_machine(opt=opt)
+    backing_mod = llvm.parse_assembly(code)
+    engine = llvm.create_mcjit_compiler(backing_mod, target_machine)
+    engine.finalize_object()
+    engine.run_static_constructors()
+
+    main_ptr = engine.get_function_address('main')
+    main = CFUNCTYPE(c_int)(main_ptr)
+
+    debug('Running main function')
+    start = perf_counter()
+    res = main()
+    end = perf_counter()
+    debug(f'Main function executed in {(end - start) * 1000:.3f}ms and returned {res}')
 
 
 HELP = """usage: cure [action] [options]
@@ -117,8 +100,8 @@ class CureArgParser:
         match action:
             case 'build':
                 self.__build()
-            # case 'run':
-            #     self.__run() # crashes for some reason
+            case 'run':
+                self.__run()
             case 'help':
                 self.__help()
             case _:
@@ -131,29 +114,22 @@ invalid action {action}'""")
         
         return self.args[arg_index]
     
+    def flag(self, name: str):
+        try:
+            i = self.args.index(f'--{name}')
+            if len(self.args) - 1 >= i:
+                return True
+            
+            next_value = self.args[i + 1]
+            if next_value.startswith('-'):
+                return True
+            
+            return next_value
+        except ValueError:
+            return None
+    
     def __help(self):
         print(HELP)
-    
-    def __run(self):
-        file_str = self.get(2)
-        if file_str is None:
-            print("""cure run [file]
-file argument not given""")
-            sys_exit(1)
-        
-        file = Path(file_str)
-        if not file.exists():
-            print("""cure run [file]
-file does not exist""")
-            sys_exit(1)
-        
-        if not file.is_file():
-            print("""cure run [file]
-file is not a file""")
-            sys_exit(1)
-        
-        scope = ir.Scope(file)
-        compile_and_run(scope)
 
     def __build(self):
         file_str = self.get(2)
@@ -173,5 +149,32 @@ file does not exist""")
 file is not a file""")
             sys_exit(1)
         
+        optimize = self.flag('optimize')
+        options = CompileOptions(optimize)
+
         scope = ir.Scope(file)
-        compile_to_exe(scope)
+        compile_to_exe(scope, options)
+    
+    def __run(self):
+        file_str = self.get(2)
+        if file_str is None:
+            print("""cure run [file]
+file argument not given""")
+            sys_exit(1)
+        
+        file = Path(file_str)
+        if not file.exists():
+            print("""cure run [file]
+file does not exist""")
+            sys_exit(1)
+        
+        if not file.is_file():
+            print("""cure run [file]
+file is not a file""")
+            sys_exit(1)
+        
+        optimize = self.flag('optimize')
+        options = CompileOptions(optimize)
+        
+        scope = ir.Scope(file)
+        jit(scope, options)

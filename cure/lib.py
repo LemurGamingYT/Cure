@@ -15,7 +15,12 @@ def compile_function(func, module: lir.Module, scope: ir.Scope, arg_types: list[
     info(f'Compiling {func.name}')
 
     c_registry = module.c_registry
-    is_generic = any(param.type == ir.TypeManager.get('any') for param in func.params)
+
+    if len(arg_types) != len(func.params):
+        ir.Position.zero().comptime_error(
+            f'unmatched number of args and params in function call to {func.name}',
+            scope.src
+        )
 
     generic_param_indexes = []
     callee_params = []
@@ -27,7 +32,7 @@ def compile_function(func, module: lir.Module, scope: ir.Scope, arg_types: list[
             callee_params.append(ir.Param(param.pos, param.name, param.type))
     
     callee = func.name
-    if is_generic:
+    if len(generic_param_indexes) > 0:
         generic_types = [
             str(callee_params[i].type)
             for i in generic_param_indexes
@@ -73,7 +78,7 @@ def run_function(
     scope: ir.Scope, name: str, args: list[lir.Value] | None = None
 ):
     if args is None:
-        return []
+        args = []
     
     symbol = scope.symbol_table.get(name)
     if symbol is None:

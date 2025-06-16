@@ -83,25 +83,42 @@ class CodeGeneration(CompilerPass):
             lir.FloatType() # arg
         ]))
 
-        # self.c_registry.register('__acrt_iob_func', lir.FunctionType(
-        #     lir.LiteralStructType([lir.IntType(8).as_pointer()]),
-        #     [lir.IntType(32)])
-        # )
-
-        # self.c_registry.register('fgets', lir.FunctionType(lir.IntType(8).as_pointer(), [
-        #     lir.IntType(8).as_pointer(), # buf
-        #     lir.IntType(32), # size
-        #     lir.LiteralStructType([lir.IntType(8).as_pointer()]) # file
-        # ]))
-
-        # self.c_registry.register('strlen', lir.FunctionType(lir.IntType(64), [
-        #     lir.IntType(8).as_pointer() # str
-        # ]))
-
         self.c_registry.register('memcmp', lir.FunctionType(lir.IntType(1), [
             lir.IntType(8).as_pointer(), # lhs
             lir.IntType(8).as_pointer(), # rhs
             lir.IntType(64) # count
+        ]))
+
+        self.c_registry.register('__acrt_iob_func', lir.FunctionType(
+            lir.LiteralStructType([lir.IntType(8).as_pointer()]),
+            [lir.IntType(32)])
+        )
+
+        self.c_registry.register('fgets', lir.FunctionType(lir.IntType(8).as_pointer(), [
+            lir.IntType(8).as_pointer(), # buf
+            lir.IntType(32), # size
+            lir.LiteralStructType([lir.IntType(8).as_pointer()]) # file
+        ]))
+
+        self.c_registry.register('strlen', lir.FunctionType(lir.IntType(64), [
+            lir.IntType(8).as_pointer() # str
+        ]))
+
+        self.c_registry.register('floorf', lir.FunctionType(lir.FloatType(), [
+            lir.FloatType() # arg
+        ]))
+
+        self.c_registry.register('ceilf', lir.FunctionType(lir.FloatType(), [
+            lir.FloatType() # arg
+        ]))
+
+        self.c_registry.register('powf', lir.FunctionType(lir.FloatType(), [
+            lir.FloatType(), # base
+            lir.FloatType() # exponent
+        ]))
+
+        self.c_registry.register('sqrtf', lir.FunctionType(lir.FloatType(), [
+            lir.FloatType() # arg
         ]))
 
         if scope.target == Target.Windows:
@@ -312,6 +329,7 @@ class CodeGeneration(CompilerPass):
         ret_type = self.run_on(node.type)
         param_types = [self.run_on(param) for param in node.params]
         func = lir.Function(self.module, lir.FunctionType(ret_type, param_types), node.name)
+        setattr(func, 'params', node.params)
         self.scope.symbol_table.add(ir.Symbol(node.name, ir.TypeManager.get('function'), func))
         
         if isinstance(node.body, ir.Body):

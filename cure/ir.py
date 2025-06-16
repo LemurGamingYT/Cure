@@ -45,6 +45,9 @@ def match_to_overloads(func, arg_types: list['Type']):
         # TODO: check for ambiguous function call (function types match multiple overloads)
         return overload
     
+    if not params_match(func, arg_types):
+        return None
+    
     return func
 
 
@@ -164,6 +167,9 @@ class Scope:
             TypeManager.add('bool', lir.IntType(1))
             TypeManager.add('pointer', lir.IntType(8).as_pointer())
             TypeManager.add('function', lir.IntType(8).as_pointer())
+
+            TypeManager.add('Math', lir.IntType(8).as_pointer())
+            TypeManager.add('System', lir.IntType(8).as_pointer())
 
             self.use('builtins', Position.zero())
 
