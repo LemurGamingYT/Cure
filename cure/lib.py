@@ -1,8 +1,8 @@
+from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from logging import debug, info
 from typing import Callable
 from functools import wraps
-from abc import ABC
 
 from llvmlite import ir as lir
 
@@ -224,6 +224,7 @@ class DefinitionContext:
 class Lib(ABC):
     def __init__(self, scope: ir.Scope):
         self.scope = scope
+        self._name = type(self).__name__
 
         self.init_lib()
         self.__add_instance(self)
@@ -235,9 +236,40 @@ class Lib(ABC):
         instance = cls(self.scope)
         self.__add_instance(instance)
 
-        info(f'merged {self.__class__.__name__} and {instance.__class__.__name__}')
+        info(f'merged {self._name} and {instance._name} (Lib)')
+    
+    def add_class(self, cls: type['Class']):
+        instance = cls(self.scope)
+        self.__add_instance(instance)
+
+        info(f'merged {self._name} and {instance._name} (Class)')
     
     def __add_instance(self, instance):
         for v in getattrs(instance).values():
             self.scope.symbol_table.add(ir.Symbol(v.name, ir.TypeManager.get('function'), v))
-            info(f'Added {v.name} from {instance.__class__.__name__} Lib class')
+            info(f'Added {v.name} from {instance._name} Lib class')
+
+@dataclass
+class ClassField:
+    name: str
+    type: ir.Type
+
+class Class(ABC):
+    @abstractmethod
+    def fields(self) -> list[ClassField]:
+        ...
+
+    def __init__(self, scope: ir.Scope):
+        self.scope = scope
+        self._name = type(self).__name__
+
+        if not ir.TypeManager.exists(self._name):
+            field_types = [field.type for field in self.fields()]
+            ir.TypeManager.add(self._name, lir.LiteralStructType(field_types))
+
+        self.__add_instance(self)
+    
+    def __add_instance(self, instance):
+        for v in getattrs(instance).values():
+            self.scope.symbol_table.add(ir.Symbol(v.name, ir.TypeManager.get('function'), v))
+            info(f'Added {v.name} from {self._name} Class')

@@ -1,0 +1,50 @@
+from cure.lib import function, Lib, DefinitionContext
+from cure.ir import Param, Position, TypeManager
+
+
+class boolOperations(Lib):
+    @function([
+        Param(Position.zero(), 'a', TypeManager.get('bool')),
+        Param(Position.zero(), 'b', TypeManager.get('bool'))
+    ], TypeManager.get('bool'))
+    @staticmethod
+    def bool_eq_bool(ctx: DefinitionContext):
+        a = ctx.param('a').value
+        b = ctx.param('b').value
+        return ctx.builder.icmp_signed('==', a, b)
+    
+    @function([
+        Param(Position.zero(), 'a', TypeManager.get('bool')),
+        Param(Position.zero(), 'b', TypeManager.get('bool'))
+    ], TypeManager.get('bool'))
+    @staticmethod
+    def bool_neq_bool(ctx: DefinitionContext):
+        a = ctx.param('a').value
+        b = ctx.param('b').value
+        return ctx.builder.icmp_signed('!=', a, b)
+    
+    @function([
+        Param(Position.zero(), 'a', TypeManager.get('bool')),
+        Param(Position.zero(), 'b', TypeManager.get('bool'))
+    ], TypeManager.get('bool'))
+    @staticmethod
+    def bool_and_bool(ctx: DefinitionContext):
+        a = ctx.param('a').value
+        b = ctx.param('b').value
+        return ctx.builder.and_(a, b)
+    
+    @function([
+        Param(Position.zero(), 'a', TypeManager.get('bool')),
+        Param(Position.zero(), 'b', TypeManager.get('bool'))
+    ], TypeManager.get('bool'))
+    @staticmethod
+    def bool_or_bool(ctx: DefinitionContext):
+        a = ctx.param('a').value
+        b = ctx.param('b').value
+        return ctx.builder.or_(a, b)
+    
+    @function([Param(Position.zero(), 'a', TypeManager.get('bool'))], TypeManager.get('bool'))
+    @staticmethod
+    def not_bool(ctx: DefinitionContext):
+        a = ctx.param('a').value
+        return ctx.builder.not_(a)

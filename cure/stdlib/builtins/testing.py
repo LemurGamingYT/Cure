@@ -1,12 +1,12 @@
+from cure.ir import Param, Position, TypeManager, FunctionFlags
 from cure.lib import function, Lib, DefinitionContext
-from cure import ir
 
 
 class testing(Lib):
     @function([
-        ir.Param(ir.Position.zero(), 'condition', ir.TypeManager.get('bool')),
-        ir.Param(ir.Position.zero(), 'fail_message', ir.TypeManager.get('string'))
-    ], flags=ir.FunctionFlags(public=True))
+        Param(Position.zero(), 'condition', TypeManager.get('bool')),
+        Param(Position.zero(), 'fail_message', TypeManager.get('string'))
+    ], flags=FunctionFlags(public=True))
     @staticmethod
     def assert_(ctx: DefinitionContext):
         condition = ctx.param('condition').value
@@ -15,9 +15,9 @@ class testing(Lib):
             ctx.call('error', [fail_message])
     
     @function([
-        ir.Param(ir.Position.zero(), 'condition', ir.TypeManager.get('bool')),
-        ir.Param(ir.Position.zero(), 'fail_message', ir.TypeManager.get('string'))
-    ], flags=ir.FunctionFlags(public=True))
+        Param(Position.zero(), 'condition', TypeManager.get('bool')),
+        Param(Position.zero(), 'fail_message', TypeManager.get('string'))
+    ], flags=FunctionFlags(public=True))
     @staticmethod
     def assert_not(ctx: DefinitionContext):
         condition = ctx.param('condition').value

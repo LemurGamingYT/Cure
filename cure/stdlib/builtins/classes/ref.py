@@ -3,15 +3,18 @@ from logging import debug
 from llvmlite import ir as lir
 
 from cure.codegen_utils import set_struct_field, get_struct_field_ptr, NULL, get_type_size, cast_value
-from cure.lib import function, Lib, DefinitionContext
-from cure import ir
+from cure.ir import Param, Position, TypeManager, FunctionFlags
+from cure.lib import function, Class, DefinitionContext
 
 
-class Ref(Lib):
+class Ref(Class):
+    def fields(self):
+        return []
+
     @function([
-        ir.Param(ir.Position.zero(), 'data', ir.TypeManager.get('pointer')),
-        ir.Param(ir.Position.zero(), 'destroy_fn', ir.TypeManager.get('any'))
-    ], ir.TypeManager.get('Ref').as_pointer(), flags=ir.FunctionFlags(static=True, method=True))
+        Param(Position.zero(), 'data', TypeManager.get('pointer')),
+        Param(Position.zero(), 'destroy_fn', TypeManager.get('any'))
+    ], TypeManager.get('Ref').as_pointer(), flags=FunctionFlags(static=True, method=True))
     @staticmethod
     def Ref_new(ctx: DefinitionContext):
         malloc = ctx.c_registry.get('malloc')
@@ -19,7 +22,7 @@ class Ref(Lib):
         data = ctx.param('data').value
         destroy_fn = ctx.param('destroy_fn').value
 
-        ref_type = ir.TypeManager.get('Ref')
+        ref_type = TypeManager.get('Ref')
         struct_size = get_type_size(ctx.builder, ref_type.type)
 
         ptr = cast_value(
@@ -36,8 +39,8 @@ class Ref(Lib):
 
         return ptr
     
-    @function([ir.Param(ir.Position.zero(), 'self', ir.TypeManager.get('Ref').as_pointer())],
-              flags=ir.FunctionFlags(method=True))
+    @function([Param(Position.zero(), 'self', TypeManager.get('Ref').as_pointer())],
+              flags=FunctionFlags(method=True))
     @staticmethod
     def Ref_inc(ctx: DefinitionContext):
         self = ctx.param('self').value
@@ -49,8 +52,8 @@ class Ref(Lib):
         new_count = ctx.builder.add(ref_count, one)
         ctx.builder.store(new_count, ref_count_ptr)
     
-    @function([ir.Param(ir.Position.zero(), 'self', ir.TypeManager.get('Ref').as_pointer())],
-              flags=ir.FunctionFlags(method=True))
+    @function([Param(Position.zero(), 'self', TypeManager.get('Ref').as_pointer())],
+              flags=FunctionFlags(method=True))
     @staticmethod
     def Ref_dec(ctx: DefinitionContext):
         self = ctx.param('self').value
@@ -87,14 +90,3 @@ class Ref(Lib):
             
             ctx.builder.store(NULL(), data_ptr_ptr)
             ctx.builder.call(free, [cast_value(ctx.builder, self, lir.IntType(8).as_pointer())])
-    
-
-    @function([ir.Param(ir.Position.zero(), 'ptr', ir.TypeManager.get('any'))], ir.TypeManager.get('any'))
-    @staticmethod
-    def free_wrapper(ctx: DefinitionContext):
-        ptr = ctx.param('ptr').value
-
-        free = ctx.c_registry.get('free')
-
-        ctx.builder.call(free, [ptr])
-        ctx.builder.ret(NULL())

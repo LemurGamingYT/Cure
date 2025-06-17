@@ -1,14 +1,17 @@
 from llvmlite import ir as lir
 
+from cure.stdlib.builtins.operations.string import stringOperations
+from cure.stdlib.builtins.operations.float import floatOperations
+from cure.ir import Param, Position, TypeManager, FunctionFlags
 from cure.lib import function, overload, Lib, DefinitionContext
-from cure.stdlib.builtins.operations import operations
+from cure.stdlib.builtins.operations.bool import boolOperations
+from cure.stdlib.builtins.operations.int import intOperations
+from cure.stdlib.builtins.classes.string import string
+from cure.stdlib.builtins.classes.System import System
+from cure.stdlib.builtins.classes.Math import Math
 from cure.stdlib.builtins.testing import testing
-from cure.stdlib.builtins.string import string
-from cure.stdlib.builtins.System import System
+from cure.stdlib.builtins.classes.ref import Ref
 from cure.stdlib.builtins.casts import casts
-from cure.stdlib.builtins.Math import Math
-from cure.stdlib.builtins.ref import Ref
-from cure import ir
 from cure.codegen_utils import (
     get_struct_field_value, create_static_buffer, NULL_BYTE, cast_value, create_string_constant
 )
@@ -22,10 +25,13 @@ class builtins(Lib):
         self.add_lib(System)
         self.add_lib(string)
         self.add_lib(testing)
-        self.add_lib(operations)
+        self.add_lib(intOperations)
+        self.add_lib(boolOperations)
+        self.add_lib(floatOperations)
+        self.add_lib(stringOperations)
 
-    @function([ir.Param(ir.Position.zero(), 'message', ir.TypeManager.get('string'))],
-              flags=ir.FunctionFlags(public=True))
+    @function([Param(Position.zero(), 'message', TypeManager.get('string'))],
+              flags=FunctionFlags(public=True))
     @staticmethod
     def error(ctx: DefinitionContext):
         exit = ctx.c_registry.get('exit')
@@ -33,10 +39,10 @@ class builtins(Lib):
 
         message = ctx.param('message').value
         ctx.builder.call(puts, [get_struct_field_value(ctx.builder, message, 0)])
-        ctx.builder.call(exit, [lir.Constant(ir.TypeManager.get('int').type, 1)])
+        ctx.builder.call(exit, [lir.Constant(TypeManager.get('int').type, 1)])
 
-    @function([ir.Param(ir.Position.zero(), 'x', ir.TypeManager.get('any'))],
-              flags=ir.FunctionFlags(public=True))
+    @function([Param(Position.zero(), 'x', TypeManager.get('any'))],
+              flags=FunctionFlags(public=True))
     @staticmethod
     def print(ctx: DefinitionContext):
         puts = ctx.c_registry.get('puts')
@@ -45,8 +51,8 @@ class builtins(Lib):
         x_str = ctx.call(f'{x.type}_to_string', [x.value])
         ctx.builder.call(puts, [get_struct_field_value(ctx.builder, x_str, 0)])
 
-    @function([ir.Param(ir.Position.zero(), 'x', ir.TypeManager.get('string'))],
-              flags=ir.FunctionFlags(public=True))
+    @function([Param(Position.zero(), 'x', TypeManager.get('string'))],
+              flags=FunctionFlags(public=True))
     @staticmethod
     def print_literal(ctx: DefinitionContext):
         printf = ctx.c_registry.get('printf')
@@ -54,7 +60,7 @@ class builtins(Lib):
         x = ctx.param('x').value
         ctx.builder.call(printf, [get_struct_field_value(ctx.builder, x, 0)])
     
-    @function(ret_type=ir.TypeManager.get('string'), flags=ir.FunctionFlags(public=True))
+    @function(ret_type=TypeManager.get('string'), flags=FunctionFlags(public=True))
     @staticmethod
     def input(ctx: DefinitionContext):
         acrt_iob_func = ctx.c_registry.get('__acrt_iob_func')
@@ -79,11 +85,11 @@ class builtins(Lib):
             input_len = ctx.builder.sub(input_len, lir.Constant(lir.IntType(64), 1))
 
         return ctx.call('string_new', [
-            buf, cast_value(ctx.builder, input_len, ir.TypeManager.get('int').type)
+            buf, cast_value(ctx.builder, input_len, TypeManager.get('int').type)
         ])
     
-    @overload(input, [ir.Param(ir.Position.zero(), 'prompt', ir.TypeManager.get('string'))],
-              ir.TypeManager.get('string'))
+    @overload(input, [Param(Position.zero(), 'prompt', TypeManager.get('string'))],
+              TypeManager.get('string'))
     @staticmethod
     def input_prompt(ctx: DefinitionContext):
         prompt = ctx.param('prompt').value

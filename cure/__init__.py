@@ -11,9 +11,8 @@ from typing import cast
 from llvmlite import binding as llvm
 
 from cure.passes.code_generation import CodeGeneration
+from cure.parser.ir_builder import CureIRBuilder
 from cure.passes.analyser import Analyser
-from cure.parser.parser import CureParser
-from cure.parser.lexer import CureLexer
 from cure import ir
 
 
@@ -24,11 +23,7 @@ class CompileOptions:
 
 def parse(scope: ir.Scope, _: CompileOptions):
     info(f'Compiling {scope.file.as_posix()}')
-    lexer = CureLexer()
-    tokens = lexer.lex(scope.src)
-
-    parser = CureParser(scope.src)
-    program = cast(ir.Program, parser.parse(tokens))
+    program = CureIRBuilder(scope.src).build()
 
     info(f'Parsed {scope.file.as_posix()}')
     debug(f'IR = {pformat(program)}')

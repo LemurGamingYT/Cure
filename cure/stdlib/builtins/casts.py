@@ -1,7 +1,7 @@
 from llvmlite import ir as lir
 
+from cure.ir import Param, Position, TypeManager, FunctionFlags
 from cure.lib import function, Lib, DefinitionContext
-from cure import ir
 from cure.codegen_utils import (
     create_string_constant, create_ternary, create_static_buffer, cast_value
 )
@@ -9,8 +9,8 @@ from cure.codegen_utils import (
 
 class casts(Lib):
     @function(
-        [ir.Param(ir.Position.zero(), 'x', ir.TypeManager.get('int'))],
-        ir.TypeManager.get('string'), flags=ir.FunctionFlags(method=True)
+        [Param(Position.zero(), 'x', TypeManager.get('int'))],
+        TypeManager.get('string'), flags=FunctionFlags(method=True)
     )
     @staticmethod
     def int_to_string(ctx: DefinitionContext):
@@ -24,12 +24,12 @@ class casts(Lib):
         fmt_ptr = create_string_constant(ctx.module, r'%d')
         ctx.builder.call(snprintf, [buf, buf_size, fmt_ptr, x])
         return ctx.call('string_new', [
-            buf, cast_value(ctx.builder, buf_size, ir.TypeManager.get('int').type)
+            buf, cast_value(ctx.builder, buf_size, TypeManager.get('int').type)
         ])
     
     @function(
-        [ir.Param(ir.Position.zero(), 'x', ir.TypeManager.get('float'))],
-        ir.TypeManager.get('float'), flags=ir.FunctionFlags(method=True)
+        [Param(Position.zero(), 'x', TypeManager.get('float'))],
+        TypeManager.get('string'), flags=FunctionFlags(method=True)
     )
     @staticmethod
     def float_to_string(ctx: DefinitionContext):
@@ -43,20 +43,20 @@ class casts(Lib):
         fmt_ptr = create_string_constant(ctx.module, r'%f')
         ctx.builder.call(snprintf, [buf, buf_size, fmt_ptr, x])
         return ctx.call('string_new', [
-            buf, cast_value(ctx.builder, buf_size, ir.TypeManager.get('int').type)
+            buf, cast_value(ctx.builder, buf_size, TypeManager.get('int').type)
         ])
     
     @function(
-        [ir.Param(ir.Position.zero(), 'x', ir.TypeManager.get('string'))],
-        ir.TypeManager.get('string'), flags=ir.FunctionFlags(method=True)
+        [Param(Position.zero(), 'x', TypeManager.get('string'))],
+        TypeManager.get('string'), flags=FunctionFlags(method=True)
     )
     @staticmethod
     def string_to_string(ctx: DefinitionContext):
         return ctx.param('x').value
     
     @function(
-        [ir.Param(ir.Position.zero(), 'x', ir.TypeManager.get('bool'))],
-        ir.TypeManager.get('string'), flags=ir.FunctionFlags(method=True)
+        [Param(Position.zero(), 'x', TypeManager.get('bool'))],
+        TypeManager.get('string'), flags=FunctionFlags(method=True)
     )
     @staticmethod
     def bool_to_string(ctx: DefinitionContext):
@@ -73,31 +73,31 @@ class casts(Lib):
         return ctx.call('string_new', [ptr, length])
     
     @function(
-        [ir.Param(ir.Position.zero(), 'x', ir.TypeManager.get('nil'))],
-        ir.TypeManager.get('string'), flags=ir.FunctionFlags(method=True)
+        [Param(Position.zero(), 'x', TypeManager.get('nil'))],
+        TypeManager.get('string'), flags=FunctionFlags(method=True)
     )
     @staticmethod
     def nil_to_string(ctx: DefinitionContext):
         return ctx.call('string_new', [
             create_string_constant(ctx.module, 'nil'),
-            lir.Constant(ir.TypeManager.get('int').type, 3)
+            lir.Constant(TypeManager.get('int').type, 3)
         ])
     
 
     @function(
-        [ir.Param(ir.Position.zero(), 'x', ir.TypeManager.get('int'))],
-        ir.TypeManager.get('float')
+        [Param(Position.zero(), 'x', TypeManager.get('int'))],
+        TypeManager.get('float')
     )
     @staticmethod
     def int_to_float(ctx: DefinitionContext):
         x = ctx.param('x').value
-        return cast_value(ctx.builder, x, ir.TypeManager.get('float').type)
+        return cast_value(ctx.builder, x, TypeManager.get('float').type)
     
     @function(
-        [ir.Param(ir.Position.zero(), 'x', ir.TypeManager.get('float'))],
-        ir.TypeManager.get('float')
+        [Param(Position.zero(), 'x', TypeManager.get('float'))],
+        TypeManager.get('float')
     )
     @staticmethod
     def float_to_int(ctx: DefinitionContext):
         x = ctx.param('x').value
-        return cast_value(ctx.builder, x, ir.TypeManager.get('int').type)
+        return cast_value(ctx.builder, x, TypeManager.get('int').type)

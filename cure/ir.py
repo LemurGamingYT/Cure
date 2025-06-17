@@ -340,6 +340,21 @@ class Attribute(Node):
     type: Type = field(default_factory=lambda: TypeManager.get('any'))
 
 @dataclass
+class Cast(Node):
+    obj: Node
+    type: Type
+
+@dataclass
+class Ternary(Node):
+    condition: Node
+    true: Node
+    false: Node
+
+    @property
+    def type(self):
+        return self.true.get_type()
+
+@dataclass
 class Param(Node):
     name: str
     type: Type
@@ -381,6 +396,7 @@ class Return(Node):
 class Variable(Node):
     name: str
     value: Union[Node, None] = None
+    is_const: bool = False
     type: Type = field(default_factory=lambda: TypeManager.get('nil'))
 
 @dataclass

@@ -10,7 +10,7 @@ from cure.target import Target
 from cure import ir
 from cure.codegen_utils import (
     NULL, create_while_loop, store_in_pointer, create_string_constant, get_struct_field_ptr,
-    get_struct_field_value, index_of_type
+    get_struct_field_value, index_of_type, create_ternary
 )
 
 
@@ -119,6 +119,12 @@ class CodeGeneration(CompilerPass):
 
         self.c_registry.register('sqrtf', lir.FunctionType(lir.FloatType(), [
             lir.FloatType() # arg
+        ]))
+
+        self.c_registry.register('strtol', lir.FunctionType(lir.IntType(64), [
+            lir.IntType(8).as_pointer(),
+            lir.IntType(8).as_pointer(),
+            lir.IntType(32)
         ]))
 
         if scope.target == Target.Windows:
@@ -458,3 +464,12 @@ class CodeGeneration(CompilerPass):
     
     def run_on_Attribute(self, _):
         raise NotImplementedError
+    
+    def run_on_Cast(self, _):
+        raise NotImplementedError
+    
+    def run_on_Ternary(self, node: ir.Ternary):
+        return create_ternary(
+            self.builder, self.run_on(node.condition),
+            self.run_on(node.true), self.run_on(node.false)
+        )

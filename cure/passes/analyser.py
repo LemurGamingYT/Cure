@@ -82,7 +82,7 @@ class Analyser(CompilerPass):
         
         var_type = value.get_type() if value is not None else node.type
         self.scope.symbol_table.add(ir.Symbol(node.name, var_type, value))
-        return ir.Variable(node.pos, node.name, value, var_type)
+        return ir.Variable(node.pos, node.name, value, node.is_const, var_type)
     
     def run_on_Assignment(self, node: ir.Assignment):
         symbol = self.scope.symbol_table.get(node.name)
@@ -193,7 +193,24 @@ with argument types: [{', '.join(map(str, arg_types))}]""",
         
         symbol = cast(ir.Symbol, self.scope.symbol_table.get(callee))
         func = symbol.value
-        if func.flags.static and len(args) > 1 and args[0].type == obj.type:
+        if func.flags.static:
             args = args[1:]
         
         return self.run_on(ir.Call(node.pos, callee, args))
+    
+    def run_on_Cast(self, node: ir.Cast):
+        obj = self.run_on(node.obj)
+        to_type = self.run_on(node.type)
+        callee = f'{obj.get_type()}_to_{to_type}'
+        if not self.scope.symbol_table.get(callee):
+            node.pos.comptime_error(
+                f'cannot cast type \'{obj.get_type()}\' to type \'{to_type}\'',
+                self.scope.src
+            )
+        
+        return self.run_on(ir.Call(node.pos, callee, [obj]))
+
+    def run_on_Ternary(self, node: ir.Ternary):
+        return ir.Ternary(
+            node.pos, self.run_on(node.condition), self.run_on(node.true), self.run_on(node.false)
+        )
