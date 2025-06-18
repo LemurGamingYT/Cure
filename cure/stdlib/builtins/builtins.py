@@ -51,6 +51,8 @@ class builtins(Lib):
         x_str = ctx.call(f'{x.type}_to_string', [x.value])
         ctx.builder.call(puts, [get_struct_field_value(ctx.builder, x_str, 0)])
 
+        # TODO: call Ref_dec
+
     @function([Param(Position.zero(), 'x', TypeManager.get('string'))],
               flags=FunctionFlags(public=True))
     @staticmethod
@@ -59,6 +61,8 @@ class builtins(Lib):
 
         x = ctx.param('x').value
         ctx.builder.call(printf, [get_struct_field_value(ctx.builder, x, 0)])
+
+        # TODO: call Ref_dec
     
     @function(ret_type=TypeManager.get('string'), flags=FunctionFlags(public=True))
     @staticmethod

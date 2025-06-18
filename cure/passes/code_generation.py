@@ -127,6 +127,11 @@ class CodeGeneration(CompilerPass):
             lir.IntType(32)
         ]))
 
+        self.c_registry.register('strtod', lir.FunctionType(lir.IntType(64), [
+            lir.IntType(8).as_pointer(),
+            lir.IntType(8).as_pointer()
+        ]))
+
         if scope.target == Target.Windows:
             self.c_registry.register('GetCurrentProcessId', lir.FunctionType(lir.IntType(32), []))
         elif scope.target == Target.Linux:

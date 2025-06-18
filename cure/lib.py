@@ -22,23 +22,18 @@ def compile_function(func, module: lir.Module, scope: ir.Scope, arg_types: list[
             scope.src
         )
 
-    generic_param_indexes = []
+    generic_types = []
     callee_params = []
     for i, (arg_type, param) in enumerate(zip(arg_types, func.params)):
         if param.type == ir.TypeManager.get('any'):
             callee_params.append(ir.Param(param.pos, param.name, arg_type))
-            generic_param_indexes.append(i)
+            generic_types.append(arg_type)
         else:
             callee_params.append(ir.Param(param.pos, param.name, param.type))
     
     callee = func.name
-    if len(generic_param_indexes) > 0:
-        generic_types = [
-            str(callee_params[i].type)
-            for i in generic_param_indexes
-        ]
-
-        callee += '_'.join(map(lambda x: f'_{x}', generic_types))
+    if len(generic_types) > 0:
+        callee += ''.join(map(lambda x: f'_{x}', generic_types))
         debug(f'Generic function name: {callee}')
     
     if callee in module.globals:
