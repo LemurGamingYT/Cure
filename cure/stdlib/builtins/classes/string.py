@@ -14,7 +14,7 @@ class string(Class):
         Param(Position.zero(), 'length', TypeManager.get('int'))
     ], TypeManager.get('string'), flags=FunctionFlags(method=True))
     @staticmethod
-    def string_new(ctx: DefinitionContext):
+    def new(ctx: DefinitionContext):
         literal = ctx.param('literal').value
         length = cast_value(ctx.builder, ctx.param('length').value, lir.IntType(64))
         string_type = TypeManager.get('string').type
@@ -48,7 +48,7 @@ class string(Class):
         TypeManager.get('int'), flags=FunctionFlags(method=True)
     )
     @staticmethod
-    def string_length(ctx: DefinitionContext):
+    def length(ctx: DefinitionContext):
         s = ctx.param('s').value
         length = get_struct_field_value(ctx.builder, s, 1)
         return cast_value(ctx.builder, length, TypeManager.get('int').type)
@@ -58,7 +58,7 @@ class string(Class):
         TypeManager.get('int'), FunctionFlags(method=True)
     )
     @staticmethod
-    def string_parse_int(ctx: DefinitionContext):
+    def parse_int(ctx: DefinitionContext):
         s = ctx.param('s').value
 
         strtol = ctx.c_registry.get('strtol')
@@ -73,7 +73,7 @@ class string(Class):
         TypeManager.get('float'), FunctionFlags(method=True)
     )
     @staticmethod
-    def string_parse_float(ctx: DefinitionContext):
+    def parse_float(ctx: DefinitionContext):
         s = ctx.param('s').value
         
         strtod = ctx.c_registry.get('strtod')

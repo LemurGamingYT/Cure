@@ -1,6 +1,6 @@
 from llvmlite import ir as lir
 
-from cure.codegen_utils import create_string_constant
+from cure.codegen_utils import create_string_constant, float_zero
 from cure.lib import function, Lib, DefinitionContext
 from cure.ir import Param, Position, TypeManager
 
@@ -45,18 +45,10 @@ class floatOperations(Lib):
         a = ctx.param('a').value
         b = ctx.param('b').value
 
-        zero = lir.Constant(TypeManager.get('float').type, 0.0)
-        div_by_zero = ctx.builder.fcmp_ordered('==', b, zero)
+        div_by_zero = ctx.builder.fcmp_ordered('==', b, float_zero())
         
         with ctx.builder.if_then(div_by_zero):
-            err_str = 'division by zero'
-            err_msg = create_string_constant(ctx.module, err_str)
-            err_string_struct = ctx.call('string_new', [
-                err_msg, lir.Constant(lir.IntType(64), len(err_str))
-            ])
-
-            ctx.call('error', [err_string_struct])
-            ctx.builder.ret(zero)
+            ctx.error('division by zero')
         
         return ctx.builder.fdiv(a, b)
     

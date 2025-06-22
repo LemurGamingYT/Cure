@@ -43,6 +43,7 @@ atom
 expr
     : LPAREN type RPAREN expr #cast
     | atom #atom_expr
+    // | NEW type LBRACK RBRACK #newArray
     | expr LPAREN args? RPAREN #call
     | expr DOT ID (LPAREN args? RPAREN)? #attr
     | expr IF expr ELSE expr #ternary
@@ -56,6 +57,7 @@ expr
 
 // Basic keywords
 IF: 'if';
+NEW: 'new';
 FUNC: 'fn';
 ELSE: 'else';
 CONST: 'const';
@@ -97,6 +99,8 @@ LPAREN: '(';
 RPAREN: ')';
 LBRACE: '{';
 RBRACE: '}';
+LBRACK: '[';
+RBRACK: ']';
 RARROW: '<-';
 RETURNS: '->';
 

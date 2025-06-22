@@ -214,3 +214,6 @@ with argument types: [{', '.join(map(str, arg_types))}]""",
         return ir.Ternary(
             node.pos, self.run_on(node.condition), self.run_on(node.true), self.run_on(node.false)
         )
+    
+    def run_on_NewArray(self, node: ir.NewArray):
+        return ir.NewArray(node.pos, self.run_on(node.array_type))

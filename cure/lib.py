@@ -6,7 +6,7 @@ from functools import wraps
 
 from llvmlite import ir as lir
 
-from cure.codegen_utils import NULL, store_in_pointer
+from cure.codegen_utils import NULL, store_in_pointer, create_string_constant
 from cure.c_registry import CRegistry
 from cure import ir
 
@@ -91,7 +91,7 @@ def run_function(
 
 
 def function(params: list[ir.Param] | None = None, ret_type: ir.Type | None = None,
-             flags: ir.FunctionFlags | None = None):
+             flags: ir.FunctionFlags | None = None, name: str | None = None):
     if params is None:
         params = []
     
@@ -102,10 +102,9 @@ def function(params: list[ir.Param] | None = None, ret_type: ir.Type | None = No
         flags = ir.FunctionFlags()
     
     def decorator(func):
-        name = func.__name__
-        if name.endswith('_'):
-            name = name[:-1]
+        nonlocal name
 
+        name = name or func.__name__
         func.function = True
         func.name = name
         func.params = params
@@ -115,8 +114,6 @@ def function(params: list[ir.Param] | None = None, ret_type: ir.Type | None = No
 
         @wraps(func)
         def wrapper(*args):
-            nonlocal name
-
             _, module, scope, arg_types = args
             return compile_function(func, module, scope, arg_types)
         
@@ -125,7 +122,7 @@ def function(params: list[ir.Param] | None = None, ret_type: ir.Type | None = No
     return decorator
 
 def overload(overload_of: Callable, params: list[ir.Param] | None = None,
-             ret_type: ir.Type | None = None):
+             ret_type: ir.Type | None = None, name: str | None = None):
     if params is None:
         params = []
     
@@ -133,9 +130,9 @@ def overload(overload_of: Callable, params: list[ir.Param] | None = None,
         ret_type = ir.TypeManager.get('nil')
     
     def decorator(func):
-        name = func.__name__
-        if name.endswith('_'):
-            name = name[:-1]
+        nonlocal name
+        
+        name = name or func.__name__
 
         func.function = True
         func.name = name
@@ -146,8 +143,6 @@ def overload(overload_of: Callable, params: list[ir.Param] | None = None,
 
         @wraps(func)
         def wrapper(*args):
-            nonlocal name
-
             module, scope, arg_types = args
             return compile_function(func, module, scope, arg_types)
         
@@ -215,6 +210,15 @@ class DefinitionContext:
     
     def call(self, name: str, args: list[lir.Value] | None = None):
         return run_function(self.pos, self.builder, self.module, self.scope, name, args)
+    
+    def error(self, message: str):
+        err_msg = create_string_constant(self.module, message)
+        err_string_struct = self.call('string_new', [
+            err_msg, lir.Constant(lir.IntType(32), len(message))
+        ])
+
+        self.call('error', [err_string_struct])
+        self.builder.unreachable()
 
 class Lib(ABC):
     def __init__(self, scope: ir.Scope):
@@ -266,5 +270,8 @@ class Class(ABC):
     
     def __add_instance(self, instance):
         for v in getattrs(instance).values():
-            self.scope.symbol_table.add(ir.Symbol(v.name, ir.TypeManager.get('function'), v))
-            info(f'Added {v.name} from {self._name} Class')
+            name = f'{self._name}_{v.name}'
+            v.__wrapped__.name = name
+            
+            self.scope.symbol_table.add(ir.Symbol(name, ir.TypeManager.get('function'), v))
+            info(f'Added {name} from {self._name} Class')

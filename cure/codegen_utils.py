@@ -3,11 +3,23 @@ from typing import Any
 from llvmlite import ir
 
 
-def NULL():
-    return ir.Constant(ir.IntType(8).as_pointer(), None) # void*
+def NULL(type: ir.Type | None = None):
+    if type is None:
+        type = ir.IntType(8).as_pointer() # void*
+    
+    if not isinstance(type, ir.PointerType):
+        type = type.as_pointer()
+    
+    return ir.Constant(type, None)
 
 def NULL_BYTE():
     return ir.Constant(ir.IntType(8), None) # \0
+
+def zero(int_width: int):
+    return ir.Constant(ir.IntType(int_width), 0)
+
+def float_zero():
+    return ir.Constant(ir.FloatType(), 0.0)
 
 def store_in_pointer(builder: ir.IRBuilder, type: ir.Type, value: ir.Value, name: str = ''):
     """Stores a value in as a pointer"""

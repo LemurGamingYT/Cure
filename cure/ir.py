@@ -103,6 +103,14 @@ class TypeManager:
     type_map: dict[str, lir.Type] = {}
 
     @staticmethod
+    def create_function_type(ret_type: 'Type', param_types: list['Type']):
+        return Type(
+            Position.zero(),
+            f'({', '.join(map(str, param_types))}) -> {ret_type}',
+            lir.FunctionType(ret_type.type, [param.type for param in param_types])
+        )
+
+    @staticmethod
     def get(name: str) -> Any:
         llvm_type = TypeManager.type_map.get(name)
         if llvm_type is None:
@@ -151,8 +159,8 @@ class Scope:
             TypeManager.add('Ref', lir.LiteralStructType([
                 lir.IntType(8).as_pointer(), # void*
                 lir.FunctionType(
-                    TypeManager.get('nil').type,
-                    [TypeManager.get('any').type]
+                    lir.IntType(8).as_pointer(),
+                    [lir.IntType(8).as_pointer()]
                 ).as_pointer(), # nil (*destroy)(void*)
                 lir.IntType(64), # size_t
             ]))
@@ -160,9 +168,16 @@ class Scope:
             TypeManager.add('int', lir.IntType(32))
             TypeManager.add('float', lir.FloatType())
             TypeManager.add('string', lir.LiteralStructType([
-                lir.IntType(8).as_pointer(), # char*
-                lir.IntType(64), # size_t
-                TypeManager.get('Ref').type.as_pointer() # Ref*
+                lir.IntType(8).as_pointer(), # ptr
+                lir.IntType(64), # length
+                TypeManager.get('Ref').type.as_pointer() # ref
+            ]))
+            TypeManager.add('array', lir.LiteralStructType([
+                lir.IntType(8).as_pointer(), # elements
+                lir.IntType(64), # length
+                lir.IntType(64), # capacity
+                lir.IntType(64), # element_size
+                TypeManager.get('Ref').type.as_pointer() # ref
             ]))
             TypeManager.add('bool', lir.IntType(1))
             TypeManager.add('pointer', lir.IntType(8).as_pointer())
@@ -353,6 +368,14 @@ class Ternary(Node):
     @property
     def type(self):
         return self.true.get_type()
+
+@dataclass
+class NewArray(Node):
+    array_type: Type
+
+    @property
+    def type(self):
+        return TypeManager.get('array')
 
 @dataclass
 class Param(Node):

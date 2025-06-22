@@ -1,6 +1,6 @@
 from llvmlite import ir as lir
 
-from cure.codegen_utils import create_string_constant
+from cure.codegen_utils import create_string_constant, zero
 from cure.lib import function, Lib, DefinitionContext
 from cure.ir import Param, Position, TypeManager
 
@@ -45,18 +45,10 @@ class intOperations(Lib):
         a = ctx.param('a').value
         b = ctx.param('b').value
 
-        zero = lir.Constant(TypeManager.get('int').type, 0)
-        div_by_zero = ctx.builder.icmp_signed('==', b, zero)
+        div_by_zero = ctx.builder.icmp_signed('==', b, zero(32))
         
         with ctx.builder.if_then(div_by_zero):
-            err_str = 'division by zero'
-            err_msg = create_string_constant(ctx.module, err_str)
-            err_string_struct = ctx.call('string_new', [
-                err_msg, lir.Constant(lir.IntType(64), len(err_str))
-            ])
-
-            ctx.call('error', [err_string_struct])
-            ctx.builder.ret(zero)
+            ctx.error('division by zero')
         
         return ctx.builder.sdiv(a, b)
     
@@ -68,8 +60,8 @@ class intOperations(Lib):
     def int_mod_int(ctx: DefinitionContext):
         a = ctx.param('a').value
         b = ctx.param('b').value
-        zero = lir.Constant(TypeManager.get('int').type, 0)
-        div_by_zero = ctx.builder.icmp_signed('==', b, zero)
+
+        div_by_zero = ctx.builder.icmp_signed('==', b, zero(32))
         
         with ctx.builder.if_then(div_by_zero):
             err_str = 'modulo by zero'
@@ -79,7 +71,7 @@ class intOperations(Lib):
             ])
 
             ctx.call('error', [err_string_struct])
-            ctx.builder.ret(zero)
+            ctx.builder.ret(zero(32))
         
         return ctx.builder.srem(a, b)
     

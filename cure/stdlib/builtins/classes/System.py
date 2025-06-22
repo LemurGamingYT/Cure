@@ -9,7 +9,7 @@ from cure.target import Target
 class System(Lib):
     @function(ret_type=TypeManager.get('string'), flags=FunctionFlags(static=True, property=True))
     @staticmethod
-    def System_os(ctx: DefinitionContext):
+    def os(ctx: DefinitionContext):
         target = ctx.scope.target
         os_name = 'unknown'
         if target == Target.Windows:
@@ -25,14 +25,14 @@ class System(Lib):
     @function([Param(Position.zero(), 'exit_code', TypeManager.get('int'))],
               flags=FunctionFlags(static=True, method=True))
     @staticmethod
-    def System_exit(ctx: DefinitionContext):
+    def exit(ctx: DefinitionContext):
         exit_code = ctx.param('exit_code').value
 
         exit = ctx.c_registry.get('exit')
 
         ctx.builder.call(exit, [exit_code])
     
-    @overload(System_exit)
+    @overload(exit)
     @staticmethod
-    def System_exit_fine(ctx: DefinitionContext):
+    def exit_fine(ctx: DefinitionContext):
         return ctx.call('System_exit', [lir.Constant(TypeManager.get('int').type, 0)])

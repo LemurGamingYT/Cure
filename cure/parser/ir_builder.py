@@ -65,7 +65,7 @@ class CureIRBuilder(CureVisitor):
         elif ctx.FLOAT() is not None:
             return ir.Float(pos, float(txt))
         elif ctx.STRING() is not None:
-            return ir.String(pos, txt)
+            return ir.String(pos, txt[1:-1])
         elif ctx.BOOL() is not None:
             return ir.Bool(pos, True if txt == 'true' else False)
         elif ctx.NIL() is not None:
@@ -130,6 +130,9 @@ class CureIRBuilder(CureVisitor):
     
     def visitMultiplication(self, ctx):
         return self.visitOperation(ctx)
+    
+    def visitNewArray(self, ctx):
+        return ir.NewArray(to_pos(ctx), self.visit(ctx.type_()))
     
     def visitParam(self, ctx):
         return ir.Param(to_pos(ctx), ctx.ID().getText(), self.visit(ctx.type_()))

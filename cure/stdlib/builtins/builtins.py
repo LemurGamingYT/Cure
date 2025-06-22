@@ -8,12 +8,14 @@ from cure.stdlib.builtins.operations.bool import boolOperations
 from cure.stdlib.builtins.operations.int import intOperations
 from cure.stdlib.builtins.classes.string import string
 from cure.stdlib.builtins.classes.System import System
+# from cure.stdlib.builtins.classes.array import array
 from cure.stdlib.builtins.classes.Math import Math
+from cure.stdlib.builtins.classes.Ref import Ref
 from cure.stdlib.builtins.testing import testing
-from cure.stdlib.builtins.classes.ref import Ref
 from cure.stdlib.builtins.casts import casts
 from cure.codegen_utils import (
-    get_struct_field_value, create_static_buffer, NULL_BYTE, cast_value, create_string_constant
+    get_struct_field_value, create_static_buffer, NULL_BYTE, cast_value, create_string_constant,
+    index_of_type, get_struct_field_ptr
 )
 
 
@@ -22,6 +24,7 @@ class builtins(Lib):
         self.add_lib(Ref)
         self.add_lib(Math)
         self.add_lib(casts)
+        # self.add_lib(array)
         self.add_lib(System)
         self.add_lib(string)
         self.add_lib(testing)
@@ -51,7 +54,12 @@ class builtins(Lib):
         x_str = ctx.call(f'{x.type}_to_string', [x.value])
         ctx.builder.call(puts, [get_struct_field_value(ctx.builder, x_str, 0)])
 
-        # TODO: call Ref_dec
+        # manually free the string (because the CodeGeneration's memory management does not apply here)
+        ref_index = index_of_type(x_str.type, TypeManager.get('Ref').type.as_pointer())
+        ref = ctx.builder.load(get_struct_field_ptr(ctx.builder, x_str, ref_index)) if\
+            isinstance(x_str.type, lir.PointerType) else\
+            get_struct_field_value(ctx.builder, x_str, ref_index)
+        ctx.call('Ref_dec', [ref])
 
     @function([Param(Position.zero(), 'x', TypeManager.get('string'))],
               flags=FunctionFlags(public=True))
@@ -61,8 +69,6 @@ class builtins(Lib):
 
         x = ctx.param('x').value
         ctx.builder.call(printf, [get_struct_field_value(ctx.builder, x, 0)])
-
-        # TODO: call Ref_dec
     
     @function(ret_type=TypeManager.get('string'), flags=FunctionFlags(public=True))
     @staticmethod

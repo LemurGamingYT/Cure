@@ -16,7 +16,7 @@ class Ref(Class):
         Param(Position.zero(), 'destroy_fn', TypeManager.get('any'))
     ], TypeManager.get('Ref').as_pointer(), flags=FunctionFlags(static=True, method=True))
     @staticmethod
-    def Ref_new(ctx: DefinitionContext):
+    def new(ctx: DefinitionContext):
         malloc = ctx.c_registry.get('malloc')
 
         data = ctx.param('data').value
@@ -42,7 +42,7 @@ class Ref(Class):
     @function([Param(Position.zero(), 'self', TypeManager.get('Ref').as_pointer())],
               flags=FunctionFlags(method=True))
     @staticmethod
-    def Ref_inc(ctx: DefinitionContext):
+    def inc(ctx: DefinitionContext):
         self = ctx.param('self').value
         ref_count_ptr = get_struct_field_ptr(ctx.builder, self, 2)
         debug(f'Incrementing Ref pointer {self}')
@@ -55,7 +55,7 @@ class Ref(Class):
     @function([Param(Position.zero(), 'self', TypeManager.get('Ref').as_pointer())],
               flags=FunctionFlags(method=True))
     @staticmethod
-    def Ref_dec(ctx: DefinitionContext):
+    def dec(ctx: DefinitionContext):
         self = ctx.param('self').value
 
         ref_count_ptr = get_struct_field_ptr(ctx.builder, self, 2)

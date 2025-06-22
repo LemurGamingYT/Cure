@@ -6,11 +6,10 @@ from llvmlite import ir as lir, binding as llvm
 from cure.c_registry import CRegistry
 from cure.passes import CompilerPass
 from cure.lib import run_function
-from cure.target import Target
 from cure import ir
 from cure.codegen_utils import (
     NULL, create_while_loop, store_in_pointer, create_string_constant, get_struct_field_ptr,
-    get_struct_field_value, index_of_type, create_ternary
+    get_struct_field_value, index_of_type, create_ternary, get_type_size, cast_value
 )
 
 
@@ -38,104 +37,7 @@ class CodeGeneration(CompilerPass):
         info('Created module and builder')
         debug(f'Target = {self.module.triple}')
 
-        self.c_registry = CRegistry(self.module)
-        self.c_registry.register('snprintf', lir.FunctionType(lir.IntType(32), [
-            lir.IntType(8).as_pointer(), # buf
-            lir.IntType(64), # buflen
-            lir.IntType(8).as_pointer() # fmt
-        ], True))
-
-        self.c_registry.register('puts', lir.FunctionType(lir.IntType(32), [
-            lir.IntType(8).as_pointer() # str
-        ]))
-
-        self.c_registry.register('printf', lir.FunctionType(lir.IntType(32), [
-            lir.IntType(8).as_pointer() # fmt
-        ], var_arg=True))
-
-        self.c_registry.register('exit', lir.FunctionType(lir.VoidType(), [
-            lir.IntType(32) # exitcode
-        ]))
-
-        self.c_registry.register('malloc', lir.FunctionType(lir.IntType(8).as_pointer(), [
-            lir.IntType(64) # size
-        ]))
-
-        self.c_registry.register('free', lir.FunctionType(lir.VoidType(), [
-            lir.IntType(8).as_pointer() # ptr
-        ]))
-
-        self.c_registry.register('memcpy', lir.FunctionType(lir.IntType(8).as_pointer(), [
-            lir.IntType(8).as_pointer(), # dest
-            lir.IntType(8).as_pointer(), # src
-            lir.IntType(64) # size
-        ]))
-
-        self.c_registry.register('sinf', lir.FunctionType(lir.FloatType(), [
-            lir.FloatType() # arg
-        ]))
-
-        self.c_registry.register('cosf', lir.FunctionType(lir.FloatType(), [
-            lir.FloatType() # arg
-        ]))
-
-        self.c_registry.register('tanf', lir.FunctionType(lir.FloatType(), [
-            lir.FloatType() # arg
-        ]))
-
-        self.c_registry.register('memcmp', lir.FunctionType(lir.IntType(1), [
-            lir.IntType(8).as_pointer(), # lhs
-            lir.IntType(8).as_pointer(), # rhs
-            lir.IntType(64) # count
-        ]))
-
-        self.c_registry.register('__acrt_iob_func', lir.FunctionType(
-            lir.LiteralStructType([lir.IntType(8).as_pointer()]),
-            [lir.IntType(32)])
-        )
-
-        self.c_registry.register('fgets', lir.FunctionType(lir.IntType(8).as_pointer(), [
-            lir.IntType(8).as_pointer(), # buf
-            lir.IntType(32), # size
-            lir.LiteralStructType([lir.IntType(8).as_pointer()]) # file
-        ]))
-
-        self.c_registry.register('strlen', lir.FunctionType(lir.IntType(64), [
-            lir.IntType(8).as_pointer() # str
-        ]))
-
-        self.c_registry.register('floorf', lir.FunctionType(lir.FloatType(), [
-            lir.FloatType() # arg
-        ]))
-
-        self.c_registry.register('ceilf', lir.FunctionType(lir.FloatType(), [
-            lir.FloatType() # arg
-        ]))
-
-        self.c_registry.register('powf', lir.FunctionType(lir.FloatType(), [
-            lir.FloatType(), # base
-            lir.FloatType() # exponent
-        ]))
-
-        self.c_registry.register('sqrtf', lir.FunctionType(lir.FloatType(), [
-            lir.FloatType() # arg
-        ]))
-
-        self.c_registry.register('strtol', lir.FunctionType(lir.IntType(64), [
-            lir.IntType(8).as_pointer(),
-            lir.IntType(8).as_pointer(),
-            lir.IntType(32)
-        ]))
-
-        self.c_registry.register('strtod', lir.FunctionType(lir.IntType(64), [
-            lir.IntType(8).as_pointer(),
-            lir.IntType(8).as_pointer()
-        ]))
-
-        if scope.target == Target.Windows:
-            self.c_registry.register('GetCurrentProcessId', lir.FunctionType(lir.IntType(32), []))
-        elif scope.target == Target.Linux:
-            self.c_registry.register('getpid', lir.FunctionType(lir.IntType(32), []))
+        self.c_registry = CRegistry(self.module, scope)
 
         debug(f'Registered: {', '.join(self.c_registry.get_registered_functions())}')
 
@@ -209,8 +111,8 @@ class CodeGeneration(CompilerPass):
         self.scope = cast(ir.Scope, self.scope.parent)
     
     def run_on_If(self, node: ir.If):
-        function = self.builder.function
-        merge_block = function.append_basic_block('if_merge')
+        func = self.builder.function
+        merge_block = func.append_basic_block('if_merge')
         
         # Handle simple if-else case
         if not hasattr(node, 'elseifs') or not node.elseifs:
@@ -221,13 +123,13 @@ class CodeGeneration(CompilerPass):
 
     def _build_simple_if_else(self, node: ir.If, merge_block):
         """Build simple if-else"""
-        function = self.builder.function
+        func = self.builder.function
         
-        then_block = function.append_basic_block('if_then')
+        then_block = func.append_basic_block('if_then')
         else_block = None
         
         if hasattr(node, 'else_body') and node.else_body:
-            else_block = function.append_basic_block('if_else')
+            else_block = func.append_basic_block('if_else')
         
         # Test condition
         condition = self.run_on(node.condition)
@@ -252,21 +154,21 @@ class CodeGeneration(CompilerPass):
 
     def _build_if_elif_else(self, node: ir.If, merge_block):
         """Build if-elif-else chain manually"""
-        function = self.builder.function
+        func = self.builder.function
         
         # Create all blocks first
-        then_block = function.append_basic_block('if_then')
+        then_block = func.append_basic_block('if_then')
         
         elif_test_blocks = []
         elif_then_blocks = []
         
         for i, elif_node in enumerate(node.elseifs):
-            elif_test_blocks.append(function.append_basic_block(f'elif_test_{i}'))
-            elif_then_blocks.append(function.append_basic_block(f'elif_then_{i}'))
+            elif_test_blocks.append(func.append_basic_block(f'elif_test_{i}'))
+            elif_then_blocks.append(func.append_basic_block(f'elif_then_{i}'))
         
         else_block = None
         if hasattr(node, 'else_body') and node.else_body:
-            else_block = function.append_basic_block('if_else')
+            else_block = func.append_basic_block('if_else')
         
         # Build main if condition
         condition = self.run_on(node.condition)
@@ -341,6 +243,7 @@ class CodeGeneration(CompilerPass):
         param_types = [self.run_on(param) for param in node.params]
         func = lir.Function(self.module, lir.FunctionType(ret_type, param_types), node.name)
         setattr(func, 'params', node.params)
+
         self.scope.symbol_table.add(ir.Symbol(node.name, ir.TypeManager.get('function'), func))
         
         if isinstance(node.body, ir.Body):
@@ -478,3 +381,11 @@ class CodeGeneration(CompilerPass):
             self.builder, self.run_on(node.condition),
             self.run_on(node.true), self.run_on(node.false)
         )
+    
+    def run_on_NewArray(self, node: ir.NewArray):
+        return run_function(node.pos, self.builder, self.module, self.scope, 'array_new', [
+            lir.Constant(lir.IntType(32), 10), cast_value(
+                self.builder, get_type_size(self.builder, node.array_type.type),
+                ir.TypeManager.get('int').type
+            )
+        ])
