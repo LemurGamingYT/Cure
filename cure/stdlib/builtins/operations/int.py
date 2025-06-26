@@ -10,8 +10,7 @@ class intOperations(Lib):
         Param(Position.zero(), 'a', TypeManager.get('int')),
         Param(Position.zero(), 'b', TypeManager.get('int'))
     ], TypeManager.get('int'))
-    @staticmethod
-    def int_add_int(ctx: DefinitionContext):
+    def int_add_int(self, ctx: DefinitionContext):
         a = ctx.param('a').value
         b = ctx.param('b').value
         return ctx.builder.add(a, b)
@@ -20,8 +19,7 @@ class intOperations(Lib):
         Param(Position.zero(), 'a', TypeManager.get('int')),
         Param(Position.zero(), 'b', TypeManager.get('int'))
     ], TypeManager.get('int'))
-    @staticmethod
-    def int_sub_int(ctx: DefinitionContext):
+    def int_sub_int(self, ctx: DefinitionContext):
         a = ctx.param('a').value
         b = ctx.param('b').value
         return ctx.builder.sub(a, b)
@@ -30,8 +28,7 @@ class intOperations(Lib):
         Param(Position.zero(), 'a', TypeManager.get('int')),
         Param(Position.zero(), 'b', TypeManager.get('int'))
     ], TypeManager.get('int'))
-    @staticmethod
-    def int_mul_int(ctx: DefinitionContext):
+    def int_mul_int(self, ctx: DefinitionContext):
         a = ctx.param('a').value
         b = ctx.param('b').value
         return ctx.builder.mul(a, b)
@@ -40,8 +37,7 @@ class intOperations(Lib):
         Param(Position.zero(), 'a', TypeManager.get('int')),
         Param(Position.zero(), 'b', TypeManager.get('int'))
     ], TypeManager.get('int'))
-    @staticmethod
-    def int_div_int(ctx: DefinitionContext):
+    def int_div_int(self, ctx: DefinitionContext):
         a = ctx.param('a').value
         b = ctx.param('b').value
 
@@ -56,8 +52,7 @@ class intOperations(Lib):
         Param(Position.zero(), 'a', TypeManager.get('int')),
         Param(Position.zero(), 'b', TypeManager.get('int'))
     ], TypeManager.get('int'))
-    @staticmethod
-    def int_mod_int(ctx: DefinitionContext):
+    def int_mod_int(self, ctx: DefinitionContext):
         a = ctx.param('a').value
         b = ctx.param('b').value
 
@@ -79,8 +74,7 @@ class intOperations(Lib):
         Param(Position.zero(), 'a', TypeManager.get('int')),
         Param(Position.zero(), 'b', TypeManager.get('int'))
     ], TypeManager.get('bool'))
-    @staticmethod
-    def int_eq_int(ctx: DefinitionContext):
+    def int_eq_int(self, ctx: DefinitionContext):
         a = ctx.param('a').value
         b = ctx.param('b').value
         return ctx.builder.icmp_signed('==', a, b)
@@ -89,8 +83,7 @@ class intOperations(Lib):
         Param(Position.zero(), 'a', TypeManager.get('int')),
         Param(Position.zero(), 'b', TypeManager.get('int'))
     ], TypeManager.get('bool'))
-    @staticmethod
-    def int_neq_int(ctx: DefinitionContext):
+    def int_neq_int(self, ctx: DefinitionContext):
         a = ctx.param('a').value
         b = ctx.param('b').value
         return ctx.builder.icmp_signed('!=', a, b)
@@ -99,8 +92,7 @@ class intOperations(Lib):
         Param(Position.zero(), 'a', TypeManager.get('int')),
         Param(Position.zero(), 'b', TypeManager.get('int'))
     ], TypeManager.get('bool'))
-    @staticmethod
-    def int_lt_int(ctx: DefinitionContext):
+    def int_lt_int(self, ctx: DefinitionContext):
         a = ctx.param('a').value
         b = ctx.param('b').value
         return ctx.builder.icmp_signed('<', a, b)
@@ -109,8 +101,7 @@ class intOperations(Lib):
         Param(Position.zero(), 'a', TypeManager.get('int')),
         Param(Position.zero(), 'b', TypeManager.get('int'))
     ], TypeManager.get('bool'))
-    @staticmethod
-    def int_gt_int(ctx: DefinitionContext):
+    def int_gt_int(self, ctx: DefinitionContext):
         a = ctx.param('a').value
         b = ctx.param('b').value
         return ctx.builder.icmp_signed('>', a, b)
@@ -119,8 +110,7 @@ class intOperations(Lib):
         Param(Position.zero(), 'a', TypeManager.get('int')),
         Param(Position.zero(), 'b', TypeManager.get('int'))
     ], TypeManager.get('bool'))
-    @staticmethod
-    def int_lte_int(ctx: DefinitionContext):
+    def int_lte_int(self, ctx: DefinitionContext):
         a = ctx.param('a').value
         b = ctx.param('b').value
         return ctx.builder.icmp_signed('<=', a, b)
@@ -129,8 +119,7 @@ class intOperations(Lib):
         Param(Position.zero(), 'a', TypeManager.get('int')),
         Param(Position.zero(), 'b', TypeManager.get('int'))
     ], TypeManager.get('bool'))
-    @staticmethod
-    def int_gte_int(ctx: DefinitionContext):
+    def int_gte_int(self, ctx: DefinitionContext):
         a = ctx.param('a').value
         b = ctx.param('b').value
         return ctx.builder.icmp_signed('>=', a, b)

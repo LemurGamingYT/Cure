@@ -1,6 +1,6 @@
 from llvmlite import ir as lir
 
-from cure.codegen_utils import get_struct_field_value, create_struct_value, cast_value, NULL_BYTE, NULL
+from cure.codegen_utils import get_struct_field_value, create_struct_value, cast_value, NULL_BYTE
 from cure.ir import Param, Position, TypeManager, FunctionFlags
 from cure.lib import function, Class, DefinitionContext
 
@@ -13,8 +13,7 @@ class string(Class):
         Param(Position.zero(), 'literal', TypeManager.get('pointer')),
         Param(Position.zero(), 'length', TypeManager.get('int'))
     ], TypeManager.get('string'), flags=FunctionFlags(method=True))
-    @staticmethod
-    def new(ctx: DefinitionContext):
+    def new(self, ctx: DefinitionContext):
         literal = ctx.param('literal').value
         length = cast_value(ctx.builder, ctx.param('length').value, lir.IntType(64))
         string_type = TypeManager.get('string').type
@@ -47,38 +46,7 @@ class string(Class):
         [Param(Position.zero(), 's', TypeManager.get('string'))],
         TypeManager.get('int'), flags=FunctionFlags(method=True)
     )
-    @staticmethod
-    def length(ctx: DefinitionContext):
+    def length(self, ctx: DefinitionContext):
         s = ctx.param('s').value
         length = get_struct_field_value(ctx.builder, s, 1)
         return cast_value(ctx.builder, length, TypeManager.get('int').type)
-    
-    @function(
-        [Param(Position.zero(), 's', TypeManager.get('string'))],
-        TypeManager.get('int'), FunctionFlags(method=True)
-    )
-    @staticmethod
-    def parse_int(ctx: DefinitionContext):
-        s = ctx.param('s').value
-
-        strtol = ctx.c_registry.get('strtol')
-
-        s_ptr = get_struct_field_value(ctx.builder, s, 0)
-        return cast_value(ctx.builder, ctx.builder.call(strtol, [
-            s_ptr, NULL(), lir.Constant(lir.IntType(32), 10)
-        ]), TypeManager.get('int').type)
-    
-    @function(
-        [Param(Position.zero(), 's', TypeManager.get('string'))],
-        TypeManager.get('float'), FunctionFlags(method=True)
-    )
-    @staticmethod
-    def parse_float(ctx: DefinitionContext):
-        s = ctx.param('s').value
-        
-        strtod = ctx.c_registry.get('strtod')
-
-        s_ptr = get_struct_field_value(ctx.builder, s, 0)
-        return cast_value(ctx.builder, ctx.builder.call(strtod, [
-            s_ptr, NULL()
-        ]), TypeManager.get('float').type)

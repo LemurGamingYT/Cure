@@ -132,7 +132,9 @@ class CureIRBuilder(CureVisitor):
         return self.visitOperation(ctx)
     
     def visitNewArray(self, ctx):
-        return ir.NewArray(to_pos(ctx), self.visit(ctx.type_()))
+        element_type = self.visit(ctx.type_())
+        capacity = ir.Int(to_pos(ctx), 10)
+        return ir.NewArray(to_pos(ctx), element_type, capacity)
     
     def visitParam(self, ctx):
         return ir.Param(to_pos(ctx), ctx.ID().getText(), self.visit(ctx.type_()))

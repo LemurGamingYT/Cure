@@ -12,13 +12,11 @@ class Math(Class):
         return []
 
     @function(ret_type=TypeManager.get('float'), flags=FunctionFlags(static=True, property=True))
-    @staticmethod
-    def pi(ctx: DefinitionContext):
+    def pi(self, ctx: DefinitionContext):
         return lir.Constant(ctx.ret_type.type, float(pi))
     
     @function(ret_type=TypeManager.get('float'), flags=FunctionFlags(static=True, property=True))
-    @staticmethod
-    def e(ctx: DefinitionContext):
+    def e(self, ctx: DefinitionContext):
         return lir.Constant(ctx.ret_type.type, float(e))
     
     
@@ -26,8 +24,7 @@ class Math(Class):
         [Param(Position.zero(), 'arg', TypeManager.get('float'))],
         TypeManager.get('float'), flags=FunctionFlags(static=True, method=True)
     )
-    @staticmethod
-    def sin(ctx: DefinitionContext):
+    def sin(self, ctx: DefinitionContext):
         arg = ctx.param('arg').value
 
         sinf = ctx.c_registry.get('sinf')
@@ -36,8 +33,7 @@ class Math(Class):
     @overload(sin, [
         Param(Position.zero(), 'arg', TypeManager.get('int'))
     ], TypeManager.get('float'))
-    @staticmethod
-    def sin_int(ctx: DefinitionContext):
+    def sin_int(self, ctx: DefinitionContext):
         arg = ctx.param('arg').value
 
         sinf = ctx.c_registry.get('sinf')
@@ -48,8 +44,7 @@ class Math(Class):
         [Param(Position.zero(), 'arg', TypeManager.get('float'))],
         TypeManager.get('float'), flags=FunctionFlags(static=True, method=True)
     )
-    @staticmethod
-    def cos(ctx: DefinitionContext):
+    def cos(self, ctx: DefinitionContext):
         arg = ctx.param('arg').value
 
         cosf = ctx.c_registry.get('cosf')
@@ -58,8 +53,7 @@ class Math(Class):
     @overload(cos, [
         Param(Position.zero(), 'arg', TypeManager.get('int'))
     ], TypeManager.get('float'))
-    @staticmethod
-    def cos_int(ctx: DefinitionContext):
+    def cos_int(self, ctx: DefinitionContext):
         arg = ctx.param('arg').value
 
         cosf = ctx.c_registry.get('cosf')
@@ -70,8 +64,7 @@ class Math(Class):
         [Param(Position.zero(), 'arg', TypeManager.get('float'))],
         TypeManager.get('float'), flags=FunctionFlags(static=True, method=True)
     )
-    @staticmethod
-    def tan(ctx: DefinitionContext):
+    def tan(self, ctx: DefinitionContext):
         arg = ctx.param('arg').value
 
         tanf = ctx.c_registry.get('tanf')
@@ -80,8 +73,7 @@ class Math(Class):
     @overload(tan, [
         Param(Position.zero(), 'arg', TypeManager.get('int'))
     ], TypeManager.get('float'))
-    @staticmethod
-    def tan_int(ctx: DefinitionContext):
+    def tan_int(self, ctx: DefinitionContext):
         arg = ctx.param('arg').value
 
         tanf = ctx.c_registry.get('tanf')
@@ -90,37 +82,33 @@ class Math(Class):
 
     @function([Param(Position.zero(), 'arg', TypeManager.get('float'))],
               TypeManager.get('int'), flags=FunctionFlags(static=True, method=True))
-    @staticmethod
-    def floor(ctx: DefinitionContext):
+    def floor(self, ctx: DefinitionContext):
         arg = ctx.param('arg').value
 
         floorf = ctx.c_registry.get('floorf')
-        return ctx.builder.call(floorf, [arg])
+        return cast_value(ctx.builder, ctx.builder.call(floorf, [arg]), TypeManager.get('int').type)
 
     @function([Param(Position.zero(), 'arg', TypeManager.get('float'))],
               TypeManager.get('int'), flags=FunctionFlags(static=True, method=True))
-    @staticmethod
-    def ceil(ctx: DefinitionContext):
+    def ceil(self, ctx: DefinitionContext):
         arg = ctx.param('arg').value
 
         ceilf = ctx.c_registry.get('ceilf')
-        return ctx.builder.call(ceilf, [arg])
+        return cast_value(ctx.builder, ctx.builder.call(ceilf, [arg]), TypeManager.get('int').type)
     
     @function([Param(Position.zero(), 'arg', TypeManager.get('float'))],
               TypeManager.get('int'), flags=FunctionFlags(static=True, method=True))
-    @staticmethod
-    def sqrt(ctx: DefinitionContext):
+    def sqrt(self, ctx: DefinitionContext):
         arg = ctx.param('arg').value
 
         sqrtf = ctx.c_registry.get('sqrtf')
-        return ctx.builder.call(sqrtf, [arg])
+        return cast_value(ctx.builder, ctx.builder.call(sqrtf, [arg]), TypeManager.get('int').type)
     
     @function([
         Param(Position.zero(), 'base', TypeManager.get('float')),
         Param(Position.zero(), 'exponent', TypeManager.get('float'))
     ], TypeManager.get('float'), flags=FunctionFlags(static=True, method=True))
-    @staticmethod
-    def pow(ctx: DefinitionContext):
+    def pow(self, ctx: DefinitionContext):
         base = ctx.param('base').value
         exponent = ctx.param('exponent').value
 
@@ -131,8 +119,7 @@ class Math(Class):
         Param(Position.zero(), 'base', TypeManager.get('int')),
         Param(Position.zero(), 'exponent', TypeManager.get('int'))
     ], TypeManager.get('int'))
-    @staticmethod
-    def pow_int(ctx: DefinitionContext):
+    def pow_int(self, ctx: DefinitionContext):
         base = ctx.param('base').value
         exponent = ctx.param('exponent').value
 

@@ -2,7 +2,6 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from logging import debug, info
 from typing import Callable
-from functools import wraps
 
 from llvmlite import ir as lir
 
@@ -77,17 +76,16 @@ def run_function(
     
     symbol = scope.symbol_table.get(name)
     if symbol is None:
-        pos.comptime_error(f'no function named {name}', scope.src)
-        return
+        return pos.comptime_error(f'no function named {name}', scope.src)
     
     func = symbol.value
-    if isinstance(func, lir.Function):
-        return builder.call(func, args, 'func_call')
-    elif callable(func):
-        ir_func = func(module, scope, args)
-        return builder.call(ir_func, args, 'stdlib_call')
+    if not isinstance(func, ir.Function):
+        return pos.comptime_error(f'invalid callable {name}', scope.src)
     
-    pos.comptime_error('invalid call type', scope.src)
+    return func(pos, scope, args, module, builder)
+
+def py_func_to_ir_func(func):
+    pass
 
 
 def function(params: list[ir.Param] | None = None, ret_type: ir.Type | None = None,
@@ -111,13 +109,8 @@ def function(params: list[ir.Param] | None = None, ret_type: ir.Type | None = No
         func.ret_type = ret_type
         func.flags = flags
         func.overloads = []
-
-        @wraps(func)
-        def wrapper(*args):
-            _, module, scope, arg_types = args
-            return compile_function(func, module, scope, arg_types)
         
-        return wrapper
+        return func
     
     return decorator
 
@@ -141,13 +134,7 @@ def overload(overload_of: Callable, params: list[ir.Param] | None = None,
         func.flags = overload_of.flags
         func.overload_of = overload_of
 
-        @wraps(func)
-        def wrapper(*args):
-            module, scope, arg_types = args
-            return compile_function(func, module, scope, arg_types)
-        
-        overload_of.overloads.append(wrapper)
-        return wrapper
+        return func
     
     return decorator
 
@@ -158,12 +145,33 @@ def getattrs(instance):
             continue
 
         v = getattr(instance, k)
+        if not callable(v):
+            continue
+
         if not getattr(v, 'function', False):
             continue
 
         attrs[k] = v
     
     return attrs
+
+def add_instance(self, instance):
+    for v in getattrs(instance).values():
+        if isinstance(self, Class):
+            name = f'{self._name}_{v.name}'
+        else:
+            name = v.name
+        
+        if (overload_of := getattr(v, 'overload_of', None)) is not None:
+            overload_of.overloads.append(ir.Function(
+                ir.Position.zero(), name, v.params, v.ret_type, v, v.flags
+            ))
+        else:
+            self.scope.symbol_table.add(ir.Symbol(name, ir.TypeManager.get('function'), ir.Function(
+                ir.Position.zero(), name, v.params, v.ret_type, v, v.flags, v.overloads
+            )))
+
+        info(f'Added {name} from {self._name}')
 
 
 @dataclass
@@ -184,14 +192,16 @@ class DefinitionContext:
 
     def param(self, name: str) -> ParamPointer:
         for param in self.params:
-            if param.name == name:
-                symbol = self.scope.symbol_table.get(name)
-                if symbol is None:
-                    return self.pos.comptime_error(f'invalid param {name}', self.scope.src)
-                
-                return ParamPointer(
-                    self.builder.load(symbol.value, symbol.name), symbol.value, symbol.type
-                )
+            if param.name != name:
+                continue
+
+            symbol = self.scope.symbol_table.get(name)
+            if symbol is None:
+                return self.pos.comptime_error(f'invalid param {name}', self.scope.src)
+            
+            return ParamPointer(
+                self.builder.load(symbol.value, symbol.name), symbol.value, symbol.type
+            )
 
         return self.pos.comptime_error(f'unknown param {name}', self.scope.src)
     
@@ -226,27 +236,22 @@ class Lib(ABC):
         self._name = type(self).__name__
 
         self.init_lib()
-        self.__add_instance(self)
+        add_instance(self, self)
     
     def init_lib(self):
         pass
 
     def add_lib(self, cls: type['Lib']):
         instance = cls(self.scope)
-        self.__add_instance(instance)
+        add_instance(self, instance)
 
         info(f'merged {self._name} and {instance._name} (Lib)')
     
     def add_class(self, cls: type['Class']):
         instance = cls(self.scope)
-        self.__add_instance(instance)
+        add_instance(self, instance)
 
         info(f'merged {self._name} and {instance._name} (Class)')
-    
-    def __add_instance(self, instance):
-        for v in getattrs(instance).values():
-            self.scope.symbol_table.add(ir.Symbol(v.name, ir.TypeManager.get('function'), v))
-            info(f'Added {v.name} from {instance._name} Lib class')
 
 @dataclass
 class ClassField:
@@ -266,12 +271,8 @@ class Class(ABC):
             field_types = [field.type for field in self.fields()]
             ir.TypeManager.add(self._name, lir.LiteralStructType(field_types))
 
-        self.__add_instance(self)
+        self.init_class()
+        add_instance(self, self)
     
-    def __add_instance(self, instance):
-        for v in getattrs(instance).values():
-            name = f'{self._name}_{v.name}'
-            v.__wrapped__.name = name
-            
-            self.scope.symbol_table.add(ir.Symbol(name, ir.TypeManager.get('function'), v))
-            info(f'Added {name} from {self._name} Class')
+    def init_class(self):
+        ...

@@ -1,8 +1,7 @@
 from typing import Union, Callable, TypeAlias, Any
 from dataclasses import dataclass, field
+from logging import error, debug, info
 from importlib import import_module
-from sys import exit as sys_exit
-from logging import error
 from pathlib import Path
 from copy import copy
 from abc import ABC
@@ -10,6 +9,7 @@ from abc import ABC
 from colorama import Fore, Style
 from llvmlite import ir as lir
 
+from cure.codegen_utils import store_in_pointer, NULL
 from cure.target import Target
 
 
@@ -23,14 +23,20 @@ op_map = {
 
 def params_match(func, arg_types: list['Type']):
     params = func.params
-    if len(arg_types) > len(params):
-        return False
-    elif len(arg_types) < len(params):
-        return False
+    param_types = [param.type for param in params]
+    any_type = TypeManager.get('any')
+    if all(isinstance(arg_type, lir.Type) for arg_type in arg_types):
+        param_types = [param.type for param in param_types]
 
-    for arg_type, param in zip(arg_types, params):
-        param_type = param.type
-        if param_type == arg_type or param_type == TypeManager.get('any'):
+        any_type = any_type.type
+    
+    if len(arg_types) > len(param_types):
+        return False
+    elif len(arg_types) < len(param_types):
+        return False
+    
+    for arg_type, param_type in zip(arg_types, param_types):
+        if param_type == arg_type or param_type == any_type:
             continue
 
         return False
@@ -62,10 +68,11 @@ class Position:
 
     def comptime_error(self, msg: str, src: str):
         print(src.splitlines()[self.line - 1])
-        print(' ' * (self.column - 1) + '^')
+        print(' ' * self.column + '^')
         print(f'{Style.BRIGHT}{Fore.RED}error: {msg}{Style.RESET_ALL}')
         error(msg)
-        sys_exit(1)
+        # sys_exit(1)
+        raise NotImplementedError
 
 @dataclass
 class Symbol:
@@ -104,11 +111,20 @@ class TypeManager:
 
     @staticmethod
     def create_function_type(ret_type: 'Type', param_types: list['Type']):
+        param_types_str = ', '.join(map(str, param_types))
         return Type(
             Position.zero(),
-            f'({', '.join(map(str, param_types))}) -> {ret_type}',
+            f'({param_types_str}) -> {ret_type}',
             lir.FunctionType(ret_type.type, [param.type for param in param_types])
         )
+    
+    @staticmethod
+    def from_llvm(llvm_type: lir.Type):
+        for k, v in TypeManager.type_map.items():
+            if v != llvm_type:
+                continue
+
+            return TypeManager.get(k)
 
     @staticmethod
     def get(name: str) -> Any:
@@ -371,11 +387,12 @@ class Ternary(Node):
 
 @dataclass
 class NewArray(Node):
-    array_type: Type
+    element_type: Type
+    capacity: Node = field(default_factory=lambda: Int(Position.zero(), 10))
 
     @property
     def type(self):
-        return TypeManager.get('array')
+        return TypeManager.get(f'array_{self.element_type}')
 
 @dataclass
 class Param(Node):
@@ -385,6 +402,18 @@ class Param(Node):
 @dataclass
 class Body(Node):
     nodes: list[Node] = field(default_factory=list)
+
+@dataclass
+class Variable(Node):
+    name: str
+    value: Union[Node, None] = None
+    is_const: bool = False
+    type: Type = field(default_factory=lambda: TypeManager.get('nil'))
+
+@dataclass
+class Assignment(Node):
+    name: str
+    value: Node
 
 @dataclass(kw_only=True)
 class FunctionFlags:
@@ -406,6 +435,105 @@ class Function(Node):
     @property
     def ret_type(self):
         return self.type
+    
+    
+    def __call__(
+        self, pos: Position, scope: Scope, args: list[Any],
+        module: lir.Module | None = None, builder: lir.IRBuilder | None = None
+    ):
+        arg_types = [arg.type for arg in args]
+        func = match_to_overloads(self, arg_types)
+        if func is None:
+            pos.comptime_error(
+                f'no matching overload in call to {self.name}',
+                scope.src
+            )
+        
+        callee = func.name
+        generic_types = []
+        callee_params = []
+        symbol_types = []
+        for i, (arg, param) in enumerate(zip(args, func.params)):
+            any_type = TypeManager.get('any')
+            arg_type = arg.type
+            param_type = param.type
+            if isinstance(arg_type, lir.Type):
+                param_type = param_type.type
+                any_type = any_type.type
+
+            if param_type == any_type:
+                if isinstance(arg_type, lir.Type):
+                    symbol_types.append(TypeManager.from_llvm(arg_type))
+                else:
+                    symbol_types.append(arg_type)
+                
+                callee_params.append(Param(param.pos, param.name, arg_type))
+                generic_types.append(arg_type)
+            else:
+                if arg_type != param_type:
+                    pos.comptime_error(
+                        'type mismatch in function call', scope.src
+                    )
+                
+                symbol_types.append(param.type)
+                callee_params.append(Param(param.pos, param.name, param_type))
+        
+        param_types = [param.type for param in callee_params]
+        if generic_types:
+            callee += ''.join(map(lambda x: f'_{x}', generic_types))
+            debug(f'Generic function name: {callee}')
+        
+        if module is not None and builder is not None:
+            c_registry = module.c_registry
+            
+            if callee in module.globals:
+                debug(f'{callee} is compiled, using it again')
+                ir_func = module.get_global(callee)
+            else:
+                from cure.lib import DefinitionContext
+
+                ir_func = lir.Function(module, lir.FunctionType(func.ret_type.type, param_types),
+                                       callee)
+                body_builder = lir.IRBuilder(ir_func.append_basic_block())
+                def_scope = scope.clone()
+                ctx = DefinitionContext(pos, def_scope, module, body_builder, c_registry,
+                                        callee_params, func.ret_type)
+                for i, (param_type, symbol_type, param) in enumerate(
+                    zip(param_types, symbol_types, callee_params)
+                ):
+                    def_scope.symbol_table.add(Symbol(param.name, symbol_type, store_in_pointer(
+                        body_builder, param_type, ir_func.args[i], f'param_{param.name}_ptr'
+                    )))
+                
+                info(f'Compiling {callee}')
+                if func.body is not None and callable(func.body):
+                    result = func.body(ctx)
+
+                # utility and ease of use if statements
+                if result is not None:
+                    body_builder.ret(result)
+                elif func.ret_type == TypeManager.get('nil') and not body_builder.block.is_terminated:
+                    body_builder.ret(NULL())
+
+                info(f'Compiled {callee}')
+            
+            return builder.call(ir_func, args)
+        elif module is None and builder is None:
+            return Call(pos, self.name, args, func.ret_type)
+
+@dataclass
+class Method(Function):
+    pass
+
+@dataclass
+class Property(Variable):
+    pass
+
+@dataclass
+class Class(Node):
+    name: str
+    generic_types: list[str] = field(default_factory=list)
+    members: list[Method | Property] = field(default_factory=list)
 
 @dataclass
 class Return(Node):
@@ -414,18 +542,6 @@ class Return(Node):
     @property
     def type(self):
         return self.value.get_type()
-
-@dataclass
-class Variable(Node):
-    name: str
-    value: Union[Node, None] = None
-    is_const: bool = False
-    type: Type = field(default_factory=lambda: TypeManager.get('nil'))
-
-@dataclass
-class Assignment(Node):
-    name: str
-    value: Node
 
 @dataclass
 class Comment(Node):

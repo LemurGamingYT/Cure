@@ -7,11 +7,8 @@ from cure.lib import function, overload, Lib, DefinitionContext
 from cure.stdlib.builtins.operations.bool import boolOperations
 from cure.stdlib.builtins.operations.int import intOperations
 from cure.stdlib.builtins.classes.string import string
-from cure.stdlib.builtins.classes.System import System
-# from cure.stdlib.builtins.classes.array import array
 from cure.stdlib.builtins.classes.Math import Math
 from cure.stdlib.builtins.classes.Ref import Ref
-from cure.stdlib.builtins.testing import testing
 from cure.stdlib.builtins.casts import casts
 from cure.codegen_utils import (
     get_struct_field_value, create_static_buffer, NULL_BYTE, cast_value, create_string_constant,
@@ -24,10 +21,7 @@ class builtins(Lib):
         self.add_lib(Ref)
         self.add_lib(Math)
         self.add_lib(casts)
-        # self.add_lib(array)
-        self.add_lib(System)
         self.add_lib(string)
-        self.add_lib(testing)
         self.add_lib(intOperations)
         self.add_lib(boolOperations)
         self.add_lib(floatOperations)
@@ -35,8 +29,7 @@ class builtins(Lib):
 
     @function([Param(Position.zero(), 'message', TypeManager.get('string'))],
               flags=FunctionFlags(public=True))
-    @staticmethod
-    def error(ctx: DefinitionContext):
+    def error(self, ctx: DefinitionContext):
         exit = ctx.c_registry.get('exit')
         puts = ctx.c_registry.get('puts')
 
@@ -46,8 +39,7 @@ class builtins(Lib):
 
     @function([Param(Position.zero(), 'x', TypeManager.get('any'))],
               flags=FunctionFlags(public=True))
-    @staticmethod
-    def print(ctx: DefinitionContext):
+    def print(self, ctx: DefinitionContext):
         puts = ctx.c_registry.get('puts')
 
         x = ctx.param('x')
@@ -63,16 +55,14 @@ class builtins(Lib):
 
     @function([Param(Position.zero(), 'x', TypeManager.get('string'))],
               flags=FunctionFlags(public=True))
-    @staticmethod
-    def print_literal(ctx: DefinitionContext):
+    def print_literal(self, ctx: DefinitionContext):
         printf = ctx.c_registry.get('printf')
 
         x = ctx.param('x').value
         ctx.builder.call(printf, [get_struct_field_value(ctx.builder, x, 0)])
     
     @function(ret_type=TypeManager.get('string'), flags=FunctionFlags(public=True))
-    @staticmethod
-    def input(ctx: DefinitionContext):
+    def input(self, ctx: DefinitionContext):
         acrt_iob_func = ctx.c_registry.get('__acrt_iob_func')
         strlen = ctx.c_registry.get('strlen')
         fgets = ctx.c_registry.get('fgets')
@@ -100,8 +90,7 @@ class builtins(Lib):
     
     @overload(input, [Param(Position.zero(), 'prompt', TypeManager.get('string'))],
               TypeManager.get('string'))
-    @staticmethod
-    def input_prompt(ctx: DefinitionContext):
+    def input_prompt(self, ctx: DefinitionContext):
         prompt = ctx.param('prompt').value
 
         printf = ctx.c_registry.get('printf')

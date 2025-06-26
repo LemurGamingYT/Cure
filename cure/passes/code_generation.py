@@ -9,7 +9,7 @@ from cure.lib import run_function
 from cure import ir
 from cure.codegen_utils import (
     NULL, create_while_loop, store_in_pointer, create_string_constant, get_struct_field_ptr,
-    get_struct_field_value, index_of_type, create_ternary, get_type_size, cast_value
+    get_struct_field_value, index_of_type, create_ternary
 )
 
 
@@ -352,16 +352,11 @@ class CodeGeneration(CompilerPass):
             return
         
         args = [self.run_on(arg) for arg in node.args]
-        arg_types = [arg.get_type() for arg in node.args]
-        func = ir.match_to_overloads(symbol.value, arg_types)
-        if isinstance(func, lir.Function):
-            info(f'Calling LLVM function {symbol.name}')
-            return self.builder.call(func, args, 'func_call')
-        elif callable(func):
-            info(f'Calling stdlib function {symbol.name}')
-            ir_func = func(self.module, self.scope, arg_types)
-            return self.builder.call(ir_func, args, 'stdlib_call')
-        
+        if isinstance(symbol.value, ir.Function):
+            return symbol.value(node.pos, self.scope, args, self.module, self.builder)
+        elif isinstance(symbol.value, lir.Function):
+            return self.builder.call(symbol.value, args)
+
         node.pos.comptime_error(f'invalid callable {node.callee}', self.scope.src)
     
     def run_on_BinaryOp(self, _):
@@ -383,9 +378,10 @@ class CodeGeneration(CompilerPass):
         )
     
     def run_on_NewArray(self, node: ir.NewArray):
-        return run_function(node.pos, self.builder, self.module, self.scope, 'array_new', [
-            lir.Constant(lir.IntType(32), 10), cast_value(
-                self.builder, get_type_size(self.builder, node.array_type.type),
-                ir.TypeManager.get('int').type
-            )
-        ])
+        raise NotImplementedError
+        # return run_function(node.pos, self.builder, self.module, self.scope, 'array_new', [
+        #     lir.Constant(lir.IntType(32), 10), cast_value(
+        #         self.builder, get_type_size(self.builder, node.array_type.type),
+        #         ir.TypeManager.get('int').type
+        #     )
+        # ])

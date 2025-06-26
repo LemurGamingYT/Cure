@@ -1,4 +1,3 @@
 fn main() -> int {
-    print(Math.pi)
     return 0
 }

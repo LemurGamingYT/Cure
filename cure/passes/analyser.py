@@ -3,7 +3,6 @@ from logging import info
 from typing import cast
 
 from cure.codegen_utils import max_value, min_value
-from cure.ir import match_to_overloads
 from cure.passes import CompilerPass
 from cure import ir
 
@@ -141,18 +140,7 @@ class Analyser(CompilerPass):
             return node.pos.comptime_error(f'unknown callable \'{node.callee}\'', self.scope.src)
         
         args = [self.run_on(arg) for arg in node.args]
-        func = symbol.value
-        
-        arg_types = [arg.get_type() for arg in args]
-        func = match_to_overloads(func, arg_types)
-        if func is None:
-            return node.pos.comptime_error(
-                f"""no matching overloads for function {node.callee}
-with argument types: [{', '.join(map(str, arg_types))}]""",
-                self.scope.src)
-
-        ret_type = func.ret_type
-        return ir.Call(node.pos, node.callee, args, ret_type)
+        return symbol.value(node.pos, self.scope, args)
     
     def run_on_BinaryOp(self, node: ir.BinaryOp):
         lhs = self.run_on(node.left)
@@ -214,6 +202,3 @@ with argument types: [{', '.join(map(str, arg_types))}]""",
         return ir.Ternary(
             node.pos, self.run_on(node.condition), self.run_on(node.true), self.run_on(node.false)
         )
-    
-    def run_on_NewArray(self, node: ir.NewArray):
-        return ir.NewArray(node.pos, self.run_on(node.array_type))

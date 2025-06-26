@@ -10,8 +10,7 @@ class stringOperations(Lib):
         Param(Position.zero(), 'a', TypeManager.get('string')),
         Param(Position.zero(), 'b', TypeManager.get('string'))
     ], TypeManager.get('string'))
-    @staticmethod
-    def string_add_string(ctx: DefinitionContext):
+    def string_add_string(self, ctx: DefinitionContext):
         a = ctx.param('a').value
         b = ctx.param('b').value
 
@@ -44,8 +43,7 @@ class stringOperations(Lib):
         Param(Position.zero(), 'a', TypeManager.get('string')),
         Param(Position.zero(), 'b', TypeManager.get('string'))
     ], TypeManager.get('bool'))
-    @staticmethod
-    def string_eq_string(ctx: DefinitionContext):
+    def string_eq_string(self, ctx: DefinitionContext):
         a = ctx.param('a').value
         b = ctx.param('b').value
         
@@ -68,8 +66,7 @@ class stringOperations(Lib):
         Param(Position.zero(), 'a', TypeManager.get('string')),
         Param(Position.zero(), 'b', TypeManager.get('string'))
     ], TypeManager.get('bool'))
-    @staticmethod
-    def string_neq_string(ctx: DefinitionContext):
+    def string_neq_string(self, ctx: DefinitionContext):
         a = ctx.param('a').value
         b = ctx.param('b').value
         
@@ -87,55 +84,3 @@ class stringOperations(Lib):
             ctx.builder.call(memcmp, [a_ptr, b_ptr, a_len]),
             lir.Constant(TypeManager.get('bool').type, 0)
         )
-    
-    @function([
-        Param(Position.zero(), 'a', TypeManager.get('string')),
-        Param(Position.zero(), 'b', TypeManager.get('string'))
-    ], TypeManager.get('bool'))
-    @staticmethod
-    def string_lt_string(ctx: DefinitionContext):
-        a = ctx.param('a').value
-        b = ctx.param('b').value
-
-        a_len = get_struct_field_value(ctx.builder, a, 1)
-        b_len = get_struct_field_value(ctx.builder, b, 1)
-        return ctx.builder.icmp_signed('<', a_len, b_len)
-    
-    @function([
-        Param(Position.zero(), 'a', TypeManager.get('string')),
-        Param(Position.zero(), 'b', TypeManager.get('string'))
-    ], TypeManager.get('bool'))
-    @staticmethod
-    def string_gt_string(ctx: DefinitionContext):
-        a = ctx.param('a').value
-        b = ctx.param('b').value
-
-        a_len = get_struct_field_value(ctx.builder, a, 1)
-        b_len = get_struct_field_value(ctx.builder, b, 1)
-        return ctx.builder.icmp_signed('>', a_len, b_len)
-    
-    @function([
-        Param(Position.zero(), 'a', TypeManager.get('string')),
-        Param(Position.zero(), 'b', TypeManager.get('string'))
-    ], TypeManager.get('bool'))
-    @staticmethod
-    def string_lte_string(ctx: DefinitionContext):
-        a = ctx.param('a').value
-        b = ctx.param('b').value
-
-        a_len = get_struct_field_value(ctx.builder, a, 1)
-        b_len = get_struct_field_value(ctx.builder, b, 1)
-        return ctx.builder.icmp_signed('<=', a_len, b_len)
-    
-    @function([
-        Param(Position.zero(), 'a', TypeManager.get('string')),
-        Param(Position.zero(), 'b', TypeManager.get('string'))
-    ], TypeManager.get('bool'))
-    @staticmethod
-    def string_gte_string(ctx: DefinitionContext):
-        a = ctx.param('a').value
-        b = ctx.param('b').value
-
-        a_len = get_struct_field_value(ctx.builder, a, 1)
-        b_len = get_struct_field_value(ctx.builder, b, 1)
-        return ctx.builder.icmp_signed('>=', a_len, b_len)

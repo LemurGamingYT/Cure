@@ -10,8 +10,7 @@ class floatOperations(Lib):
         Param(Position.zero(), 'a', TypeManager.get('float')),
         Param(Position.zero(), 'b', TypeManager.get('float'))
     ], TypeManager.get('float'))
-    @staticmethod
-    def float_add_float(ctx: DefinitionContext):
+    def float_add_float(self, ctx: DefinitionContext):
         a = ctx.param('a').value
         b = ctx.param('b').value
         return ctx.builder.fadd(a, b)
@@ -20,8 +19,7 @@ class floatOperations(Lib):
         Param(Position.zero(), 'a', TypeManager.get('float')),
         Param(Position.zero(), 'b', TypeManager.get('float'))
     ], TypeManager.get('float'))
-    @staticmethod
-    def float_sub_float(ctx: DefinitionContext):
+    def float_sub_float(self, ctx: DefinitionContext):
         a = ctx.param('a').value
         b = ctx.param('b').value
         return ctx.builder.fsub(a, b)
@@ -30,8 +28,7 @@ class floatOperations(Lib):
         Param(Position.zero(), 'a', TypeManager.get('float')),
         Param(Position.zero(), 'b', TypeManager.get('float'))
     ], TypeManager.get('float'))
-    @staticmethod
-    def float_mul_float(ctx: DefinitionContext):
+    def float_mul_float(self, ctx: DefinitionContext):
         a = ctx.param('a').value
         b = ctx.param('b').value
         return ctx.builder.fmul(a, b)
@@ -40,8 +37,7 @@ class floatOperations(Lib):
         Param(Position.zero(), 'a', TypeManager.get('float')),
         Param(Position.zero(), 'b', TypeManager.get('float'))
     ], TypeManager.get('float'))
-    @staticmethod
-    def float_div_float(ctx: DefinitionContext):
+    def float_div_float(self, ctx: DefinitionContext):
         a = ctx.param('a').value
         b = ctx.param('b').value
 
@@ -56,8 +52,7 @@ class floatOperations(Lib):
         Param(Position.zero(), 'a', TypeManager.get('float')),
         Param(Position.zero(), 'b', TypeManager.get('float'))
     ], TypeManager.get('float'))
-    @staticmethod
-    def float_mod_float(ctx: DefinitionContext):
+    def float_mod_float(self, ctx: DefinitionContext):
         a = ctx.param('a').value
         b = ctx.param('b').value
 
@@ -79,8 +74,7 @@ class floatOperations(Lib):
         Param(Position.zero(), 'a', TypeManager.get('float')),
         Param(Position.zero(), 'b', TypeManager.get('float'))
     ], TypeManager.get('bool'))
-    @staticmethod
-    def float_eq_float(ctx: DefinitionContext):
+    def float_eq_float(self, ctx: DefinitionContext):
         a = ctx.param('a').value
         b = ctx.param('b').value
         return ctx.builder.fcmp_ordered('==', a, b)
@@ -89,8 +83,7 @@ class floatOperations(Lib):
         Param(Position.zero(), 'a', TypeManager.get('float')),
         Param(Position.zero(), 'b', TypeManager.get('float'))
     ], TypeManager.get('bool'))
-    @staticmethod
-    def float_neq_float(ctx: DefinitionContext):
+    def float_neq_float(self, ctx: DefinitionContext):
         a = ctx.param('a').value
         b = ctx.param('b').value
         return ctx.builder.fcmp_ordered('!=', a, b)
@@ -99,8 +92,7 @@ class floatOperations(Lib):
         Param(Position.zero(), 'a', TypeManager.get('float')),
         Param(Position.zero(), 'b', TypeManager.get('float'))
     ], TypeManager.get('bool'))
-    @staticmethod
-    def float_lt_float(ctx: DefinitionContext):
+    def float_lt_float(self, ctx: DefinitionContext):
         a = ctx.param('a').value
         b = ctx.param('b').value
         return ctx.builder.fcmp_ordered('<', a, b)
@@ -109,8 +101,7 @@ class floatOperations(Lib):
         Param(Position.zero(), 'a', TypeManager.get('float')),
         Param(Position.zero(), 'b', TypeManager.get('float'))
     ], TypeManager.get('bool'))
-    @staticmethod
-    def float_gt_float(ctx: DefinitionContext):
+    def float_gt_float(self, ctx: DefinitionContext):
         a = ctx.param('a').value
         b = ctx.param('b').value
         return ctx.builder.fcmp_ordered('>', a, b)
@@ -119,8 +110,7 @@ class floatOperations(Lib):
         Param(Position.zero(), 'a', TypeManager.get('float')),
         Param(Position.zero(), 'b', TypeManager.get('float'))
     ], TypeManager.get('bool'))
-    @staticmethod
-    def float_lte_float(ctx: DefinitionContext):
+    def float_lte_float(self, ctx: DefinitionContext):
         a = ctx.param('a').value
         b = ctx.param('b').value
         return ctx.builder.fcmp_ordered('<=', a, b)
@@ -129,8 +119,7 @@ class floatOperations(Lib):
         Param(Position.zero(), 'a', TypeManager.get('float')),
         Param(Position.zero(), 'b', TypeManager.get('float'))
     ], TypeManager.get('bool'))
-    @staticmethod
-    def float_gte_float(ctx: DefinitionContext):
+    def float_gte_float(self, ctx: DefinitionContext):
         a = ctx.param('a').value
         b = ctx.param('b').value
         return ctx.builder.fcmp_ordered('>=', a, b)

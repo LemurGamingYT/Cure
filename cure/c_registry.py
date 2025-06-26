@@ -1,6 +1,5 @@
 from llvmlite import ir as lir
 
-from cure.target import Target
 from cure import ir
 
 
@@ -109,10 +108,10 @@ class CRegistry:
             lir.IntType(8).as_pointer()
         ]))
 
-        if scope.target == Target.Windows:
-            self.register('GetCurrentProcessId', lir.FunctionType(lir.IntType(32), []))
-        elif scope.target == Target.Linux:
-            self.register('getpid', lir.FunctionType(lir.IntType(32), []))
+        # if scope.target == Target.Windows:
+        #     self.register('GetCurrentProcessId', lir.FunctionType(lir.IntType(32), []))
+        # elif scope.target == Target.Linux:
+        #     self.register('getpid', lir.FunctionType(lir.IntType(32), []))
     
     def get(self, name: str):
         if name not in self.__registry:
