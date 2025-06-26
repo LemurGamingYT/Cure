@@ -441,6 +441,7 @@ class Function(Node):
         self, pos: Position, scope: Scope, args: list[Any],
         module: lir.Module | None = None, builder: lir.IRBuilder | None = None
     ):
+        # TODO: clean this code up
         arg_types = [arg.type for arg in args]
         func = match_to_overloads(self, arg_types)
         if func is None:
