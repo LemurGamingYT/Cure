@@ -1,71 +1,14 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from logging import debug, info
-from typing import Callable
+from typing import Callable, Any
+from logging import info
 
 from llvmlite import ir as lir
 
-from cure.codegen_utils import NULL, store_in_pointer, create_string_constant
+from cure.codegen_utils import create_string_constant
 from cure.c_registry import CRegistry
 from cure import ir
 
-
-def compile_function(func, module: lir.Module, scope: ir.Scope, arg_types: list[ir.Type]):
-    info(f'Compiling {func.name}')
-
-    c_registry = module.c_registry
-
-    if len(arg_types) != len(func.params):
-        ir.Position.zero().comptime_error(
-            f'unmatched number of args and params in function call to {func.name}',
-            scope.src
-        )
-
-    generic_types = []
-    callee_params = []
-    for i, (arg_type, param) in enumerate(zip(arg_types, func.params)):
-        if param.type == ir.TypeManager.get('any'):
-            callee_params.append(ir.Param(param.pos, param.name, arg_type))
-            generic_types.append(arg_type)
-        else:
-            callee_params.append(ir.Param(param.pos, param.name, param.type))
-    
-    callee = func.name
-    if len(generic_types) > 0:
-        callee += ''.join(map(lambda x: f'_{x}', generic_types))
-        debug(f'Generic function name: {callee}')
-    
-    if callee in module.globals:
-        debug(f'{callee} is compiled, using it again')
-        return module.get_global(callee)
-    
-    ir_args = [param.type.type for param in callee_params]
-    ir_func = lir.Function(module, lir.FunctionType(func.ret_type.type, ir_args), callee)
-    builder = lir.IRBuilder(ir_func.append_basic_block())
-    def_scope = scope.clone()
-    ctx = DefinitionContext(
-        ir.Position.zero(), def_scope, module, builder, c_registry, callee_params,
-        func.ret_type
-    )
-
-    info('Created definition context')
-
-    for i, param in enumerate(callee_params):
-        def_scope.symbol_table.add(ir.Symbol(param.name, param.type, store_in_pointer(
-            ctx.builder, param.type.type, ir_func.args[i], f'param_{param.name}_ptr'
-        )))
-    
-    info(f'Compiling {callee}')
-    result = func(ctx)
-
-    # utility and ease of use if statements
-    if result is not None:
-        ctx.builder.ret(result)
-    elif func.ret_type == ir.TypeManager.get('nil') and not ctx.builder.block.is_terminated:
-        ctx.builder.ret(NULL())
-
-    info(f'Compiled {callee}')
-    return ir_func
 
 def run_function(
     pos: ir.Position, builder: lir.IRBuilder, module: lir.Module,
@@ -84,11 +27,8 @@ def run_function(
     
     return func(pos, scope, args, module, builder)
 
-def py_func_to_ir_func(func):
-    pass
 
-
-def function(params: list[ir.Param] | None = None, ret_type: ir.Type | None = None,
+def function(self: Any, params: list[ir.Param] | None = None, ret_type: ir.Type | None = None,
              flags: ir.FunctionFlags | None = None, name: str | None = None):
     if params is None:
         params = []
@@ -109,6 +49,10 @@ def function(params: list[ir.Param] | None = None, ret_type: ir.Type | None = No
         func.ret_type = ret_type
         func.flags = flags
         func.overloads = []
+        func.self = self
+
+        if self is not None:
+            setattr(self, func.__name__, func)
         
         return func
     
@@ -141,14 +85,8 @@ def overload(overload_of: Callable, params: list[ir.Param] | None = None,
 def getattrs(instance):
     attrs = {}
     for k in dir(instance):
-        if k.startswith('_'):
-            continue
-
         v = getattr(instance, k)
-        if not callable(v):
-            continue
-
-        if not getattr(v, 'function', False):
+        if k.startswith('_') or not callable(v) or not getattr(v, 'function', False):
             continue
 
         attrs[k] = v

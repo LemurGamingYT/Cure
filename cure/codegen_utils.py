@@ -4,6 +4,7 @@ from llvmlite import ir
 
 
 def NULL(type: ir.Type | None = None):
+    """Returns the NULL value of the type"""
     if type is None:
         type = ir.IntType(8).as_pointer() # void*
     
@@ -13,12 +14,15 @@ def NULL(type: ir.Type | None = None):
     return ir.Constant(type, None)
 
 def NULL_BYTE():
+    """Returns a null-terminator (\\0)"""
     return ir.Constant(ir.IntType(8), None) # \0
 
 def zero(int_width: int):
+    """Returns an integer constant with the given width with a value of 0"""
     return ir.Constant(ir.IntType(int_width), 0)
 
 def float_zero():
+    """Returns a float constant with the value 0.0"""
     return ir.Constant(ir.FloatType(), 0.0)
 
 def store_in_pointer(builder: ir.IRBuilder, type: ir.Type, value: ir.Value, name: str = ''):
@@ -41,7 +45,7 @@ def get_type_size(builder: ir.IRBuilder, llvm_type: ir.Type):
     return size
 
 def index_of_type(type: ir.LiteralStructType, elem_type: ir.Type):
-    """Find the index of a type in a LiteralStructType - returns -1 if the type is not found"""
+    """Find the index of a type in a LiteralStructType (returns -1 if the type is not found)"""
     ref_index = -1
     for i, elem in enumerate(type.elements):
         if elem != elem_type:
@@ -116,9 +120,8 @@ def allocate_struct(builder: ir.IRBuilder, struct_type: ir.Type, name: str = '')
 
 def get_struct_field_ptr(builder: ir.IRBuilder, struct: ir.Value, field_index: int):
     """Get pointer to a struct field"""
-    zero = ir.Constant(ir.IntType(32), 0)
     field_idx = ir.Constant(ir.IntType(32), field_index)
-    return builder.gep(struct, [zero, field_idx])
+    return builder.gep(struct, [zero(32), field_idx])
 
 def get_struct_field_value(builder: ir.IRBuilder, struct: ir.Value, field_index: int):
     """Extract a field value from a struct value"""
@@ -141,8 +144,7 @@ def create_string_constant(module: ir.Module, text: str, name: str = ''):
     const.global_constant = True
     const.linkage = 'internal'
     
-    zero = ir.Constant(ir.IntType(32), 0)
-    return ir.Constant.gep(const, [zero, zero])
+    return ir.Constant.gep(const, [zero(32), zero(32)])
 
 def create_string_struct(module: ir.Module, builder: ir.IRBuilder, text: str, 
                         name: str = "") -> ir.Value:
@@ -194,8 +196,7 @@ def create_static_buffer(module: ir.Module, element_type: ir.Type, size: int, na
     buf.initializer = ir.Constant(buf_type, None)
     buf.linkage = 'internal'
 
-    zero = ir.Constant(ir.IntType(32), 0)
-    return ir.Constant.gep(buf, [zero, zero])
+    return ir.Constant.gep(buf, [zero(32), zero(32)])
 
 
 def create_ternary(builder: ir.IRBuilder, condition: ir.Value, 

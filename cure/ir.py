@@ -2,6 +2,7 @@ from typing import Union, Callable, TypeAlias, Any
 from dataclasses import dataclass, field
 from logging import error, debug, info
 from importlib import import_module
+from sys import exit as sys_exit
 from pathlib import Path
 from copy import copy
 from abc import ABC
@@ -71,8 +72,8 @@ class Position:
         print(' ' * self.column + '^')
         print(f'{Style.BRIGHT}{Fore.RED}error: {msg}{Style.RESET_ALL}')
         error(msg)
-        # sys_exit(1)
-        raise NotImplementedError
+        sys_exit(1)
+        # raise NotImplementedError
 
 @dataclass
 class Symbol:
