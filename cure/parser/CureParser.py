@@ -10,7 +10,7 @@ else:
 
 def serializedATN():
     return [
-        4,1,45,202,2,0,7,0,2,1,7,1,2,2,7,2,2,3,7,3,2,4,7,4,2,5,7,5,2,6,7,
+        4,1,45,210,2,0,7,0,2,1,7,1,2,2,7,2,2,3,7,3,2,4,7,4,2,5,7,5,2,6,7,
         6,2,7,7,7,2,8,7,8,2,9,7,9,2,10,7,10,2,11,7,11,2,12,7,12,2,13,7,13,
         2,14,7,14,2,15,7,15,2,16,7,16,1,0,5,0,36,8,0,10,0,12,0,39,9,0,1,
         0,1,0,1,1,1,1,1,2,1,2,1,2,1,2,1,2,3,2,50,8,2,1,3,1,3,1,3,1,3,1,3,
@@ -19,69 +19,72 @@ def serializedATN():
         1,6,1,7,1,7,1,7,1,8,1,8,1,8,1,8,1,9,1,9,1,9,1,9,3,9,96,8,9,1,9,1,
         9,1,9,3,9,101,8,9,1,9,1,9,1,10,3,10,106,8,10,1,10,1,10,1,10,1,10,
         1,10,3,10,113,8,10,1,10,1,10,3,10,117,8,10,1,11,1,11,1,12,1,12,1,
-        12,5,12,124,8,12,10,12,12,12,127,9,12,1,13,1,13,1,13,1,14,1,14,1,
-        14,5,14,135,8,14,10,14,12,14,138,9,14,1,15,1,15,1,15,1,15,1,15,1,
-        15,1,15,1,15,1,15,1,15,3,15,150,8,15,1,16,1,16,1,16,1,16,1,16,1,
-        16,1,16,1,16,1,16,3,16,161,8,16,1,16,1,16,1,16,1,16,1,16,1,16,1,
-        16,1,16,1,16,1,16,1,16,1,16,1,16,1,16,1,16,1,16,1,16,1,16,1,16,1,
-        16,1,16,3,16,184,8,16,1,16,1,16,1,16,1,16,1,16,1,16,3,16,192,8,16,
-        1,16,3,16,195,8,16,5,16,197,8,16,10,16,12,16,200,9,16,1,16,0,1,32,
-        17,0,2,4,6,8,10,12,14,16,18,20,22,24,26,28,30,32,0,6,1,0,17,21,2,
-        0,17,18,30,30,1,0,19,21,1,0,17,18,1,0,22,27,1,0,28,29,220,0,37,1,
-        0,0,0,2,42,1,0,0,0,4,49,1,0,0,0,6,56,1,0,0,0,8,58,1,0,0,0,10,67,
-        1,0,0,0,12,79,1,0,0,0,14,84,1,0,0,0,16,87,1,0,0,0,18,91,1,0,0,0,
-        20,116,1,0,0,0,22,118,1,0,0,0,24,120,1,0,0,0,26,128,1,0,0,0,28,131,
-        1,0,0,0,30,149,1,0,0,0,32,160,1,0,0,0,34,36,3,4,2,0,35,34,1,0,0,
-        0,36,39,1,0,0,0,37,35,1,0,0,0,37,38,1,0,0,0,38,40,1,0,0,0,39,37,
-        1,0,0,0,40,41,5,0,0,1,41,1,1,0,0,0,42,43,5,16,0,0,43,3,1,0,0,0,44,
-        50,3,20,10,0,45,50,3,18,9,0,46,50,3,16,8,0,47,50,3,10,5,0,48,50,
-        3,32,16,0,49,44,1,0,0,0,49,45,1,0,0,0,49,46,1,0,0,0,49,47,1,0,0,
-        0,49,48,1,0,0,0,50,5,1,0,0,0,51,57,3,4,2,0,52,53,5,6,0,0,53,57,3,
-        32,16,0,54,57,5,9,0,0,55,57,5,8,0,0,56,51,1,0,0,0,56,52,1,0,0,0,
-        56,54,1,0,0,0,56,55,1,0,0,0,57,7,1,0,0,0,58,62,5,36,0,0,59,61,3,
-        6,3,0,60,59,1,0,0,0,61,64,1,0,0,0,62,60,1,0,0,0,62,63,1,0,0,0,63,
-        65,1,0,0,0,64,62,1,0,0,0,65,66,5,37,0,0,66,9,1,0,0,0,67,68,5,1,0,
-        0,68,69,3,32,16,0,69,73,3,8,4,0,70,72,3,12,6,0,71,70,1,0,0,0,72,
-        75,1,0,0,0,73,71,1,0,0,0,73,74,1,0,0,0,74,77,1,0,0,0,75,73,1,0,0,
-        0,76,78,3,14,7,0,77,76,1,0,0,0,77,78,1,0,0,0,78,11,1,0,0,0,79,80,
-        5,4,0,0,80,81,5,1,0,0,81,82,3,32,16,0,82,83,3,8,4,0,83,13,1,0,0,
-        0,84,85,5,4,0,0,85,86,3,8,4,0,86,15,1,0,0,0,87,88,5,7,0,0,88,89,
-        3,32,16,0,89,90,3,8,4,0,90,17,1,0,0,0,91,92,5,3,0,0,92,93,5,16,0,
-        0,93,95,5,34,0,0,94,96,3,28,14,0,95,94,1,0,0,0,95,96,1,0,0,0,96,
-        97,1,0,0,0,97,100,5,35,0,0,98,99,5,41,0,0,99,101,3,2,1,0,100,98,
-        1,0,0,0,100,101,1,0,0,0,101,102,1,0,0,0,102,103,3,8,4,0,103,19,1,
-        0,0,0,104,106,5,5,0,0,105,104,1,0,0,0,105,106,1,0,0,0,106,107,1,
-        0,0,0,107,108,5,16,0,0,108,109,5,33,0,0,109,117,3,32,16,0,110,112,
-        5,16,0,0,111,113,7,0,0,0,112,111,1,0,0,0,112,113,1,0,0,0,113,114,
-        1,0,0,0,114,115,5,33,0,0,115,117,3,32,16,0,116,105,1,0,0,0,116,110,
-        1,0,0,0,117,21,1,0,0,0,118,119,3,32,16,0,119,23,1,0,0,0,120,125,
-        3,22,11,0,121,122,5,32,0,0,122,124,3,22,11,0,123,121,1,0,0,0,124,
-        127,1,0,0,0,125,123,1,0,0,0,125,126,1,0,0,0,126,25,1,0,0,0,127,125,
-        1,0,0,0,128,129,3,2,1,0,129,130,5,16,0,0,130,27,1,0,0,0,131,136,
-        3,26,13,0,132,133,5,32,0,0,133,135,3,26,13,0,134,132,1,0,0,0,135,
-        138,1,0,0,0,136,134,1,0,0,0,136,137,1,0,0,0,137,29,1,0,0,0,138,136,
-        1,0,0,0,139,150,5,11,0,0,140,150,5,12,0,0,141,150,5,13,0,0,142,150,
-        5,14,0,0,143,150,5,15,0,0,144,150,5,16,0,0,145,146,5,34,0,0,146,
-        147,3,32,16,0,147,148,5,35,0,0,148,150,1,0,0,0,149,139,1,0,0,0,149,
-        140,1,0,0,0,149,141,1,0,0,0,149,142,1,0,0,0,149,143,1,0,0,0,149,
-        144,1,0,0,0,149,145,1,0,0,0,150,31,1,0,0,0,151,152,6,16,-1,0,152,
-        153,5,34,0,0,153,154,3,2,1,0,154,155,5,35,0,0,155,156,3,32,16,10,
-        156,161,1,0,0,0,157,161,3,30,15,0,158,159,7,1,0,0,159,161,3,32,16,
-        1,160,151,1,0,0,0,160,157,1,0,0,0,160,158,1,0,0,0,161,198,1,0,0,
-        0,162,163,10,6,0,0,163,164,5,1,0,0,164,165,3,32,16,0,165,166,5,4,
-        0,0,166,167,3,32,16,7,167,197,1,0,0,0,168,169,10,5,0,0,169,170,7,
-        2,0,0,170,197,3,32,16,6,171,172,10,4,0,0,172,173,7,3,0,0,173,197,
-        3,32,16,5,174,175,10,3,0,0,175,176,7,4,0,0,176,197,3,32,16,4,177,
-        178,10,2,0,0,178,179,7,5,0,0,179,197,3,32,16,3,180,181,10,8,0,0,
-        181,183,5,34,0,0,182,184,3,24,12,0,183,182,1,0,0,0,183,184,1,0,0,
-        0,184,185,1,0,0,0,185,197,5,35,0,0,186,187,10,7,0,0,187,188,5,31,
-        0,0,188,194,5,16,0,0,189,191,5,34,0,0,190,192,3,24,12,0,191,190,
-        1,0,0,0,191,192,1,0,0,0,192,193,1,0,0,0,193,195,5,35,0,0,194,189,
-        1,0,0,0,194,195,1,0,0,0,195,197,1,0,0,0,196,162,1,0,0,0,196,168,
-        1,0,0,0,196,171,1,0,0,0,196,174,1,0,0,0,196,177,1,0,0,0,196,180,
-        1,0,0,0,196,186,1,0,0,0,197,200,1,0,0,0,198,196,1,0,0,0,198,199,
-        1,0,0,0,199,33,1,0,0,0,200,198,1,0,0,0,20,37,49,56,62,73,77,95,100,
-        105,112,116,125,136,149,160,183,191,194,196,198
+        12,5,12,124,8,12,10,12,12,12,127,9,12,1,13,3,13,130,8,13,1,13,1,
+        13,1,13,1,14,1,14,1,14,5,14,138,8,14,10,14,12,14,141,9,14,1,15,1,
+        15,1,15,1,15,1,15,1,15,1,15,1,15,1,15,1,15,3,15,153,8,15,1,16,1,
+        16,1,16,1,16,1,16,1,16,1,16,1,16,1,16,1,16,1,16,1,16,1,16,1,16,3,
+        16,169,8,16,1,16,1,16,1,16,1,16,1,16,1,16,1,16,1,16,1,16,1,16,1,
+        16,1,16,1,16,1,16,1,16,1,16,1,16,1,16,1,16,1,16,1,16,3,16,192,8,
+        16,1,16,1,16,1,16,1,16,1,16,1,16,3,16,200,8,16,1,16,3,16,203,8,16,
+        5,16,205,8,16,10,16,12,16,208,9,16,1,16,0,1,32,17,0,2,4,6,8,10,12,
+        14,16,18,20,22,24,26,28,30,32,0,6,1,0,17,21,2,0,17,18,30,30,1,0,
+        19,21,1,0,17,18,1,0,22,27,1,0,28,29,230,0,37,1,0,0,0,2,42,1,0,0,
+        0,4,49,1,0,0,0,6,56,1,0,0,0,8,58,1,0,0,0,10,67,1,0,0,0,12,79,1,0,
+        0,0,14,84,1,0,0,0,16,87,1,0,0,0,18,91,1,0,0,0,20,116,1,0,0,0,22,
+        118,1,0,0,0,24,120,1,0,0,0,26,129,1,0,0,0,28,134,1,0,0,0,30,152,
+        1,0,0,0,32,168,1,0,0,0,34,36,3,4,2,0,35,34,1,0,0,0,36,39,1,0,0,0,
+        37,35,1,0,0,0,37,38,1,0,0,0,38,40,1,0,0,0,39,37,1,0,0,0,40,41,5,
+        0,0,1,41,1,1,0,0,0,42,43,5,16,0,0,43,3,1,0,0,0,44,50,3,20,10,0,45,
+        50,3,18,9,0,46,50,3,16,8,0,47,50,3,10,5,0,48,50,3,32,16,0,49,44,
+        1,0,0,0,49,45,1,0,0,0,49,46,1,0,0,0,49,47,1,0,0,0,49,48,1,0,0,0,
+        50,5,1,0,0,0,51,57,3,4,2,0,52,53,5,6,0,0,53,57,3,32,16,0,54,57,5,
+        9,0,0,55,57,5,8,0,0,56,51,1,0,0,0,56,52,1,0,0,0,56,54,1,0,0,0,56,
+        55,1,0,0,0,57,7,1,0,0,0,58,62,5,36,0,0,59,61,3,6,3,0,60,59,1,0,0,
+        0,61,64,1,0,0,0,62,60,1,0,0,0,62,63,1,0,0,0,63,65,1,0,0,0,64,62,
+        1,0,0,0,65,66,5,37,0,0,66,9,1,0,0,0,67,68,5,1,0,0,68,69,3,32,16,
+        0,69,73,3,8,4,0,70,72,3,12,6,0,71,70,1,0,0,0,72,75,1,0,0,0,73,71,
+        1,0,0,0,73,74,1,0,0,0,74,77,1,0,0,0,75,73,1,0,0,0,76,78,3,14,7,0,
+        77,76,1,0,0,0,77,78,1,0,0,0,78,11,1,0,0,0,79,80,5,4,0,0,80,81,5,
+        1,0,0,81,82,3,32,16,0,82,83,3,8,4,0,83,13,1,0,0,0,84,85,5,4,0,0,
+        85,86,3,8,4,0,86,15,1,0,0,0,87,88,5,7,0,0,88,89,3,32,16,0,89,90,
+        3,8,4,0,90,17,1,0,0,0,91,92,5,3,0,0,92,93,5,16,0,0,93,95,5,34,0,
+        0,94,96,3,28,14,0,95,94,1,0,0,0,95,96,1,0,0,0,96,97,1,0,0,0,97,100,
+        5,35,0,0,98,99,5,41,0,0,99,101,3,2,1,0,100,98,1,0,0,0,100,101,1,
+        0,0,0,101,102,1,0,0,0,102,103,3,8,4,0,103,19,1,0,0,0,104,106,5,5,
+        0,0,105,104,1,0,0,0,105,106,1,0,0,0,106,107,1,0,0,0,107,108,5,16,
+        0,0,108,109,5,33,0,0,109,117,3,32,16,0,110,112,5,16,0,0,111,113,
+        7,0,0,0,112,111,1,0,0,0,112,113,1,0,0,0,113,114,1,0,0,0,114,115,
+        5,33,0,0,115,117,3,32,16,0,116,105,1,0,0,0,116,110,1,0,0,0,117,21,
+        1,0,0,0,118,119,3,32,16,0,119,23,1,0,0,0,120,125,3,22,11,0,121,122,
+        5,32,0,0,122,124,3,22,11,0,123,121,1,0,0,0,124,127,1,0,0,0,125,123,
+        1,0,0,0,125,126,1,0,0,0,126,25,1,0,0,0,127,125,1,0,0,0,128,130,5,
+        5,0,0,129,128,1,0,0,0,129,130,1,0,0,0,130,131,1,0,0,0,131,132,3,
+        2,1,0,132,133,5,16,0,0,133,27,1,0,0,0,134,139,3,26,13,0,135,136,
+        5,32,0,0,136,138,3,26,13,0,137,135,1,0,0,0,138,141,1,0,0,0,139,137,
+        1,0,0,0,139,140,1,0,0,0,140,29,1,0,0,0,141,139,1,0,0,0,142,153,5,
+        11,0,0,143,153,5,12,0,0,144,153,5,13,0,0,145,153,5,14,0,0,146,153,
+        5,15,0,0,147,153,5,16,0,0,148,149,5,34,0,0,149,150,3,32,16,0,150,
+        151,5,35,0,0,151,153,1,0,0,0,152,142,1,0,0,0,152,143,1,0,0,0,152,
+        144,1,0,0,0,152,145,1,0,0,0,152,146,1,0,0,0,152,147,1,0,0,0,152,
+        148,1,0,0,0,153,31,1,0,0,0,154,155,6,16,-1,0,155,156,5,34,0,0,156,
+        157,3,2,1,0,157,158,5,35,0,0,158,159,3,32,16,11,159,169,1,0,0,0,
+        160,169,3,30,15,0,161,162,5,2,0,0,162,163,3,2,1,0,163,164,5,38,0,
+        0,164,165,5,39,0,0,165,169,1,0,0,0,166,167,7,1,0,0,167,169,3,32,
+        16,1,168,154,1,0,0,0,168,160,1,0,0,0,168,161,1,0,0,0,168,166,1,0,
+        0,0,169,206,1,0,0,0,170,171,10,6,0,0,171,172,5,1,0,0,172,173,3,32,
+        16,0,173,174,5,4,0,0,174,175,3,32,16,7,175,205,1,0,0,0,176,177,10,
+        5,0,0,177,178,7,2,0,0,178,205,3,32,16,6,179,180,10,4,0,0,180,181,
+        7,3,0,0,181,205,3,32,16,5,182,183,10,3,0,0,183,184,7,4,0,0,184,205,
+        3,32,16,4,185,186,10,2,0,0,186,187,7,5,0,0,187,205,3,32,16,3,188,
+        189,10,8,0,0,189,191,5,34,0,0,190,192,3,24,12,0,191,190,1,0,0,0,
+        191,192,1,0,0,0,192,193,1,0,0,0,193,205,5,35,0,0,194,195,10,7,0,
+        0,195,196,5,31,0,0,196,202,5,16,0,0,197,199,5,34,0,0,198,200,3,24,
+        12,0,199,198,1,0,0,0,199,200,1,0,0,0,200,201,1,0,0,0,201,203,5,35,
+        0,0,202,197,1,0,0,0,202,203,1,0,0,0,203,205,1,0,0,0,204,170,1,0,
+        0,0,204,176,1,0,0,0,204,179,1,0,0,0,204,182,1,0,0,0,204,185,1,0,
+        0,0,204,188,1,0,0,0,204,194,1,0,0,0,205,208,1,0,0,0,206,204,1,0,
+        0,0,206,207,1,0,0,0,207,33,1,0,0,0,208,206,1,0,0,0,21,37,49,56,62,
+        73,77,95,100,105,112,116,125,129,139,152,168,191,199,202,204,206
     ]
 
 class CureParser ( Parser ):
@@ -94,7 +97,7 @@ class CureParser ( Parser ):
 
     sharedContextCache = PredictionContextCache()
 
-    literalNames = [ "<INVALID>", "'if'", "'new'", "'fn'", "'else'", "'const'", 
+    literalNames = [ "<INVALID>", "'if'", "'new'", "'fn'", "'else'", "'mut'", 
                      "'return'", "'while'", "'break'", "'continue'", "'''", 
                      "<INVALID>", "<INVALID>", "<INVALID>", "<INVALID>", 
                      "'nil'", "<INVALID>", "'+'", "'-'", "'*'", "'/'", "'%'", 
@@ -102,7 +105,7 @@ class CureParser ( Parser ):
                      "'||'", "'!'", "'.'", "','", "'='", "'('", "')'", "'{'", 
                      "'}'", "'['", "']'", "'<-'", "'->'" ]
 
-    symbolicNames = [ "<INVALID>", "IF", "NEW", "FUNC", "ELSE", "CONST", 
+    symbolicNames = [ "<INVALID>", "IF", "NEW", "FUNC", "ELSE", "MUTABLE", 
                       "RETURN", "WHILE", "BREAK", "CONTINUE", "APOSTROPHE", 
                       "INT", "FLOAT", "STRING", "BOOL", "NIL", "ID", "ADD", 
                       "SUB", "MUL", "DIV", "MOD", "EEQ", "NEQ", "GT", "LT", 
@@ -139,7 +142,7 @@ class CureParser ( Parser ):
     NEW=2
     FUNC=3
     ELSE=4
-    CONST=5
+    MUTABLE=5
     RETURN=6
     WHILE=7
     BREAK=8
@@ -229,7 +232,7 @@ class CureParser ( Parser ):
             self.state = 37
             self._errHandler.sync(self)
             _la = self._input.LA(1)
-            while (((_la) & ~0x3f) == 0 and ((1 << _la) & 18254133418) != 0):
+            while (((_la) & ~0x3f) == 0 and ((1 << _la) & 18254133422) != 0):
                 self.state = 34
                 self.stmt()
                 self.state = 39
@@ -417,7 +420,7 @@ class CureParser ( Parser ):
             self.state = 56
             self._errHandler.sync(self)
             token = self._input.LA(1)
-            if token in [1, 3, 5, 7, 11, 12, 13, 14, 15, 16, 17, 18, 30, 34]:
+            if token in [1, 2, 3, 5, 7, 11, 12, 13, 14, 15, 16, 17, 18, 30, 34]:
                 self.enterOuterAlt(localctx, 1)
                 self.state = 51
                 self.stmt()
@@ -495,7 +498,7 @@ class CureParser ( Parser ):
             self.state = 62
             self._errHandler.sync(self)
             _la = self._input.LA(1)
-            while (((_la) & ~0x3f) == 0 and ((1 << _la) & 18254134250) != 0):
+            while (((_la) & ~0x3f) == 0 and ((1 << _la) & 18254134254) != 0):
                 self.state = 59
                 self.bodyStmts()
                 self.state = 64
@@ -809,7 +812,7 @@ class CureParser ( Parser ):
             self.state = 95
             self._errHandler.sync(self)
             _la = self._input.LA(1)
-            if _la==16:
+            if _la==5 or _la==16:
                 self.state = 94
                 self.params()
 
@@ -855,8 +858,8 @@ class CureParser ( Parser ):
             return self.getTypedRuleContext(CureParser.ExprContext,0)
 
 
-        def CONST(self):
-            return self.getToken(CureParser.CONST, 0)
+        def MUTABLE(self):
+            return self.getToken(CureParser.MUTABLE, 0)
 
         def ADD(self):
             return self.getToken(CureParser.ADD, 0)
@@ -901,7 +904,7 @@ class CureParser ( Parser ):
                 _la = self._input.LA(1)
                 if _la==5:
                     self.state = 104
-                    self.match(CureParser.CONST)
+                    self.match(CureParser.MUTABLE)
 
 
                 self.state = 107
@@ -1062,6 +1065,9 @@ class CureParser ( Parser ):
         def ID(self):
             return self.getToken(CureParser.ID, 0)
 
+        def MUTABLE(self):
+            return self.getToken(CureParser.MUTABLE, 0)
+
         def getRuleIndex(self):
             return CureParser.RULE_param
 
@@ -1078,11 +1084,20 @@ class CureParser ( Parser ):
 
         localctx = CureParser.ParamContext(self, self._ctx, self.state)
         self.enterRule(localctx, 26, self.RULE_param)
+        self._la = 0 # Token type
         try:
             self.enterOuterAlt(localctx, 1)
-            self.state = 128
-            self.type_()
             self.state = 129
+            self._errHandler.sync(self)
+            _la = self._input.LA(1)
+            if _la==5:
+                self.state = 128
+                self.match(CureParser.MUTABLE)
+
+
+            self.state = 131
+            self.type_()
+            self.state = 132
             self.match(CureParser.ID)
         except RecognitionException as re:
             localctx.exception = re
@@ -1132,17 +1147,17 @@ class CureParser ( Parser ):
         self._la = 0 # Token type
         try:
             self.enterOuterAlt(localctx, 1)
-            self.state = 131
+            self.state = 134
             self.param()
-            self.state = 136
+            self.state = 139
             self._errHandler.sync(self)
             _la = self._input.LA(1)
             while _la==32:
-                self.state = 132
+                self.state = 135
                 self.match(CureParser.COMMA)
-                self.state = 133
+                self.state = 136
                 self.param()
-                self.state = 138
+                self.state = 141
                 self._errHandler.sync(self)
                 _la = self._input.LA(1)
 
@@ -1207,46 +1222,46 @@ class CureParser ( Parser ):
         localctx = CureParser.AtomContext(self, self._ctx, self.state)
         self.enterRule(localctx, 30, self.RULE_atom)
         try:
-            self.state = 149
+            self.state = 152
             self._errHandler.sync(self)
             token = self._input.LA(1)
             if token in [11]:
                 self.enterOuterAlt(localctx, 1)
-                self.state = 139
+                self.state = 142
                 self.match(CureParser.INT)
                 pass
             elif token in [12]:
                 self.enterOuterAlt(localctx, 2)
-                self.state = 140
+                self.state = 143
                 self.match(CureParser.FLOAT)
                 pass
             elif token in [13]:
                 self.enterOuterAlt(localctx, 3)
-                self.state = 141
+                self.state = 144
                 self.match(CureParser.STRING)
                 pass
             elif token in [14]:
                 self.enterOuterAlt(localctx, 4)
-                self.state = 142
+                self.state = 145
                 self.match(CureParser.BOOL)
                 pass
             elif token in [15]:
                 self.enterOuterAlt(localctx, 5)
-                self.state = 143
+                self.state = 146
                 self.match(CureParser.NIL)
                 pass
             elif token in [16]:
                 self.enterOuterAlt(localctx, 6)
-                self.state = 144
+                self.state = 147
                 self.match(CureParser.ID)
                 pass
             elif token in [34]:
                 self.enterOuterAlt(localctx, 7)
-                self.state = 145
+                self.state = 148
                 self.match(CureParser.LPAREN)
-                self.state = 146
+                self.state = 149
                 self.expr(0)
-                self.state = 147
+                self.state = 150
                 self.match(CureParser.RPAREN)
                 pass
             else:
@@ -1338,6 +1353,29 @@ class CureParser ( Parser ):
         def accept(self, visitor:ParseTreeVisitor):
             if hasattr( visitor, "visitAtom_expr" ):
                 return visitor.visitAtom_expr(self)
+            else:
+                return visitor.visitChildren(self)
+
+
+    class NewArrayContext(ExprContext):
+
+        def __init__(self, parser, ctx:ParserRuleContext): # actually a CureParser.ExprContext
+            super().__init__(parser)
+            self.copyFrom(ctx)
+
+        def NEW(self):
+            return self.getToken(CureParser.NEW, 0)
+        def type_(self):
+            return self.getTypedRuleContext(CureParser.TypeContext,0)
+
+        def LBRACK(self):
+            return self.getToken(CureParser.LBRACK, 0)
+        def RBRACK(self):
+            return self.getToken(CureParser.RBRACK, 0)
+
+        def accept(self, visitor:ParseTreeVisitor):
+            if hasattr( visitor, "visitNewArray" ):
+                return visitor.visitNewArray(self)
             else:
                 return visitor.visitChildren(self)
 
@@ -1539,37 +1577,51 @@ class CureParser ( Parser ):
         self._la = 0 # Token type
         try:
             self.enterOuterAlt(localctx, 1)
-            self.state = 160
+            self.state = 168
             self._errHandler.sync(self)
-            la_ = self._interp.adaptivePredict(self._input,14,self._ctx)
+            la_ = self._interp.adaptivePredict(self._input,15,self._ctx)
             if la_ == 1:
                 localctx = CureParser.CastContext(self, localctx)
                 self._ctx = localctx
                 _prevctx = localctx
 
-                self.state = 152
-                self.match(CureParser.LPAREN)
-                self.state = 153
-                self.type_()
-                self.state = 154
-                self.match(CureParser.RPAREN)
                 self.state = 155
-                self.expr(10)
+                self.match(CureParser.LPAREN)
+                self.state = 156
+                self.type_()
+                self.state = 157
+                self.match(CureParser.RPAREN)
+                self.state = 158
+                self.expr(11)
                 pass
 
             elif la_ == 2:
                 localctx = CureParser.Atom_exprContext(self, localctx)
                 self._ctx = localctx
                 _prevctx = localctx
-                self.state = 157
+                self.state = 160
                 self.atom()
                 pass
 
             elif la_ == 3:
+                localctx = CureParser.NewArrayContext(self, localctx)
+                self._ctx = localctx
+                _prevctx = localctx
+                self.state = 161
+                self.match(CureParser.NEW)
+                self.state = 162
+                self.type_()
+                self.state = 163
+                self.match(CureParser.LBRACK)
+                self.state = 164
+                self.match(CureParser.RBRACK)
+                pass
+
+            elif la_ == 4:
                 localctx = CureParser.UnaryContext(self, localctx)
                 self._ctx = localctx
                 _prevctx = localctx
-                self.state = 158
+                self.state = 166
                 localctx.uop = self._input.LT(1)
                 _la = self._input.LA(1)
                 if not((((_la) & ~0x3f) == 0 and ((1 << _la) & 1074135040) != 0)):
@@ -1577,48 +1629,48 @@ class CureParser ( Parser ):
                 else:
                     self._errHandler.reportMatch(self)
                     self.consume()
-                self.state = 159
+                self.state = 167
                 self.expr(1)
                 pass
 
 
             self._ctx.stop = self._input.LT(-1)
-            self.state = 198
+            self.state = 206
             self._errHandler.sync(self)
-            _alt = self._interp.adaptivePredict(self._input,19,self._ctx)
+            _alt = self._interp.adaptivePredict(self._input,20,self._ctx)
             while _alt!=2 and _alt!=ATN.INVALID_ALT_NUMBER:
                 if _alt==1:
                     if self._parseListeners is not None:
                         self.triggerExitRuleEvent()
                     _prevctx = localctx
-                    self.state = 196
+                    self.state = 204
                     self._errHandler.sync(self)
-                    la_ = self._interp.adaptivePredict(self._input,18,self._ctx)
+                    la_ = self._interp.adaptivePredict(self._input,19,self._ctx)
                     if la_ == 1:
                         localctx = CureParser.TernaryContext(self, CureParser.ExprContext(self, _parentctx, _parentState))
                         self.pushNewRecursionContext(localctx, _startState, self.RULE_expr)
-                        self.state = 162
+                        self.state = 170
                         if not self.precpred(self._ctx, 6):
                             from antlr4.error.Errors import FailedPredicateException
                             raise FailedPredicateException(self, "self.precpred(self._ctx, 6)")
-                        self.state = 163
+                        self.state = 171
                         self.match(CureParser.IF)
-                        self.state = 164
+                        self.state = 172
                         self.expr(0)
-                        self.state = 165
+                        self.state = 173
                         self.match(CureParser.ELSE)
-                        self.state = 166
+                        self.state = 174
                         self.expr(7)
                         pass
 
                     elif la_ == 2:
                         localctx = CureParser.MultiplicationContext(self, CureParser.ExprContext(self, _parentctx, _parentState))
                         self.pushNewRecursionContext(localctx, _startState, self.RULE_expr)
-                        self.state = 168
+                        self.state = 176
                         if not self.precpred(self._ctx, 5):
                             from antlr4.error.Errors import FailedPredicateException
                             raise FailedPredicateException(self, "self.precpred(self._ctx, 5)")
-                        self.state = 169
+                        self.state = 177
                         localctx.op = self._input.LT(1)
                         _la = self._input.LA(1)
                         if not((((_la) & ~0x3f) == 0 and ((1 << _la) & 3670016) != 0)):
@@ -1626,18 +1678,18 @@ class CureParser ( Parser ):
                         else:
                             self._errHandler.reportMatch(self)
                             self.consume()
-                        self.state = 170
+                        self.state = 178
                         self.expr(6)
                         pass
 
                     elif la_ == 3:
                         localctx = CureParser.AdditionContext(self, CureParser.ExprContext(self, _parentctx, _parentState))
                         self.pushNewRecursionContext(localctx, _startState, self.RULE_expr)
-                        self.state = 171
+                        self.state = 179
                         if not self.precpred(self._ctx, 4):
                             from antlr4.error.Errors import FailedPredicateException
                             raise FailedPredicateException(self, "self.precpred(self._ctx, 4)")
-                        self.state = 172
+                        self.state = 180
                         localctx.op = self._input.LT(1)
                         _la = self._input.LA(1)
                         if not(_la==17 or _la==18):
@@ -1645,18 +1697,18 @@ class CureParser ( Parser ):
                         else:
                             self._errHandler.reportMatch(self)
                             self.consume()
-                        self.state = 173
+                        self.state = 181
                         self.expr(5)
                         pass
 
                     elif la_ == 4:
                         localctx = CureParser.RelationalContext(self, CureParser.ExprContext(self, _parentctx, _parentState))
                         self.pushNewRecursionContext(localctx, _startState, self.RULE_expr)
-                        self.state = 174
+                        self.state = 182
                         if not self.precpred(self._ctx, 3):
                             from antlr4.error.Errors import FailedPredicateException
                             raise FailedPredicateException(self, "self.precpred(self._ctx, 3)")
-                        self.state = 175
+                        self.state = 183
                         localctx.op = self._input.LT(1)
                         _la = self._input.LA(1)
                         if not((((_la) & ~0x3f) == 0 and ((1 << _la) & 264241152) != 0)):
@@ -1664,18 +1716,18 @@ class CureParser ( Parser ):
                         else:
                             self._errHandler.reportMatch(self)
                             self.consume()
-                        self.state = 176
+                        self.state = 184
                         self.expr(4)
                         pass
 
                     elif la_ == 5:
                         localctx = CureParser.LogicalContext(self, CureParser.ExprContext(self, _parentctx, _parentState))
                         self.pushNewRecursionContext(localctx, _startState, self.RULE_expr)
-                        self.state = 177
+                        self.state = 185
                         if not self.precpred(self._ctx, 2):
                             from antlr4.error.Errors import FailedPredicateException
                             raise FailedPredicateException(self, "self.precpred(self._ctx, 2)")
-                        self.state = 178
+                        self.state = 186
                         localctx.op = self._input.LT(1)
                         _la = self._input.LA(1)
                         if not(_la==28 or _la==29):
@@ -1683,66 +1735,66 @@ class CureParser ( Parser ):
                         else:
                             self._errHandler.reportMatch(self)
                             self.consume()
-                        self.state = 179
+                        self.state = 187
                         self.expr(3)
                         pass
 
                     elif la_ == 6:
                         localctx = CureParser.CallContext(self, CureParser.ExprContext(self, _parentctx, _parentState))
                         self.pushNewRecursionContext(localctx, _startState, self.RULE_expr)
-                        self.state = 180
+                        self.state = 188
                         if not self.precpred(self._ctx, 8):
                             from antlr4.error.Errors import FailedPredicateException
                             raise FailedPredicateException(self, "self.precpred(self._ctx, 8)")
-                        self.state = 181
+                        self.state = 189
                         self.match(CureParser.LPAREN)
-                        self.state = 183
+                        self.state = 191
                         self._errHandler.sync(self)
                         _la = self._input.LA(1)
-                        if (((_la) & ~0x3f) == 0 and ((1 << _la) & 18254133248) != 0):
-                            self.state = 182
+                        if (((_la) & ~0x3f) == 0 and ((1 << _la) & 18254133252) != 0):
+                            self.state = 190
                             self.args()
 
 
-                        self.state = 185
+                        self.state = 193
                         self.match(CureParser.RPAREN)
                         pass
 
                     elif la_ == 7:
                         localctx = CureParser.AttrContext(self, CureParser.ExprContext(self, _parentctx, _parentState))
                         self.pushNewRecursionContext(localctx, _startState, self.RULE_expr)
-                        self.state = 186
+                        self.state = 194
                         if not self.precpred(self._ctx, 7):
                             from antlr4.error.Errors import FailedPredicateException
                             raise FailedPredicateException(self, "self.precpred(self._ctx, 7)")
-                        self.state = 187
+                        self.state = 195
                         self.match(CureParser.DOT)
-                        self.state = 188
+                        self.state = 196
                         self.match(CureParser.ID)
-                        self.state = 194
+                        self.state = 202
                         self._errHandler.sync(self)
-                        la_ = self._interp.adaptivePredict(self._input,17,self._ctx)
+                        la_ = self._interp.adaptivePredict(self._input,18,self._ctx)
                         if la_ == 1:
-                            self.state = 189
+                            self.state = 197
                             self.match(CureParser.LPAREN)
-                            self.state = 191
+                            self.state = 199
                             self._errHandler.sync(self)
                             _la = self._input.LA(1)
-                            if (((_la) & ~0x3f) == 0 and ((1 << _la) & 18254133248) != 0):
-                                self.state = 190
+                            if (((_la) & ~0x3f) == 0 and ((1 << _la) & 18254133252) != 0):
+                                self.state = 198
                                 self.args()
 
 
-                            self.state = 193
+                            self.state = 201
                             self.match(CureParser.RPAREN)
 
 
                         pass
 
              
-                self.state = 200
+                self.state = 208
                 self._errHandler.sync(self)
-                _alt = self._interp.adaptivePredict(self._input,19,self._ctx)
+                _alt = self._interp.adaptivePredict(self._input,20,self._ctx)
 
         except RecognitionException as re:
             localctx.exception = re

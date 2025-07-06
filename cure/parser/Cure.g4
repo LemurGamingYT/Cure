@@ -20,14 +20,14 @@ whileStmt: WHILE expr body;
 
 funcAssign: FUNC ID LPAREN params? RPAREN (RETURNS type)? body;
 varAssign
-    : CONST? ID ASSIGN expr
+    : MUTABLE? ID ASSIGN expr
     | ID op=(ADD | SUB | MUL | DIV | MOD)? ASSIGN expr
     ;
 
 arg: expr;
 args: arg (COMMA arg)*;
 
-param: type ID;
+param: MUTABLE? type ID;
 params: param (COMMA param)*;
 
 atom
@@ -43,7 +43,7 @@ atom
 expr
     : LPAREN type RPAREN expr #cast
     | atom #atom_expr
-    // | NEW type LBRACK RBRACK #newArray
+    | NEW type LBRACK RBRACK #newArray
     | expr LPAREN args? RPAREN #call
     | expr DOT ID (LPAREN args? RPAREN)? #attr
     | expr IF expr ELSE expr #ternary
@@ -60,7 +60,7 @@ IF: 'if';
 NEW: 'new';
 FUNC: 'fn';
 ELSE: 'else';
-CONST: 'const';
+MUTABLE: 'mut';
 RETURN: 'return';
 
 // Loop keywords

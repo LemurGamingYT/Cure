@@ -104,6 +104,11 @@ class CureVisitor(ParseTreeVisitor):
         return self.visitChildren(ctx)
 
 
+    # Visit a parse tree produced by CureParser#newArray.
+    def visitNewArray(self, ctx:CureParser.NewArrayContext):
+        return self.visitChildren(ctx)
+
+
     # Visit a parse tree produced by CureParser#relational.
     def visitRelational(self, ctx:CureParser.RelationalContext):
         return self.visitChildren(ctx)

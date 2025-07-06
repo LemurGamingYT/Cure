@@ -47,18 +47,6 @@ class CRegistry:
             lir.IntType(64) # size
         ]))
 
-        self.register('sinf', lir.FunctionType(lir.FloatType(), [
-            lir.FloatType() # arg
-        ]))
-
-        self.register('cosf', lir.FunctionType(lir.FloatType(), [
-            lir.FloatType() # arg
-        ]))
-
-        self.register('tanf', lir.FunctionType(lir.FloatType(), [
-            lir.FloatType() # arg
-        ]))
-
         self.register('memcmp', lir.FunctionType(lir.IntType(1), [
             lir.IntType(8).as_pointer(), # lhs
             lir.IntType(8).as_pointer(), # rhs

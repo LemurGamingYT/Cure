@@ -22,7 +22,8 @@ class casts(Lib):
 
             snprintf = ctx.c_registry.get('snprintf')
 
-            x = ctx.param('x').value
+            x = ctx.param_value('x')
+
             buf = create_static_buffer(ctx.module, lir.IntType(8), self.INT_BUF_SIZE)
             fmt_ptr = create_string_constant(ctx.module, r'%d')
             ctx.builder.call(snprintf, [buf, buf_size, fmt_ptr, x])
@@ -40,7 +41,7 @@ class casts(Lib):
 
             snprintf = ctx.c_registry.get('snprintf')
 
-            x = cast_value(ctx.builder, ctx.param('x').value, lir.DoubleType())
+            x = cast_value(ctx.builder, ctx.param_value('x'), lir.DoubleType())
             buf = create_static_buffer(ctx.module, lir.IntType(8), self.FLOAT_BUF_SIZE)
             fmt_ptr = create_string_constant(ctx.module, r'%f')
             ctx.builder.call(snprintf, [buf, buf_size, fmt_ptr, x])
@@ -54,7 +55,7 @@ class casts(Lib):
             TypeManager.get('string'), flags=FunctionFlags(method=True),
         )
         def string_to_string(ctx: DefinitionContext):
-            return ctx.param('x').value
+            return ctx.param_value('x')
         
         @function(
             self,
@@ -62,7 +63,8 @@ class casts(Lib):
             TypeManager.get('string'), flags=FunctionFlags(method=True)
         )
         def bool_to_string(ctx: DefinitionContext):
-            x = ctx.param('x').value
+            x = ctx.param_value('x')
+
             ptr = create_ternary(
                 ctx.builder, x,
                 create_string_constant(ctx.module, 'true'), create_string_constant(ctx.module, 'false')
@@ -92,7 +94,7 @@ class casts(Lib):
             TypeManager.get('float')
         )
         def int_to_float(ctx: DefinitionContext):
-            x = ctx.param('x').value
+            x = ctx.param_value('x')
             return cast_value(ctx.builder, x, TypeManager.get('float').type)
         
         @function(
@@ -101,5 +103,5 @@ class casts(Lib):
             TypeManager.get('float')
         )
         def float_to_int(ctx: DefinitionContext):
-            x = ctx.param('x').value
+            x = ctx.param_value('x')
             return cast_value(ctx.builder, x, TypeManager.get('int').type)

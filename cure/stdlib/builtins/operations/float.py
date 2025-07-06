@@ -12,8 +12,8 @@ class floatOperations(Lib):
             Param(Position.zero(), 'b', TypeManager.get('float'))
         ], TypeManager.get('float'))
         def float_add_float(ctx: DefinitionContext):
-            a = ctx.param('a').value
-            b = ctx.param('b').value
+            a = ctx.param_value('a')
+            b = ctx.param_value('b')
             return ctx.builder.fadd(a, b)
         
         @function(self, [
@@ -21,8 +21,8 @@ class floatOperations(Lib):
             Param(Position.zero(), 'b', TypeManager.get('float'))
         ], TypeManager.get('float'))
         def float_sub_float(ctx: DefinitionContext):
-            a = ctx.param('a').value
-            b = ctx.param('b').value
+            a = ctx.param_value('a')
+            b = ctx.param_value('b')
             return ctx.builder.fsub(a, b)
         
         @function(self, [
@@ -30,8 +30,8 @@ class floatOperations(Lib):
             Param(Position.zero(), 'b', TypeManager.get('float'))
         ], TypeManager.get('float'))
         def float_mul_float(ctx: DefinitionContext):
-            a = ctx.param('a').value
-            b = ctx.param('b').value
+            a = ctx.param_value('a')
+            b = ctx.param_value('b')
             return ctx.builder.fmul(a, b)
         
         @function(self, [
@@ -39,8 +39,8 @@ class floatOperations(Lib):
             Param(Position.zero(), 'b', TypeManager.get('float'))
         ], TypeManager.get('float'))
         def float_div_float(ctx: DefinitionContext):
-            a = ctx.param('a').value
-            b = ctx.param('b').value
+            a = ctx.param_value('a')
+            b = ctx.param_value('b')
 
             div_by_zero = ctx.builder.fcmp_ordered('==', b, float_zero())
             
@@ -54,8 +54,8 @@ class floatOperations(Lib):
             Param(Position.zero(), 'b', TypeManager.get('float'))
         ], TypeManager.get('float'))
         def float_mod_float(ctx: DefinitionContext):
-            a = ctx.param('a').value
-            b = ctx.param('b').value
+            a = ctx.param_value('a')
+            b = ctx.param_value('b')
 
             zero = lir.Constant(TypeManager.get('float').type, 0.0)
             div_by_zero = ctx.builder.fcmp_ordered('==', b, zero)
@@ -70,8 +70,8 @@ class floatOperations(Lib):
             Param(Position.zero(), 'b', TypeManager.get('float'))
         ], TypeManager.get('bool'))
         def float_eq_float(ctx: DefinitionContext):
-            a = ctx.param('a').value
-            b = ctx.param('b').value
+            a = ctx.param_value('a')
+            b = ctx.param_value('b')
             return ctx.builder.fcmp_ordered('==', a, b)
         
         @function(self, [
@@ -79,8 +79,8 @@ class floatOperations(Lib):
             Param(Position.zero(), 'b', TypeManager.get('float'))
         ], TypeManager.get('bool'))
         def float_neq_float(ctx: DefinitionContext):
-            a = ctx.param('a').value
-            b = ctx.param('b').value
+            a = ctx.param_value('a')
+            b = ctx.param_value('b')
             return ctx.builder.fcmp_ordered('!=', a, b)
         
         @function(self, [
@@ -88,8 +88,8 @@ class floatOperations(Lib):
             Param(Position.zero(), 'b', TypeManager.get('float'))
         ], TypeManager.get('bool'))
         def float_lt_float(ctx: DefinitionContext):
-            a = ctx.param('a').value
-            b = ctx.param('b').value
+            a = ctx.param_value('a')
+            b = ctx.param_value('b')
             return ctx.builder.fcmp_ordered('<', a, b)
         
         @function(self, [
@@ -97,8 +97,8 @@ class floatOperations(Lib):
             Param(Position.zero(), 'b', TypeManager.get('float'))
         ], TypeManager.get('bool'))
         def float_gt_float(ctx: DefinitionContext):
-            a = ctx.param('a').value
-            b = ctx.param('b').value
+            a = ctx.param_value('a')
+            b = ctx.param_value('b')
             return ctx.builder.fcmp_ordered('>', a, b)
         
         @function(self, [
@@ -106,8 +106,8 @@ class floatOperations(Lib):
             Param(Position.zero(), 'b', TypeManager.get('float'))
         ], TypeManager.get('bool'))
         def float_lte_float(ctx: DefinitionContext):
-            a = ctx.param('a').value
-            b = ctx.param('b').value
+            a = ctx.param_value('a')
+            b = ctx.param_value('b')
             return ctx.builder.fcmp_ordered('<=', a, b)
         
         @function(self, [
@@ -115,6 +115,6 @@ class floatOperations(Lib):
             Param(Position.zero(), 'b', TypeManager.get('float'))
         ], TypeManager.get('bool'))
         def float_gte_float(ctx: DefinitionContext):
-            a = ctx.param('a').value
-            b = ctx.param('b').value
+            a = ctx.param_value('a')
+            b = ctx.param_value('b')
             return ctx.builder.fcmp_ordered('>=', a, b)

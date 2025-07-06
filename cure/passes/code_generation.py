@@ -3,6 +3,7 @@ from typing import cast
 
 from llvmlite import ir as lir, binding as llvm
 
+from cure.stdlib.builtins.classes.array import array
 from cure.c_registry import CRegistry
 from cure.passes import CompilerPass
 from cure.lib import run_function
@@ -15,7 +16,7 @@ from cure.codegen_utils import (
 
 DONT_MANAGE_MEMORY = (
     ir.Type, ir.Param, ir.Function, ir.Variable, ir.Id, ir.Body, ir.Assignment, ir.Elif,
-    ir.If, ir.Ref, ir.While, ir.Return
+    ir.If, ir.While, ir.Return
 )
 
 
@@ -55,7 +56,7 @@ class CodeGeneration(CompilerPass):
         if isinstance(value.type, lir.PointerType):
             value = self.builder.load(value)
         
-        if isinstance(value.type, lir.LiteralStructType):
+        if isinstance(value.type, (lir.LiteralStructType, lir.IdentifiedStructType)):
             ref_index = index_of_type(value.type, ir.TypeManager.get('Ref').type.as_pointer())
             if ref_index == -1:
                 warning(f'Type {node_type} needs memory management but has no Ref* field')
@@ -265,9 +266,12 @@ class CodeGeneration(CompilerPass):
                     ref = get_struct_field_value(self.builder, param_value, ref_index)
                     run_function(node.pos, self.builder, self.module, self.scope, 'Ref_inc', [ref])
                 
-                self.scope.symbol_table.add(ir.Symbol(param.name, param.type, store_in_pointer(
-                    self.builder, param.type.type, param_value, f'param_{param.name}_ptr'
-                )))
+                if param.is_mutable:
+                    param_value = store_in_pointer(
+                        self.builder, param.type.type, param_value, f'{param.name}_ptr'
+                    )
+                
+                self.scope.symbol_table.add(ir.Symbol(param.name, param.type, param_value))
             
             self.run_on(node.body)
 
@@ -288,7 +292,7 @@ class CodeGeneration(CompilerPass):
         if value is None:
             node.pos.comptime_error('cannot generate code for uninitialised variables', self.scope.src)
             return
-        
+
         ptr = store_in_pointer(self.builder, self.run_on(node.type), value, f'{node.name}_ptr')
         self.scope.symbol_table.add(ir.Symbol(node.name, node.type, ptr))
         return ptr
@@ -337,14 +341,6 @@ class CodeGeneration(CompilerPass):
         info(f'Loading value {node.name}')
         return symbol.value
     
-    def run_on_Ref(self, node: ir.Ref):
-        symbol = self.scope.symbol_table.get(node.name)
-        if symbol is None:
-            return
-        
-        info(f'Returning pointer of {node.name}')
-        return symbol.value
-    
     def run_on_Call(self, node: ir.Call):
         symbol = self.scope.symbol_table.get(node.callee)
         if symbol is None:
@@ -378,10 +374,7 @@ class CodeGeneration(CompilerPass):
         )
     
     def run_on_NewArray(self, node: ir.NewArray):
-        raise NotImplementedError
-        # return run_function(node.pos, self.builder, self.module, self.scope, 'array_new', [
-        #     lir.Constant(lir.IntType(32), 10), cast_value(
-        #         self.builder, get_type_size(self.builder, node.array_type.type),
-        #         ir.TypeManager.get('int').type
-        #     )
-        # ])
+        arr = array(self.scope, node.element_type)
+        return run_function(node.pos, self.builder, self.module, self.scope, f'{arr.type}_new', [
+            lir.Constant(ir.TypeManager.get('int').type, 10)
+        ])

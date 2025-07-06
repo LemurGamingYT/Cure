@@ -33,7 +33,8 @@ class builtins(Lib):
             exit = ctx.c_registry.get('exit')
             puts = ctx.c_registry.get('puts')
 
-            message = ctx.param('message').value
+            message = ctx.param_value('message')
+
             ctx.builder.call(puts, [get_struct_field_value(ctx.builder, message, 0)])
             ctx.builder.call(exit, [lir.Constant(TypeManager.get('int').type, 1)])
 
@@ -59,7 +60,7 @@ class builtins(Lib):
         def print_literal(ctx: DefinitionContext):
             printf = ctx.c_registry.get('printf')
 
-            x = ctx.param('x').value
+            x = ctx.param_value('x')
             ctx.builder.call(printf, [get_struct_field_value(ctx.builder, x, 0)])
         
         @function(self, ret_type=TypeManager.get('string'), flags=FunctionFlags(public=True))
@@ -92,7 +93,7 @@ class builtins(Lib):
         @overload(input, [Param(Position.zero(), 'prompt', TypeManager.get('string'))],
                 TypeManager.get('string'))
         def input_prompt(ctx: DefinitionContext):
-            prompt = ctx.param('prompt').value
+            prompt = ctx.param_value('prompt')
 
             printf = ctx.c_registry.get('printf')
 

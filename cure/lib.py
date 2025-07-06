@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Callable, Any
-from logging import info
+from logging import info, debug
 
 from llvmlite import ir as lir
 
@@ -49,10 +49,10 @@ def function(self: Any, params: list[ir.Param] | None = None, ret_type: ir.Type 
         func.ret_type = ret_type
         func.flags = flags
         func.overloads = []
-        func.self = self
 
         if self is not None:
-            setattr(self, func.__name__, func)
+            setattr(self, name, func)
+            debug(f'Added {name} to {self}')
         
         return func
     
@@ -94,9 +94,12 @@ def getattrs(instance):
     return attrs
 
 def add_instance(self, instance):
+    attrs = list(getattrs(instance).values())
+    debug(f'Adding {attrs} (from instance {instance}) to {self}')
+
     for v in getattrs(instance).values():
         if isinstance(self, Class):
-            name = f'{self._name}_{v.name}'
+            name = f'{self.type}_{v.name}'
         else:
             name = v.name
         
@@ -115,7 +118,6 @@ def add_instance(self, instance):
 @dataclass
 class ParamPointer:
     value: lir.Value
-    ptr: lir.Value
     type: ir.Type
 
 @dataclass
@@ -137,11 +139,16 @@ class DefinitionContext:
             if symbol is None:
                 return self.pos.comptime_error(f'invalid param {name}', self.scope.src)
             
-            return ParamPointer(
-                self.builder.load(symbol.value, symbol.name), symbol.value, symbol.type
-            )
+            value = symbol.value
+            if isinstance(symbol.value, lir.PointerType):
+                value = self.builder.load(value, symbol.name)
+            
+            return ParamPointer(value, symbol.type)
 
         return self.pos.comptime_error(f'unknown param {name}', self.scope.src)
+    
+    def param_value(self, name: str) -> lir.Value:
+        return self.param(name).value
     
     def create_function(self, name: str) -> lir.Function | None:
         symbol = self.scope.symbol_table.get(name)
@@ -201,16 +208,29 @@ class Class(ABC):
     def fields(self) -> list[ClassField]:
         ...
 
-    def __init__(self, scope: ir.Scope):
+    def __init__(self, scope: ir.Scope, *generic_types: ir.Type):
+        self.generic_types = generic_types
         self.scope = scope
-        self._name = type(self).__name__
+
+        self._class_name = type(self).__name__
+        if not hasattr(self, '_name'):
+            self._name = self._class_name + ''.join(f'_{type}' for type in generic_types)
 
         if not ir.TypeManager.exists(self._name):
-            field_types = [field.type for field in self.fields()]
-            ir.TypeManager.add(self._name, lir.LiteralStructType(field_types))
+            ir.TypeManager.add(self._name, self._create_struct())
+        
+        if not hasattr(self, 'type'):
+            self.type = ir.TypeManager.get(self._name)
 
         self.init_class()
         add_instance(self, self)
+    
+    def _create_struct(self):
+        struct_type = lir.global_context.get_identified_type(self._name)
+        if struct_type.is_opaque:
+            struct_type.set_body(*[field.type.type for field in self.fields()])
+        
+        return struct_type
     
     def init_class(self):
         ...

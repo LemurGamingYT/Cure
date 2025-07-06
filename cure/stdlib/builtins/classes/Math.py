@@ -26,7 +26,7 @@ class Math(Class):
         @function(self, [Param(Position.zero(), 'arg', TypeManager.get('float'))],
                 TypeManager.get('int'), flags=FunctionFlags(static=True, method=True))
         def floor(ctx: DefinitionContext):
-            arg = ctx.param('arg').value
+            arg = ctx.param_value('arg')
 
             floorf = ctx.c_registry.get('floorf')
             return cast_value(ctx.builder, ctx.builder.call(floorf, [arg]), TypeManager.get('int').type)
@@ -34,7 +34,7 @@ class Math(Class):
         @function(self, [Param(Position.zero(), 'arg', TypeManager.get('float'))],
                 TypeManager.get('int'), flags=FunctionFlags(static=True, method=True))
         def ceil(ctx: DefinitionContext):
-            arg = ctx.param('arg').value
+            arg = ctx.param_value('arg')
 
             ceilf = ctx.c_registry.get('ceilf')
             return cast_value(ctx.builder, ctx.builder.call(ceilf, [arg]), TypeManager.get('int').type)
@@ -42,7 +42,7 @@ class Math(Class):
         @function(self, [Param(Position.zero(), 'arg', TypeManager.get('float'))],
                 TypeManager.get('int'), flags=FunctionFlags(static=True, method=True))
         def sqrt(ctx: DefinitionContext):
-            arg = ctx.param('arg').value
+            arg = ctx.param_value('arg')
 
             sqrtf = ctx.c_registry.get('sqrtf')
             return cast_value(ctx.builder, ctx.builder.call(sqrtf, [arg]), TypeManager.get('int').type)
@@ -52,8 +52,8 @@ class Math(Class):
             Param(Position.zero(), 'exponent', TypeManager.get('float'))
         ], TypeManager.get('float'), flags=FunctionFlags(static=True, method=True))
         def pow(ctx: DefinitionContext):
-            base = ctx.param('base').value
-            exponent = ctx.param('exponent').value
+            base = ctx.param_value('base')
+            exponent = ctx.param_value('exponent')
 
             powf = ctx.c_registry.get('powf')
             return ctx.builder.call(powf, [base, exponent])
@@ -63,8 +63,8 @@ class Math(Class):
             Param(Position.zero(), 'exponent', TypeManager.get('int'))
         ], TypeManager.get('int'))
         def pow_int(ctx: DefinitionContext):
-            base = ctx.param('base').value
-            exponent = ctx.param('exponent').value
+            base = ctx.param_value('base')
+            exponent = ctx.param_value('exponent')
 
             powf = ctx.c_registry.get('powf')
             return cast_value(ctx.builder, ctx.builder.call(powf, [

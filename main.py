@@ -14,7 +14,7 @@ def main():
 def setup_logger():
     basicConfig(
         filename='debug.log', filemode='w',
-        format='%(asctime)s [%(levelname)s] %(funcName)s (line %(lineno)d) - %(message)s',
+        format='%(asctime)s [%(levelname)s] %(filename)s (line %(lineno)d) - %(message)s',
         datefmt='%H:%M:%S', encoding='utf-8', level=DEBUG
     )
 

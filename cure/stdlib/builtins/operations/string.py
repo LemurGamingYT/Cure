@@ -12,8 +12,8 @@ class stringOperations(Lib):
             Param(Position.zero(), 'b', TypeManager.get('string'))
         ], TypeManager.get('string'))
         def string_add_string(ctx: DefinitionContext):
-            a = ctx.param('a').value
-            b = ctx.param('b').value
+            a = ctx.param_value('a')
+            b = ctx.param_value('b')
 
             memcpy = ctx.c_registry.get('memcpy')
             malloc = ctx.c_registry.get('malloc')
@@ -45,8 +45,8 @@ class stringOperations(Lib):
             Param(Position.zero(), 'b', TypeManager.get('string'))
         ], TypeManager.get('bool'))
         def string_eq_string(ctx: DefinitionContext):
-            a = ctx.param('a').value
-            b = ctx.param('b').value
+            a = ctx.param_value('a')
+            b = ctx.param_value('b')
             
             memcmp = ctx.c_registry.get('memcmp')
 
@@ -68,8 +68,8 @@ class stringOperations(Lib):
             Param(Position.zero(), 'b', TypeManager.get('string'))
         ], TypeManager.get('bool'))
         def string_neq_string(ctx: DefinitionContext):
-            a = ctx.param('a').value
-            b = ctx.param('b').value
+            a = ctx.param_value('a')
+            b = ctx.param_value('b')
             
             memcmp = ctx.c_registry.get('memcmp')
 

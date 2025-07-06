@@ -132,12 +132,16 @@ class CureIRBuilder(CureVisitor):
         return self.visitOperation(ctx)
     
     def visitNewArray(self, ctx):
+        pos = to_pos(ctx)
         element_type = self.visit(ctx.type_())
-        capacity = ir.Int(to_pos(ctx), 10)
-        return ir.NewArray(to_pos(ctx), element_type, capacity)
+        capacity = ir.Int(pos, 10)
+        return ir.NewArray(pos, element_type, capacity)
     
     def visitParam(self, ctx):
-        return ir.Param(to_pos(ctx), ctx.ID().getText(), self.visit(ctx.type_()))
+        return ir.Param(
+            to_pos(ctx), ctx.ID().getText(), self.visit(ctx.type_()),
+            ctx.MUTABLE() is not None
+        )
     
     def visitParams(self, ctx):
         return [self.visit(param) for param in ctx.param()] if ctx is not None else []
@@ -162,7 +166,7 @@ class CureIRBuilder(CureVisitor):
     def visitVarAssign(self, ctx):
         return ir.Variable(
             to_pos(ctx), ctx.ID().getText(), self.visit(ctx.expr()),
-            ctx.CONST() is not None
+            ctx.MUTABLE() is not None
         )
     
     def visitWhileStmt(self, ctx):

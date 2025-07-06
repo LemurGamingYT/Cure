@@ -2,6 +2,7 @@ from pprint import pformat
 from logging import info
 from typing import cast
 
+from cure.stdlib.builtins.classes.array import array
 from cure.codegen_utils import max_value, min_value
 from cure.passes import CompilerPass
 from cure import ir
@@ -27,7 +28,7 @@ class Analyser(CompilerPass):
         return node
     
     def run_on_Param(self, node: ir.Param):
-        return ir.Param(node.pos, node.name, self.run_on(node.type))
+        return ir.Param(node.pos, node.name, self.run_on(node.type), node.is_mutable)
     
     def run_on_Body(self, node: ir.Body):
         self.scope = self.scope.clone()
@@ -63,7 +64,7 @@ class Analyser(CompilerPass):
 
         info('Adding parameters to environment')
         for param in params:
-            self.scope.symbol_table.add(ir.Symbol(param.name, param.type, param))
+            self.scope.symbol_table.add(ir.Symbol(param.name, param.type, param, param.is_mutable))
         
         body = self.run_on(node.body) if isinstance(node.body, ir.Body) else node.body
 
@@ -76,12 +77,15 @@ class Analyser(CompilerPass):
     
     def run_on_Variable(self, node: ir.Variable):
         value = self.run_on(node.value) if node.value is not None else node.value
-        if self.scope.symbol_table.has(node.name) and value is not None:
+        if (symbol := self.scope.symbol_table.get(node.name)) is not None and value is not None:
+            if not symbol.is_mutable:
+                node.pos.comptime_error(f'\'{node.name}\' is immutable', self.scope.src)
+
             return self.run_on(ir.Assignment(node.pos, node.name, value))
         
         var_type = value.get_type() if value is not None else node.type
-        self.scope.symbol_table.add(ir.Symbol(node.name, var_type, value))
-        return ir.Variable(node.pos, node.name, value, node.is_const, var_type)
+        self.scope.symbol_table.add(ir.Symbol(node.name, var_type, value, node.is_mutable))
+        return ir.Variable(node.pos, node.name, value, node.is_mutable, var_type)
     
     def run_on_Assignment(self, node: ir.Assignment):
         symbol = self.scope.symbol_table.get(node.name)
@@ -202,3 +206,9 @@ class Analyser(CompilerPass):
         return ir.Ternary(
             node.pos, self.run_on(node.condition), self.run_on(node.true), self.run_on(node.false)
         )
+    
+    def run_on_NewArray(self, node: ir.NewArray):
+        node.pos.comptime_error('arrays are not implemented', self.scope.src)
+        element_type = self.run_on(node.element_type)
+        array(self.scope, element_type)
+        return ir.NewArray(node.pos, element_type, self.run_on(node.capacity))
