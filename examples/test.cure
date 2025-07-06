@@ -1,5 +1,3 @@
 fn main() -> int {
-    s = "Hello"
-    s.set(0, "J")
     return 0
 }
