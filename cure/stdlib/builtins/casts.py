@@ -1,7 +1,7 @@
 from llvmlite import ir as lir
 
+from cure.lib import function, Lib, DefinitionContext, CallArgument
 from cure.ir import Param, Position, TypeManager, FunctionFlags
-from cure.lib import function, Lib, DefinitionContext
 from cure.codegen_utils import (
     create_string_constant, create_ternary, create_static_buffer, cast_value
 )
@@ -27,8 +27,11 @@ class casts(Lib):
             buf = create_static_buffer(ctx.module, lir.IntType(8), self.INT_BUF_SIZE)
             fmt_ptr = create_string_constant(ctx.module, r'%d')
             ctx.builder.call(snprintf, [buf, buf_size, fmt_ptr, x])
+
+            buf_size_i32 = cast_value(ctx.builder, buf_size, TypeManager.get('int').type)
             return ctx.call('string_new', [
-                buf, cast_value(ctx.builder, buf_size, TypeManager.get('int').type)
+                CallArgument(buf, TypeManager.get('pointer')),
+                CallArgument(buf_size_i32, TypeManager.get('int'))
             ])
         
         @function(
@@ -45,8 +48,11 @@ class casts(Lib):
             buf = create_static_buffer(ctx.module, lir.IntType(8), self.FLOAT_BUF_SIZE)
             fmt_ptr = create_string_constant(ctx.module, r'%f')
             ctx.builder.call(snprintf, [buf, buf_size, fmt_ptr, x])
+            
+            buf_size_i32 = cast_value(ctx.builder, buf_size, TypeManager.get('int').type)
             return ctx.call('string_new', [
-                buf, cast_value(ctx.builder, buf_size, TypeManager.get('int').type)
+                CallArgument(buf, TypeManager.get('pointer')),
+                CallArgument(buf_size_i32, TypeManager.get('int'))
             ])
         
         @function(
@@ -74,7 +80,10 @@ class casts(Lib):
                 ctx.builder, x, lir.Constant(lir.IntType(32), 4), lir.Constant(lir.IntType(32), 5)
             )
 
-            return ctx.call('string_new', [ptr, length])
+            return ctx.call('string_new', [
+                CallArgument(ptr, TypeManager.get('pointer')),
+                CallArgument(length, TypeManager.get('int'))
+            ])
         
         @function(
             self,
@@ -83,8 +92,8 @@ class casts(Lib):
         )
         def nil_to_string(ctx: DefinitionContext):
             return ctx.call('string_new', [
-                create_string_constant(ctx.module, 'nil'),
-                lir.Constant(TypeManager.get('int').type, 3)
+                CallArgument(create_string_constant(ctx.module, 'nil'), TypeManager.get('pointer')),
+                CallArgument(lir.Constant(TypeManager.get('int').type, 3), TypeManager.get('int'))
             ])
         
 

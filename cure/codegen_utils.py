@@ -118,18 +118,23 @@ def allocate_struct(builder: ir.IRBuilder, struct_type: ir.Type, name: str = '')
     """Allocate space for a struct on the stack"""
     return builder.alloca(struct_type, name=name)
 
-def get_struct_field_ptr(builder: ir.IRBuilder, struct: ir.Value, field_index: int):
-    """Get pointer to a struct field"""
+def get_struct_ptr_field(builder: ir.IRBuilder, struct: ir.Value, field_index: int):
+    """Get pointer to a struct field (struct must be allocated)"""
     field_idx = ir.Constant(ir.IntType(32), field_index)
     return builder.gep(struct, [zero(32), field_idx])
 
-def get_struct_field_value(builder: ir.IRBuilder, struct: ir.Value, field_index: int):
+def get_struct_ptr_field_value(builder: ir.IRBuilder, struct: ir.Value, field_index: int):
+    """Get the value from a struct pointer's field (struct must be allocated)"""
+    ptr = get_struct_ptr_field(builder, struct, field_index)
+    return builder.load(ptr)
+
+def get_struct_value_field(builder: ir.IRBuilder, struct: ir.Value, field_index: int):
     """Extract a field value from a struct value"""
     return builder.extract_value(struct, field_index)
 
 def set_struct_field(builder: ir.IRBuilder, struct: ir.Value, field_index: int, value: ir.Value):
     """Set a field in a struct (struct must be allocated)"""
-    ptr = get_struct_field_ptr(builder, struct, field_index)
+    ptr = get_struct_ptr_field(builder, struct, field_index)
     builder.store(value, ptr)
 
 

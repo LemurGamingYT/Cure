@@ -1,6 +1,6 @@
-from cure.codegen_utils import zero
 from cure.lib import function, Lib, DefinitionContext
 from cure.ir import Param, Position, TypeManager
+from cure.codegen_utils import zero
 
 
 class intOperations(Lib):
@@ -41,7 +41,6 @@ class intOperations(Lib):
             b = ctx.param_value('b')
 
             div_by_zero = ctx.builder.icmp_signed('==', b, zero(32))
-            
             with ctx.builder.if_then(div_by_zero):
                 ctx.error('division by zero')
             
@@ -56,7 +55,6 @@ class intOperations(Lib):
             b = ctx.param_value('b')
 
             div_by_zero = ctx.builder.icmp_signed('==', b, zero(32))
-            
             with ctx.builder.if_then(div_by_zero):
                 ctx.error('modulo by zero')
             

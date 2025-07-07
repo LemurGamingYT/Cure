@@ -1,9 +1,9 @@
 from llvmlite import ir as lir
 
+from cure.lib import function, Class, ClassField, DefinitionContext, CallArgument
 from cure.ir import Scope, TypeManager, Type, Position, Param, FunctionFlags
-from cure.lib import function, Class, ClassField, DefinitionContext
 from cure.codegen_utils import (
-    cast_value, zero, create_struct_value, get_type_size, get_struct_field_ptr
+    cast_value, zero, create_struct_value, get_type_size, get_struct_ptr_field
 )
 
 
@@ -45,7 +45,11 @@ class array(Class):
             ).as_pointer()
             null_func_ptr = lir.Constant(func_ptr_type, None)
             
-            ref = ctx.call('Ref_new', [raw_ptr, null_func_ptr])
+            ref = ctx.call('Ref_new', [
+                CallArgument(raw_ptr, TypeManager.get('pointer')),
+                CallArgument(null_func_ptr, TypeManager.get('any_function'))
+            ])
+
             return create_struct_value(ctx.builder, self.type.type, [data_ptr, length, capacity, ref])
         
         @function(self, [
@@ -56,13 +60,13 @@ class array(Class):
             arr = ctx.param_value('arr')
             elem = ctx.param_value('elem')
 
-            elements_ptr = get_struct_field_ptr(ctx.builder, arr, 0)
+            elements_ptr = get_struct_ptr_field(ctx.builder, arr, 0)
             elements = ctx.builder.load(elements_ptr)
 
-            length_ptr = get_struct_field_ptr(ctx.builder, arr, 1)
+            length_ptr = get_struct_ptr_field(ctx.builder, arr, 1)
             length = ctx.builder.load(length_ptr)
 
-            capacity_ptr = get_struct_field_ptr(ctx.builder, arr, 2)
+            capacity_ptr = get_struct_ptr_field(ctx.builder, arr, 2)
             capacity = ctx.builder.load(capacity_ptr)
 
             with ctx.builder.if_then(ctx.builder.icmp_signed('>=', length, capacity)):
@@ -74,7 +78,7 @@ class array(Class):
             one = lir.Constant(length.type, 1)
             new_length = ctx.builder.add(length, one)
 
-            length_ptr = get_struct_field_ptr(ctx.builder, arr, 1)
+            length_ptr = get_struct_ptr_field(ctx.builder, arr, 1)
             ctx.builder.store(new_length, length_ptr)
 
         @function(self, [
@@ -85,9 +89,9 @@ class array(Class):
             arr = ctx.param_value('arr')
             index = ctx.param_value('index')
 
-            elements = get_struct_field_ptr(ctx.builder, arr, 0)
-            length = get_struct_field_ptr(ctx.builder, arr, 1)
-            capacity = get_struct_field_ptr(ctx.builder, arr, 2)
+            elements = get_struct_ptr_field(ctx.builder, arr, 0)
+            length = get_struct_ptr_field(ctx.builder, arr, 1)
+            capacity = get_struct_ptr_field(ctx.builder, arr, 2)
             with ctx.builder.if_then(ctx.builder.icmp_signed('>=', length, capacity)):
                 ctx.error('array index out of bounds')
             

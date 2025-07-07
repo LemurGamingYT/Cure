@@ -4,13 +4,13 @@ from typing import cast
 from llvmlite import ir as lir, binding as llvm
 
 from cure.stdlib.builtins.classes.array import array
+from cure.lib import run_function, CallArgument
 from cure.c_registry import CRegistry
 from cure.passes import CompilerPass
-from cure.lib import run_function
 from cure import ir
 from cure.codegen_utils import (
-    NULL, create_while_loop, store_in_pointer, create_string_constant, get_struct_field_ptr,
-    get_struct_field_value, index_of_type, create_ternary
+    NULL, create_while_loop, store_in_pointer, create_string_constant, get_struct_ptr_field,
+    get_struct_value_field, index_of_type, create_ternary
 )
 
 
@@ -61,7 +61,7 @@ class CodeGeneration(CompilerPass):
             if ref_index == -1:
                 warning(f'Type {node_type} needs memory management but has no Ref* field')
             else:
-                ref = get_struct_field_value(self.builder, value, ref_index)
+                ref = get_struct_value_field(self.builder, value, ref_index)
                 run_function(node.pos, self.builder, self.module, self.scope, 'Ref_inc', [ref])
 
         ptr = store_in_pointer(self.builder, node_type.type, value, 'temp_var')
@@ -97,9 +97,9 @@ class CodeGeneration(CompilerPass):
                         warning(f'Type {symbol.type} needs memory management but has no Ref* field')
                         continue
 
-                    ref = self.builder.load(get_struct_field_ptr(self.builder, struct, ref_index)) if\
+                    ref = self.builder.load(get_struct_ptr_field(self.builder, struct, ref_index)) if\
                         isinstance(struct.type, lir.PointerType) else\
-                        get_struct_field_value(self.builder, struct, ref_index)
+                        get_struct_value_field(self.builder, struct, ref_index)
                     
                     run_function(stmt.pos, self.builder, self.module, self.scope, 'Ref_dec', [ref])
                 
@@ -263,7 +263,7 @@ class CodeGeneration(CompilerPass):
                     if ref_index == -1:
                         warning(f'Type {param.type} needs memory management but has no Ref* field')
                     
-                    ref = get_struct_field_value(self.builder, param_value, ref_index)
+                    ref = get_struct_value_field(self.builder, param_value, ref_index)
                     run_function(node.pos, self.builder, self.module, self.scope, 'Ref_inc', [ref])
                 
                 if param.is_mutable:
@@ -293,13 +293,23 @@ class CodeGeneration(CompilerPass):
             node.pos.comptime_error('cannot generate code for uninitialised variables', self.scope.src)
             return
 
-        ptr = store_in_pointer(self.builder, self.run_on(node.type), value, f'{node.name}_ptr')
-        self.scope.symbol_table.add(ir.Symbol(node.name, node.type, ptr))
-        return ptr
+        symbol_value = value
+
+        # if the variable is mutable, a pointer is allocated, if not, the variable's value replaces
+        # it's use because it will never change, it's basically a constant
+        if node.is_mutable:
+            symbol_value = store_in_pointer(
+                self.builder, self.run_on(node.type), symbol_value, f'{node.name}_ptr'
+            )
+        
+        self.scope.symbol_table.add(ir.Symbol(node.name, node.type, symbol_value, node.is_mutable))
+        return symbol_value
     
     def run_on_Assignment(self, node: ir.Assignment):
         value = self.run_on(node.value)
         symbol = cast(ir.Symbol, self.scope.symbol_table.get(node.name))
+        if not symbol.is_mutable:
+            node.pos.comptime_error(f'\'{node.name}\' is immutable', self.scope.src)
 
         ptr = symbol.value
         return self.builder.store(value, ptr)
@@ -349,7 +359,8 @@ class CodeGeneration(CompilerPass):
         
         args = [self.run_on(arg) for arg in node.args]
         if isinstance(symbol.value, ir.Function):
-            return symbol.value(node.pos, self.scope, args, self.module, self.builder)
+            call_args = [CallArgument(arg, n.get_type()) for arg, n in zip(args, node.args)]
+            return symbol.value(node.pos, self.scope, call_args, self.module, self.builder)
         elif isinstance(symbol.value, lir.Function):
             return self.builder.call(symbol.value, args)
 

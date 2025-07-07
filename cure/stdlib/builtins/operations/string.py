@@ -1,6 +1,6 @@
 from llvmlite import ir as lir
 
-from cure.codegen_utils import cast_value, get_struct_field_value, zero
+from cure.codegen_utils import cast_value, get_struct_value_field, zero
 from cure.lib import function, Lib, DefinitionContext
 from cure.ir import Param, Position, TypeManager
 
@@ -18,15 +18,15 @@ class stringOperations(Lib):
             memcpy = ctx.c_registry.get('memcpy')
             malloc = ctx.c_registry.get('malloc')
 
-            a_len = get_struct_field_value(ctx.builder, a, 1)
-            b_len = get_struct_field_value(ctx.builder, b, 1)
+            a_len = get_struct_value_field(ctx.builder, a, 1)
+            b_len = get_struct_value_field(ctx.builder, b, 1)
             total_length = ctx.builder.add(a_len, b_len)
             ptr = ctx.builder.call(malloc, [ctx.builder.add(
                 total_length, lir.Constant(lir.IntType(64), 1)
             )])
 
-            a_buf = get_struct_field_value(ctx.builder, a, 0)
-            b_buf = get_struct_field_value(ctx.builder, b, 0)
+            a_buf = get_struct_value_field(ctx.builder, a, 0)
+            b_buf = get_struct_value_field(ctx.builder, b, 0)
             ctx.builder.call(memcpy, [ptr, a_buf, a_len])
 
             ptr_offset = ctx.builder.gep(ptr, [a_len])
@@ -50,13 +50,13 @@ class stringOperations(Lib):
             
             memcmp = ctx.c_registry.get('memcmp')
 
-            a_len = get_struct_field_value(ctx.builder, a, 1)
-            b_len = get_struct_field_value(ctx.builder, b, 1)
+            a_len = get_struct_value_field(ctx.builder, a, 1)
+            b_len = get_struct_value_field(ctx.builder, b, 1)
             with ctx.builder.if_then(ctx.builder.icmp_signed('!=', a_len, b_len)):
                 ctx.builder.ret(zero(1))
             
-            a_ptr = get_struct_field_value(ctx.builder, a, 0)
-            b_ptr = get_struct_field_value(ctx.builder, b, 0)
+            a_ptr = get_struct_value_field(ctx.builder, a, 0)
+            b_ptr = get_struct_value_field(ctx.builder, b, 0)
             return ctx.builder.icmp_signed(
                 '==',
                 ctx.builder.call(memcmp, [a_ptr, b_ptr, a_len]),
@@ -73,13 +73,13 @@ class stringOperations(Lib):
             
             memcmp = ctx.c_registry.get('memcmp')
 
-            a_len = get_struct_field_value(ctx.builder, a, 1)
-            b_len = get_struct_field_value(ctx.builder, b, 1)
+            a_len = get_struct_value_field(ctx.builder, a, 1)
+            b_len = get_struct_value_field(ctx.builder, b, 1)
             with ctx.builder.if_then(ctx.builder.icmp_signed('==', a_len, b_len)):
                 ctx.builder.ret(zero(1))
             
-            a_ptr = get_struct_field_value(ctx.builder, a, 0)
-            b_ptr = get_struct_field_value(ctx.builder, b, 0)
+            a_ptr = get_struct_value_field(ctx.builder, a, 0)
+            b_ptr = get_struct_value_field(ctx.builder, b, 0)
             return ctx.builder.icmp_signed(
                 '!=',
                 ctx.builder.call(memcmp, [a_ptr, b_ptr, a_len]),

@@ -2,7 +2,7 @@ from logging import debug
 
 from llvmlite import ir as lir
 
-from cure.codegen_utils import set_struct_field, get_struct_field_ptr, NULL, get_type_size, cast_value
+from cure.codegen_utils import set_struct_field, get_struct_ptr_field, NULL, get_type_size, cast_value
 from cure.ir import Param, Position, TypeManager, FunctionFlags
 from cure.lib import function, Class, DefinitionContext
 
@@ -48,7 +48,7 @@ class Ref(Class):
         def inc(ctx: DefinitionContext):
             self = ctx.param_value('self')
 
-            ref_count_ptr = get_struct_field_ptr(ctx.builder, self, 2)
+            ref_count_ptr = get_struct_ptr_field(ctx.builder, self, 2)
             debug(f'Incrementing Ref pointer {self}')
 
             ref_count = ctx.builder.load(ref_count_ptr)
@@ -61,7 +61,7 @@ class Ref(Class):
         def dec(ctx: DefinitionContext):
             self = ctx.param_value('self')
 
-            ref_count_ptr = get_struct_field_ptr(ctx.builder, self, 2)
+            ref_count_ptr = get_struct_ptr_field(ctx.builder, self, 2)
             ref_count = ctx.builder.load(ref_count_ptr)
             one = lir.Constant(lir.IntType(64), 1)
             new_count = ctx.builder.sub(ref_count, one)
@@ -72,10 +72,10 @@ class Ref(Class):
             with ctx.builder.if_then(ctx.builder.icmp_signed('==', new_count, zero)):
                 free = ctx.c_registry.get('free')
 
-                data_ptr_ptr = get_struct_field_ptr(ctx.builder, self, 0)
+                data_ptr_ptr = get_struct_ptr_field(ctx.builder, self, 0)
                 data_ptr = ctx.builder.load(data_ptr_ptr)
                 
-                destroy_fn_ptr = get_struct_field_ptr(ctx.builder, self, 1)
+                destroy_fn_ptr = get_struct_ptr_field(ctx.builder, self, 1)
                 destroy_fn = ctx.builder.load(destroy_fn_ptr)
                 
                 func_ptr_type = lir.FunctionType(lir.IntType(8).as_pointer(), [

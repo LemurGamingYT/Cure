@@ -1,5 +1,3 @@
-from llvmlite import ir as lir
-
 from cure.codegen_utils import float_zero
 from cure.lib import function, Lib, DefinitionContext
 from cure.ir import Param, Position, TypeManager
@@ -43,7 +41,6 @@ class floatOperations(Lib):
             b = ctx.param_value('b')
 
             div_by_zero = ctx.builder.fcmp_ordered('==', b, float_zero())
-            
             with ctx.builder.if_then(div_by_zero):
                 ctx.error('division by zero')
             
@@ -57,9 +54,7 @@ class floatOperations(Lib):
             a = ctx.param_value('a')
             b = ctx.param_value('b')
 
-            zero = lir.Constant(TypeManager.get('float').type, 0.0)
-            div_by_zero = ctx.builder.fcmp_ordered('==', b, zero)
-            
+            div_by_zero = ctx.builder.fcmp_ordered('==', b, float_zero())
             with ctx.builder.if_then(div_by_zero):
                 ctx.error('modulo by zero')
             

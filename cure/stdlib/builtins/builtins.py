@@ -1,9 +1,9 @@
 from llvmlite import ir as lir
 
+from cure.lib import function, overload, Lib, DefinitionContext, CallArgument
 from cure.stdlib.builtins.operations.string import stringOperations
 from cure.stdlib.builtins.operations.float import floatOperations
 from cure.ir import Param, Position, TypeManager, FunctionFlags
-from cure.lib import function, overload, Lib, DefinitionContext
 from cure.stdlib.builtins.operations.bool import boolOperations
 from cure.stdlib.builtins.operations.int import intOperations
 from cure.stdlib.builtins.classes.string import string
@@ -11,8 +11,8 @@ from cure.stdlib.builtins.classes.Math import Math
 from cure.stdlib.builtins.classes.Ref import Ref
 from cure.stdlib.builtins.casts import casts
 from cure.codegen_utils import (
-    get_struct_field_value, create_static_buffer, NULL_BYTE, cast_value, create_string_constant,
-    index_of_type, get_struct_field_ptr
+    get_struct_value_field, create_static_buffer, NULL_BYTE, cast_value, create_string_constant,
+    index_of_type, get_struct_ptr_field
 )
 
 
@@ -35,7 +35,7 @@ class builtins(Lib):
 
             message = ctx.param_value('message')
 
-            ctx.builder.call(puts, [get_struct_field_value(ctx.builder, message, 0)])
+            ctx.builder.call(puts, [get_struct_value_field(ctx.builder, message, 0)])
             ctx.builder.call(exit, [lir.Constant(TypeManager.get('int').type, 1)])
 
         @function(self, [Param(Position.zero(), 'x', TypeManager.get('any'))],
@@ -44,16 +44,16 @@ class builtins(Lib):
             puts = ctx.c_registry.get('puts')
 
             x = ctx.param('x')
-            x_str = ctx.call(f'{x.type}_to_string', [x.value])
-            ctx.builder.call(puts, [get_struct_field_value(ctx.builder, x_str, 0)])
+            x_str = ctx.call(f'{x.type}_to_string', [CallArgument(x.value, x.type)])
+            ctx.builder.call(puts, [get_struct_value_field(ctx.builder, x_str, 0)])
 
             # manually free the string
             # (because the CodeGeneration's memory management does not apply here)
             ref_index = index_of_type(x_str.type, TypeManager.get('Ref').type.as_pointer())
-            ref = ctx.builder.load(get_struct_field_ptr(ctx.builder, x_str, ref_index)) if\
+            ref = ctx.builder.load(get_struct_ptr_field(ctx.builder, x_str, ref_index)) if\
                 isinstance(x_str.type, lir.PointerType) else\
-                get_struct_field_value(ctx.builder, x_str, ref_index)
-            ctx.call('Ref_dec', [ref])
+                get_struct_value_field(ctx.builder, x_str, ref_index)
+            ctx.call('Ref_dec', [CallArgument(ref, TypeManager.get('Ref').as_pointer())])
 
         @function(self, [Param(Position.zero(), 'x', TypeManager.get('string'))],
                 flags=FunctionFlags(public=True))
@@ -61,7 +61,7 @@ class builtins(Lib):
             printf = ctx.c_registry.get('printf')
 
             x = ctx.param_value('x')
-            ctx.builder.call(printf, [get_struct_field_value(ctx.builder, x, 0)])
+            ctx.builder.call(printf, [get_struct_value_field(ctx.builder, x, 0)])
         
         @function(self, ret_type=TypeManager.get('string'), flags=FunctionFlags(public=True))
         def input(ctx: DefinitionContext):
@@ -86,8 +86,10 @@ class builtins(Lib):
                 ctx.builder.store(NULL_BYTE(), last_char_ptr)
                 input_len = ctx.builder.sub(input_len, lir.Constant(lir.IntType(64), 1))
 
+            input_len_i32 = cast_value(ctx.builder, input_len, TypeManager.get('int').type)
             return ctx.call('string_new', [
-                buf, cast_value(ctx.builder, input_len, TypeManager.get('int').type)
+                CallArgument(buf, TypeManager.get('pointer')),
+                CallArgument(input_len_i32, TypeManager.get('int'))
             ])
         
         @overload(input, [Param(Position.zero(), 'prompt', TypeManager.get('string'))],
@@ -98,6 +100,6 @@ class builtins(Lib):
             printf = ctx.c_registry.get('printf')
 
             fmt = create_string_constant(ctx.module, '%s')
-            prompt_ptr = get_struct_field_value(ctx.builder, prompt, 0)
+            prompt_ptr = get_struct_value_field(ctx.builder, prompt, 0)
             ctx.builder.call(printf, [fmt, prompt_ptr])
             return ctx.call('input')

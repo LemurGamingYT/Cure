@@ -37,7 +37,7 @@ class Position:
         print(' ' * self.column + '^')
         print(f'{Style.BRIGHT}{Fore.RED}error: {msg}{Style.RESET_ALL}')
         error(msg)
-        # raise NotImplementedError
+        raise NotImplementedError
         sys_exit(1)
 
 @dataclass
@@ -96,7 +96,7 @@ class TypeManager:
                 continue
 
             return TypeManager.get(k)
-
+        
         # try again without being a pointer
         if llvm_type.is_pointer:
             llvm_type = llvm_type.pointee
@@ -435,38 +435,45 @@ class Function(Node):
         return self.type
     
     
-    @staticmethod
-    def _compile(
-        pos: Position, module: lir.Module, scope: Scope, func: 'Function',
-        arg_types: list[Type]
+    def compile(
+        self, pos: Position, module: lir.Module, scope: Scope, arg_types: list[Type]
     ):
         from cure.lib import DefinitionContext
 
         c_registry = module.c_registry
 
-        callee = func.name
-        param_types = [param.type.type for param in func.params]
-        ir_func = lir.Function(module, lir.FunctionType(func.ret_type.type, param_types),
+        callee = self.name
+        params = []
+        for arg_type, param in zip(arg_types, self.params):
+            if param.type == TypeManager.get('any'):
+                params.append(Param(param.pos, param.name, arg_type, param.is_mutable))
+            else:
+                params.append(param)
+
+        param_types = [param.type.type for param in params]
+        ir_func = lir.Function(module, lir.FunctionType(self.ret_type.type, param_types),
                                 callee)
         body_builder = lir.IRBuilder(ir_func.append_basic_block())
         def_scope = scope.clone()
         ctx = DefinitionContext(pos, def_scope, module, body_builder, c_registry,
-                                func.params, func.ret_type)
-        for i, (param_type, symbol_type, param) in enumerate(zip(param_types, arg_types, func.params)):
+                                params, self.ret_type)
+        for i, (ir_type, param) in enumerate(zip(arg_types, params)):
             value = ir_func.args[i]
             if param.is_mutable:
-                value = store_in_pointer(body_builder, param_type, value, f'{param.name}_ptr')
+                value = store_in_pointer(body_builder, ir_type.type, value, f'{param.name}_ptr')
             
-            def_scope.symbol_table.add(Symbol(param.name, symbol_type, value))
+            def_scope.symbol_table.add(Symbol(param.name, ir_type, value))
         
+        info(f'Added parameters to scope: {params}')
         info(f'Compiling {callee}')
-        if func.body is not None and callable(func.body):
-            result = func.body(ctx)
+        info(f'Current function signature: {ir_func}')
+        if self.body is not None and callable(self.body):
+            result = self.body(ctx)
 
         # utility and ease of use if statements
         if result is not None:
             body_builder.ret(result)
-        elif func.ret_type == TypeManager.get('nil') and not body_builder.block.is_terminated:
+        elif self.ret_type == TypeManager.get('nil') and not body_builder.block.is_terminated:
             body_builder.ret(NULL())
 
         info(f'Compiled {callee}')
@@ -491,7 +498,7 @@ class Function(Node):
                 param_type = cast(Type, param_type.ref_target)
 
             # - if the parameter type matches the argument type
-            if arg_type.type != param_type.type:
+            if arg_type != param_type:
                 return False
         
         return True
@@ -501,47 +508,45 @@ class Function(Node):
         module: lir.Module | None = None, builder: lir.IRBuilder | None = None
     ):
         arg_types = [arg.type for arg in args]
-        arg_ir_types = [TypeManager.from_llvm(arg_type) for arg_type in arg_types] if\
-            all(isinstance(arg_type, lir.Type) for arg_type in arg_types) else arg_types
-        
-        if any(type is None for type in arg_ir_types):
-            arg_types_str = ', '.join(map(str, arg_types))
-            pos.comptime_error(
-                f'invalid IR types: [{arg_types_str}]', scope.src
-            )
 
         # check if the main function matches the argument types
-        if self._check_params([param.type for param in self.params], arg_ir_types):
+        if self._check_params([param.type for param in self.params], arg_types):
             func = self
         else:
             # for each overload, call _check_params, if none match, produce an error
             for overload in self.overloads:
-                if not self._check_params([param.type for param in overload.params], arg_ir_types):
+                if not self._check_params([param.type for param in overload.params], arg_types):
                     continue
 
                 func = overload
                 break
             else:
-                arg_ir_types_str = ', '.join(map(str, arg_ir_types))
+                arg_types_str = ', '.join(map(str, arg_types))
                 error(
-                    f'no matching overloads for argument types [{arg_ir_types_str}]'\
-                        f'for function call to {self.name}'
+                    f'no matching overloads for argument types [{arg_types_str}]'\
+                        f' for function call to {self.name}'
                 )
+                error(f'Args: {args}')
+                error(f'Argument types {arg_types}')
+
                 pos.comptime_error(
-                    f'no matching overloads [{arg_ir_types_str}]', scope.src
+                    f'no matching overloads [{arg_types_str}]', scope.src
                 )
         
         # if the module and builder is given, then it's a code generation call and the _compile
         # function should be used
         if module is not None and builder is not None:
+            info(f'Code generation call to {func.name}')
             if func.name in module.globals:
                 ir_func = module.get_global(func.name)
             else:
-                ir_func = self._compile(pos, module, scope, func, arg_ir_types)
+                ir_func = func.compile(pos, module, scope, arg_types)
             
-            return builder.call(ir_func, args)
+            call_args = [arg.value for arg in args]
+            return builder.call(ir_func, call_args)
         # otherwise, the call is an IR call, return the Call node
         else:
+            info(f'IR call to {func.name}')
             return Call(pos, func.name, args, func.ret_type)
 
 @dataclass

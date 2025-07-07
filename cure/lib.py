@@ -12,7 +12,7 @@ from cure import ir
 
 def run_function(
     pos: ir.Position, builder: lir.IRBuilder, module: lir.Module,
-    scope: ir.Scope, name: str, args: list[lir.Value] | None = None
+    scope: ir.Scope, name: str, args: list['CallArgument'] | None = None
 ):
     if args is None:
         args = []
@@ -25,6 +25,7 @@ def run_function(
     if not isinstance(func, ir.Function):
         return pos.comptime_error(f'invalid callable {name}', scope.src)
     
+    assert all(isinstance(arg, CallArgument) for arg in args)
     return func(pos, scope, args, module, builder)
 
 
@@ -115,8 +116,15 @@ def add_instance(self, instance):
         info(f'Added {name} from {self._name}')
 
 
+# TODO: maybe combine ParamPointer and CallArgument?
 @dataclass
 class ParamPointer:
+    value: lir.Value
+    type: ir.Type
+
+# TODO: I don't like this ;-;
+@dataclass
+class CallArgument:
     value: lir.Value
     type: ir.Type
 
@@ -150,29 +158,17 @@ class DefinitionContext:
     def param_value(self, name: str) -> lir.Value:
         return self.param(name).value
     
-    def create_function(self, name: str) -> lir.Function | None:
-        symbol = self.scope.symbol_table.get(name)
-        if symbol is None:
-            self.pos.comptime_error(f'no function named {name}', self.scope.src)
-            return None
-        
-        func = symbol.value
-        if callable(func):
-            arg_types = [param.type for param in func.params]
-            return func(self.module, self.scope, arg_types)
-        
-        return func
-    
-    def call(self, name: str, args: list[lir.Value] | None = None):
+    def call(self, name: str, args: list[CallArgument] | None = None):
         return run_function(self.pos, self.builder, self.module, self.scope, name, args)
     
     def error(self, message: str):
         err_msg = create_string_constant(self.module, message)
         err_string_struct = self.call('string_new', [
-            err_msg, lir.Constant(lir.IntType(32), len(message))
+            CallArgument(err_msg, ir.TypeManager.get('pointer')),
+            CallArgument(lir.Constant(lir.IntType(32), len(message)), ir.TypeManager.get('int'))
         ])
 
-        self.call('error', [err_string_struct])
+        self.call('error', [CallArgument(err_string_struct, ir.TypeManager.get('string'))])
         self.builder.unreachable()
 
 class Lib(ABC):
