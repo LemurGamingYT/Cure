@@ -62,7 +62,9 @@ class CodeGeneration(CompilerPass):
                 warning(f'Type {node_type} needs memory management but has no Ref* field')
             else:
                 ref = get_struct_value_field(self.builder, value, ref_index)
-                run_function(node.pos, self.builder, self.module, self.scope, 'Ref_inc', [ref])
+                run_function(node.pos, self.builder, self.module, self.scope, 'Ref_inc', [
+                    CallArgument(ref, ir.TypeManager.get('Ref').as_pointer())
+                ])
 
         ptr = store_in_pointer(self.builder, node_type.type, value, 'temp_var')
         self.scope.symbol_table.add(ir.Symbol(ptr.name, node_type, ptr))
@@ -101,7 +103,9 @@ class CodeGeneration(CompilerPass):
                         isinstance(struct.type, lir.PointerType) else\
                         get_struct_value_field(self.builder, struct, ref_index)
                     
-                    run_function(stmt.pos, self.builder, self.module, self.scope, 'Ref_dec', [ref])
+                    run_function(stmt.pos, self.builder, self.module, self.scope, 'Ref_dec', [
+                        CallArgument(ref, ir.TypeManager.get('Ref').as_pointer())
+                    ])
                 
                 info('Finished inserting Ref_dec methods')
             
@@ -271,7 +275,9 @@ class CodeGeneration(CompilerPass):
                         self.builder, param.type.type, param_value, f'{param.name}_ptr'
                     )
                 
-                self.scope.symbol_table.add(ir.Symbol(param.name, param.type, param_value))
+                self.scope.symbol_table.add(ir.Symbol(
+                    param.name, param.type, param_value, param.is_mutable
+                ))
             
             self.run_on(node.body)
 

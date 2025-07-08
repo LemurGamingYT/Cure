@@ -37,7 +37,7 @@ class Position:
         print(' ' * self.column + '^')
         print(f'{Style.BRIGHT}{Fore.RED}error: {msg}{Style.RESET_ALL}')
         error(msg)
-        raise NotImplementedError
+        # raise NotImplementedError
         sys_exit(1)
 
 @dataclass
@@ -268,7 +268,7 @@ class Type(Node):
         return self.display
     
     def needs_memory_management(self):
-        if not isinstance(self.type, lir.LiteralStructType):
+        if not isinstance(self.type, (lir.LiteralStructType, lir.IdentifiedStructType)):
             return False
 
         if not any(elem == TypeManager.get('Ref').type.as_pointer() for elem in self.type.elements):
@@ -442,13 +442,18 @@ class Function(Node):
 
         c_registry = module.c_registry
 
-        callee = self.name
         params = []
+        generic_types = []
         for arg_type, param in zip(arg_types, self.params):
             if param.type == TypeManager.get('any'):
                 params.append(Param(param.pos, param.name, arg_type, param.is_mutable))
+                generic_types.append(arg_type)
             else:
                 params.append(param)
+
+        callee = f'{self.name}{"".join(f"_{generic_type}" for generic_type in generic_types)}'
+        if callee in module.globals:
+            return module.get_global(callee)
 
         param_types = [param.type.type for param in params]
         ir_func = lir.Function(module, lir.FunctionType(self.ret_type.type, param_types),
@@ -526,8 +531,13 @@ class Function(Node):
                     f'no matching overloads for argument types [{arg_types_str}]'\
                         f' for function call to {self.name}'
                 )
-                error(f'Args: {args}')
-                error(f'Argument types {arg_types}')
+
+                info(f'Args: {args}')
+                info(f'Argument types {arg_types}')
+                info(f'Parameter Types: [{", ".join(str(param.type) for param in self.params)}]')
+                info(f'Num Overloads: {len(self.overloads)}')
+                if self.overloads:
+                    info(f'Overload Names: [{", ".join(overload.name for overload in self.overloads)}]')
 
                 pos.comptime_error(
                     f'no matching overloads [{arg_types_str}]', scope.src
@@ -537,17 +547,13 @@ class Function(Node):
         # function should be used
         if module is not None and builder is not None:
             info(f'Code generation call to {func.name}')
-            if func.name in module.globals:
-                ir_func = module.get_global(func.name)
-            else:
-                ir_func = func.compile(pos, module, scope, arg_types)
-            
+            ir_func = func.compile(pos, module, scope, arg_types)
             call_args = [arg.value for arg in args]
             return builder.call(ir_func, call_args)
         # otherwise, the call is an IR call, return the Call node
         else:
             info(f'IR call to {func.name}')
-            return Call(pos, func.name, args, func.ret_type)
+            return Call(pos, self.name, args, func.ret_type)
 
 @dataclass
 class Return(Node):

@@ -50,6 +50,7 @@ def function(self: Any, params: list[ir.Param] | None = None, ret_type: ir.Type 
         func.ret_type = ret_type
         func.flags = flags
         func.overloads = []
+        func.self = self
 
         if self is not None:
             setattr(self, name, func)
@@ -79,6 +80,12 @@ def overload(overload_of: Callable, params: list[ir.Param] | None = None,
         func.flags = overload_of.flags
         func.overload_of = overload_of
 
+        self = overload_of.self
+
+        if self is not None:
+            setattr(self, name, func)
+            debug(f'Added {name} to {self}')
+        
         return func
     
     return decorator

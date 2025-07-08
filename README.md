@@ -20,7 +20,7 @@ Cure is a simple programming language that is designed to **bring many features 
 1. Clone the repository
     - If you have the `git` cli tool, you can do this by running `git clone https://github.com/LemurGamingYT/Cure.git`
     - If you don't have `git`, then you can install the repository as a .zip by clicking the drop down menu: 'Code' and then 'Download ZIP'
-2. Install Python (not needed if you use the .exe file)
+2. Install Python
     - Install Python 3.12.0 or higher: https://www.python.org/downloads/
     - During the setup, add Python to PATH and install pip and run the command: `pip install -r requirements.txt` in the directory you have downloaded this repository.
 3. Install LLVM from https://releases.llvm.org/
@@ -28,3 +28,109 @@ Cure is a simple programming language that is designed to **bring many features 
     - Add the 'bin' directory of the compiler to your PATH environment variable
     - Run the compiler using the command: `cure [action] [options]`
     Use `cure -h` to see all available actions and options
+
+### Overview
+Here's an overview of Cure's current features! Once you're done here, why not look at some of the examples?
+
+#### Basic Hello World
+```
+fn main() -> int {
+    print("Hello world")
+    return 0
+}
+```
+
+#### Basic variables
+```
+fn main() -> int {
+    x = 20
+    print(x)
+    return 0
+}
+```
+
+#### Mutable variables
+```
+fn main() -> int {
+    // Immutable by default
+    x = 20
+    // x = 10 // error: 'x' is immutable
+    print(x)
+
+    mut y = 20
+    y = 10
+    print(y)
+    return 0
+}
+```
+
+#### Control flow
+```
+fn main() -> int {
+    is_18 = input("Are you 18+? ")
+    if is_18 == "y" {
+        print("You are an adult")
+    } else {
+        print("You are not an adult")
+    }
+
+    return 0
+}
+```
+
+#### Iteration
+```
+fn main() -> int {
+    loop_to = 1000000
+    mut i = 0
+    while i < loop_to {
+        i = i + 1
+    }
+
+    print("Done")
+    return 0
+}
+```
+
+#### Functions
+```
+fn add(int a, int b) -> int {
+    return a + b
+}
+
+fn main() -> int {
+    print(add(2, 2))
+    return 0
+}
+```
+
+#### Mutable function parameters
+```
+fn test(mut int x) {
+    // note that this does not change anything outside of this scope
+    x = 50
+}
+
+fn main() -> int {
+    x = 1
+    print(x)
+
+    test(x)
+
+    print(x) // still 1, value has not changed
+    return 0
+}
+```
+
+#### Mathematical functions
+```
+fn main() -> int {
+    print(Math.pi)
+    print(Math.e)
+    print(Math.ceil(3.4))
+    print(Math.floor(2.6))
+    print(Math.pow(10, 5))
+    print(Math.sqrt(4))
+    return 0
+}
+```

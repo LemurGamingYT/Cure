@@ -47,14 +47,22 @@ class Analyser(CompilerPass):
         return ir.Elif(node.pos, self.run_on(node.condition), self.run_on(node.body))
     
     def run_on_If(self, node: ir.If):
+        condition = self.run_on(node.condition)
+        if condition.type != ir.TypeManager.get('bool'):
+            node.pos.comptime_error('condition is not a boolean', self.scope.src)
+
         return ir.If(
-            node.pos, self.run_on(node.condition), self.run_on(node.body),
+            node.pos, condition, self.run_on(node.body),
             self.run_on(node.else_body) if node.else_body is not None else node.else_body,
             [self.run_on(elseif) for elseif in node.elseifs]
         )
     
     def run_on_While(self, node: ir.While):
-        return ir.While(node.pos, self.run_on(node.condition), self.run_on(node.body))
+        condition = self.run_on(node.condition)
+        if condition.type != ir.TypeManager.get('bool'):
+            node.pos.comptime_error('condition is not a boolean', self.scope.src)
+        
+        return ir.While(node.pos, condition, self.run_on(node.body))
     
     def run_on_Function(self, node: ir.Function):
         params = [self.run_on(param) for param in node.params]

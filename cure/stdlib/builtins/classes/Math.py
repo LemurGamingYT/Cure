@@ -40,12 +40,24 @@ class Math(Class):
             return cast_value(ctx.builder, ctx.builder.call(ceilf, [arg]), TypeManager.get('int').type)
         
         @function(self, [Param(Position.zero(), 'arg', TypeManager.get('float'))],
-                TypeManager.get('int'), flags=FunctionFlags(static=True, method=True))
+                TypeManager.get('float'), flags=FunctionFlags(static=True, method=True))
         def sqrt(ctx: DefinitionContext):
             arg = ctx.param_value('arg')
 
             sqrtf = ctx.c_registry.get('sqrtf')
-            return cast_value(ctx.builder, ctx.builder.call(sqrtf, [arg]), TypeManager.get('int').type)
+            return ctx.builder.call(sqrtf, [arg])
+
+        @overload(sqrt, [Param(Position.zero(), 'arg', TypeManager.get('int'))],
+                TypeManager.get('int'))
+        def sqrt_int(ctx: DefinitionContext):
+            arg = ctx.param_value('arg')
+
+            sqrtf = ctx.c_registry.get('sqrtf')
+            return cast_value(
+                ctx.builder,
+                ctx.builder.call(sqrtf, [cast_value(ctx.builder, arg, TypeManager.get('float').type)]),
+                TypeManager.get('int').type
+            )
         
         @function(self, [
             Param(Position.zero(), 'base', TypeManager.get('float')),
