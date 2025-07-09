@@ -91,7 +91,7 @@ class CRegistry:
             lir.IntType(32)
         ]))
 
-        self.register('strtod', lir.FunctionType(lir.IntType(64), [
+        self.register('strtod', lir.FunctionType(lir.DoubleType(), [
             lir.IntType(8).as_pointer(),
             lir.IntType(8).as_pointer()
         ]))

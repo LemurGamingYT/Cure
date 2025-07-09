@@ -3,7 +3,7 @@ from typing import cast
 from llvmlite import ir as lir
 
 from cure.codegen_utils import cast_value, get_struct_value_field, zero
-from cure.lib import function, Lib, DefinitionContext
+from cure.lib import function, Lib, DefinitionContext, CallArgument
 from cure.ir import Param, Position, Type
 
 
@@ -38,9 +38,12 @@ class stringOperations(Lib):
             null_byte = lir.Constant(lir.IntType(8), 0)
             ctx.builder.store(null_byte, null_pos)
             
+            total_length_i32 = cast_value(
+                ctx.builder, total_length, cast(Type, self.scope.type_map.get('int')).type
+            )
             return ctx.call('string_new', [
-                ptr,
-                cast_value(ctx.builder, total_length, cast(Type, self.scope.type_map.get('int')).type)
+                CallArgument(ptr, cast(Type, self.scope.type_map.get('pointer'))),
+                CallArgument(total_length_i32, cast(Type, self.scope.type_map.get('int')))
             ])
         
         @function(self, [

@@ -1,0 +1,20 @@
+// !! This program has a memory leak !!
+
+fn main() -> int {
+    operation = input("pick an operator + - * / ")
+    a = input("Enter a number: ").parse_int()
+    b = input("Enter a number: ").parse_int()
+    if operation == "+" {
+        print(a + b)
+    } else if operation == "-" {
+        print(a - b)
+    } else if operation == "*" {
+        print(a * b)
+    } else if operation == "/" {
+        print(a / b)
+    } else {
+        print("Invalid result")
+    }
+
+    return 0
+}

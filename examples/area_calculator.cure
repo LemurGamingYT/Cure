@@ -1,0 +1,21 @@
+fn main() -> int {
+    shape = input("What shape do you want to find the area of?\n> ")
+
+    mut area = 0.0
+    if shape == "square" {
+        side_length = input("Enter the length of one side: ").parse_float()
+        area = side_length * side_length
+    } else if shape == "rectangle" {
+        width = input("Enter the width of the rectangle: ").parse_float()
+        height = input("Enter the height of the rectangle: ").parse_float()
+        area = width * height
+    } else if shape == "circle" {
+        radius = input("Enter the radius of the circle: ").parse_float()
+        area = Math.pi * (radius * radius)
+    } else {
+        print("Unknown shape")
+    }
+
+    print("Area: " + area.to_string())
+    return 0
+}

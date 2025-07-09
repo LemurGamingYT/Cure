@@ -5,8 +5,8 @@ from llvmlite import ir as lir
 from cure.lib import function, Class, DefinitionContext, CallArgument
 from cure.ir import Param, Position, Type, FunctionFlags
 from cure.codegen_utils import (
-    get_struct_value_field, create_struct_value, cast_value, NULL_BYTE, zero#, get_struct_ptr_field,
-    #get_struct_ptr_field_value
+    get_struct_value_field, create_struct_value, cast_value, NULL_BYTE, zero, NULL,
+    #, get_struct_ptr_field, get_struct_ptr_field_value
 )
 
 
@@ -86,6 +86,35 @@ class string(Class):
                 CallArgument(lir.Constant(lir.IntType(32), 1),
                              cast(Type, self.scope.type_map.get('int')))
             ])
+        
+        @function(self, [
+            Param(Position.zero(), self.scope.type_map.get('string'), 's')
+        ], self.scope.type_map.get('int'), flags=FunctionFlags(method=True))
+        def parse_int(ctx: DefinitionContext):
+            s = ctx.param_value('s')
+
+            strtol = ctx.c_registry.get('strtol')
+
+            base = lir.Constant(lir.IntType(32), 10)
+            ptr = get_struct_value_field(ctx.builder, s, 0)
+            return cast_value(
+                ctx.builder, ctx.builder.call(strtol, [ptr, NULL(), base]),
+                cast(Type, self.scope.type_map.get('int')).type
+            )
+        
+        @function(self, [
+            Param(Position.zero(), self.scope.type_map.get('string'), 's')
+        ], self.scope.type_map.get('float'), flags=FunctionFlags(method=True))
+        def parse_float(ctx: DefinitionContext):
+            s = ctx.param_value('s')
+
+            strtod = ctx.c_registry.get('strtod')
+
+            ptr = get_struct_value_field(ctx.builder, s, 0)
+            return cast_value(
+                ctx.builder, ctx.builder.call(strtod, [ptr, NULL()]),
+                cast(Type, self.scope.type_map.get('float')).type
+            )
         
         # @function(self, [
         #     Param(Position.zero(), self.scope.type_map.get('string').reference(), 's'),
