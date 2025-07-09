@@ -273,8 +273,8 @@ class Node(ABC):
 
 @dataclass
 class Type(Node):
-    display: str
     type: lir.Type
+    display: str
     ref_target: Union['Type', None] = None
 
     @property
