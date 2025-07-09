@@ -1,7 +1,9 @@
+from typing import cast
+
 from llvmlite import ir as lir
 
 from cure.lib import function, Class, ClassField, DefinitionContext, CallArgument
-from cure.ir import Scope, TypeManager, Type, Position, Param, FunctionFlags
+from cure.ir import Scope, Type, Position, Param, FunctionFlags
 from cure.codegen_utils import (
     cast_value, zero, create_struct_value, get_type_size, get_struct_ptr_field
 )
@@ -11,22 +13,22 @@ class array(Class):
     def fields(self):
         return [
             ClassField('elements', self.T.as_pointer()),
-            ClassField('length', TypeManager.get('int')),
-            ClassField('capacity', TypeManager.get('int')),
-            ClassField('ref', TypeManager.get('Ref').as_pointer())
+            ClassField('length', self.scope.type_map.get('int')),
+            ClassField('capacity', self.scope.type_map.get('int')),
+            ClassField('ref', self.scope.type_map.get('Ref').as_pointer())
         ]
     
     def __init__(self, scope: Scope, *generic_types: Type):
         self.T = generic_types[0]
 
         self._name = f'array_{self.T}'
-        TypeManager.add(f'{self.T}[]', self._create_struct())
-        self.type = TypeManager.get(f'{self.T}[]')
+        self.scope.type_map.add(f'{self.T}[]', self._create_struct())
+        self.type = self.scope.type_map.get(f'{self.T}[]')
 
         super().__init__(scope, *generic_types)
 
     def init_class(self):
-        @function(self, [Param(Position.zero(), 'capacity', TypeManager.get('int'))],
+        @function(self, [Param(Position.zero(), self.scope.type_map.get('int'), 'capacity')],
                   self.type, flags=FunctionFlags(method=True))
         def new(ctx: DefinitionContext):
             capacity = ctx.param_value('capacity')
@@ -38,7 +40,7 @@ class array(Class):
             raw_ptr = ctx.builder.call(malloc, [alloc_size])
             data_ptr = cast_value(ctx.builder, raw_ptr, self.T.type.as_pointer())
 
-            length = zero(TypeManager.get('int').type.width)
+            length = zero(cast(Type, self.scope.type_map.get('int')).type.width)
 
             func_ptr_type = lir.FunctionType(
                 lir.IntType(8).as_pointer(), [lir.IntType(8).as_pointer()]
@@ -46,15 +48,17 @@ class array(Class):
             null_func_ptr = lir.Constant(func_ptr_type, None)
             
             ref = ctx.call('Ref_new', [
-                CallArgument(raw_ptr, TypeManager.get('pointer')),
-                CallArgument(null_func_ptr, TypeManager.get('any_function'))
+                CallArgument(raw_ptr, cast(Type, self.scope.type_map.get('pointer'))),
+                CallArgument(null_func_ptr, cast(Type, self.scope.type_map.get('any_function')))
             ])
 
-            return create_struct_value(ctx.builder, self.type.type, [data_ptr, length, capacity, ref])
+            return create_struct_value(
+                ctx.builder, cast(Type, self.type).type, [data_ptr, length, capacity, ref]
+            )
         
         @function(self, [
-            Param(Position.zero(), 'arr', self.type.reference()),
-            Param(Position.zero(), 'elem', self.T)
+            Param(Position.zero(), self.type.reference(), 'arr'),
+            Param(Position.zero(), self.T, 'elem')
         ], flags=FunctionFlags(method=True))
         def add(ctx: DefinitionContext):
             arr = ctx.param_value('arr')
@@ -82,8 +86,8 @@ class array(Class):
             ctx.builder.store(new_length, length_ptr)
 
         @function(self, [
-            Param(Position.zero(), 'arr', self.type),
-            Param(Position.zero(), 'index', TypeManager.get('int'))
+            Param(Position.zero(), self.type, 'arr'),
+            Param(Position.zero(), self.scope.type_map.get('int'), 'index')
         ], self.T, flags=FunctionFlags(method=True))
         def get(ctx: DefinitionContext):
             arr = ctx.param_value('arr')

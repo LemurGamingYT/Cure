@@ -1,41 +1,41 @@
 from cure.lib import function, Lib, DefinitionContext
-from cure.ir import Param, Position, TypeManager
+from cure.ir import Param, Position
 from cure.codegen_utils import zero
 
 
 class intOperations(Lib):
     def init_lib(self):
         @function(self, [
-            Param(Position.zero(), 'a', TypeManager.get('int')),
-            Param(Position.zero(), 'b', TypeManager.get('int'))
-        ], TypeManager.get('int'))
+            Param(Position.zero(), self.scope.type_map.get('int'), 'a'),
+            Param(Position.zero(), self.scope.type_map.get('int'), 'b')
+        ], self.scope.type_map.get('int'))
         def int_add_int(ctx: DefinitionContext):
             a = ctx.param_value('a')
             b = ctx.param_value('b')
             return ctx.builder.add(a, b)
         
         @function(self, [
-            Param(Position.zero(), 'a', TypeManager.get('int')),
-            Param(Position.zero(), 'b', TypeManager.get('int'))
-        ], TypeManager.get('int'))
+            Param(Position.zero(), self.scope.type_map.get('int'), 'a'),
+            Param(Position.zero(), self.scope.type_map.get('int'), 'b')
+        ], self.scope.type_map.get('int'))
         def int_sub_int(ctx: DefinitionContext):
             a = ctx.param_value('a')
             b = ctx.param_value('b')
             return ctx.builder.sub(a, b)
 
         @function(self, [
-            Param(Position.zero(), 'a', TypeManager.get('int')),
-            Param(Position.zero(), 'b', TypeManager.get('int'))
-        ], TypeManager.get('int'))
+            Param(Position.zero(), self.scope.type_map.get('int'), 'a'),
+            Param(Position.zero(), self.scope.type_map.get('int'), 'b')
+        ], self.scope.type_map.get('int'))
         def int_mul_int(ctx: DefinitionContext):
             a = ctx.param_value('a')
             b = ctx.param_value('b')
             return ctx.builder.mul(a, b)
         
         @function(self, [
-            Param(Position.zero(), 'a', TypeManager.get('int')),
-            Param(Position.zero(), 'b', TypeManager.get('int'))
-        ], TypeManager.get('int'))
+            Param(Position.zero(), self.scope.type_map.get('int'), 'a'),
+            Param(Position.zero(), self.scope.type_map.get('int'), 'b')
+        ], self.scope.type_map.get('int'))
         def int_div_int(ctx: DefinitionContext):
             a = ctx.param_value('a')
             b = ctx.param_value('b')
@@ -47,9 +47,9 @@ class intOperations(Lib):
             return ctx.builder.sdiv(a, b)
         
         @function(self, [
-            Param(Position.zero(), 'a', TypeManager.get('int')),
-            Param(Position.zero(), 'b', TypeManager.get('int'))
-        ], TypeManager.get('int'))
+            Param(Position.zero(), self.scope.type_map.get('int'), 'a'),
+            Param(Position.zero(), self.scope.type_map.get('int'), 'b')
+        ], self.scope.type_map.get('int'))
         def int_mod_int(ctx: DefinitionContext):
             a = ctx.param_value('a')
             b = ctx.param_value('b')
@@ -61,54 +61,54 @@ class intOperations(Lib):
             return ctx.builder.srem(a, b)
         
         @function(self, [
-            Param(Position.zero(), 'a', TypeManager.get('int')),
-            Param(Position.zero(), 'b', TypeManager.get('int'))
-        ], TypeManager.get('bool'))
+            Param(Position.zero(), self.scope.type_map.get('int'), 'a'),
+            Param(Position.zero(), self.scope.type_map.get('int'), 'b')
+        ], self.scope.type_map.get('bool'))
         def int_eq_int(ctx: DefinitionContext):
             a = ctx.param_value('a')
             b = ctx.param_value('b')
             return ctx.builder.icmp_signed('==', a, b)
         
         @function(self, [
-            Param(Position.zero(), 'a', TypeManager.get('int')),
-            Param(Position.zero(), 'b', TypeManager.get('int'))
-        ], TypeManager.get('bool'))
+            Param(Position.zero(), self.scope.type_map.get('int'), 'a'),
+            Param(Position.zero(), self.scope.type_map.get('int'), 'b')
+        ], self.scope.type_map.get('bool'))
         def int_neq_int(ctx: DefinitionContext):
             a = ctx.param_value('a')
             b = ctx.param_value('b')
             return ctx.builder.icmp_signed('!=', a, b)
         
         @function(self, [
-            Param(Position.zero(), 'a', TypeManager.get('int')),
-            Param(Position.zero(), 'b', TypeManager.get('int'))
-        ], TypeManager.get('bool'))
+            Param(Position.zero(), self.scope.type_map.get('int'), 'a'),
+            Param(Position.zero(), self.scope.type_map.get('int'), 'b')
+        ], self.scope.type_map.get('bool'))
         def int_lt_int(ctx: DefinitionContext):
             a = ctx.param_value('a')
             b = ctx.param_value('b')
             return ctx.builder.icmp_signed('<', a, b)
         
         @function(self, [
-            Param(Position.zero(), 'a', TypeManager.get('int')),
-            Param(Position.zero(), 'b', TypeManager.get('int'))
-        ], TypeManager.get('bool'))
+            Param(Position.zero(), self.scope.type_map.get('int'), 'a'),
+            Param(Position.zero(), self.scope.type_map.get('int'), 'b')
+        ], self.scope.type_map.get('bool'))
         def int_gt_int(ctx: DefinitionContext):
             a = ctx.param_value('a')
             b = ctx.param_value('b')
             return ctx.builder.icmp_signed('>', a, b)
         
         @function(self, [
-            Param(Position.zero(), 'a', TypeManager.get('int')),
-            Param(Position.zero(), 'b', TypeManager.get('int'))
-        ], TypeManager.get('bool'))
+            Param(Position.zero(), self.scope.type_map.get('int'), 'a'),
+            Param(Position.zero(), self.scope.type_map.get('int'), 'b')
+        ], self.scope.type_map.get('bool'))
         def int_lte_int(ctx: DefinitionContext):
             a = ctx.param_value('a')
             b = ctx.param_value('b')
             return ctx.builder.icmp_signed('<=', a, b)
         
         @function(self, [
-            Param(Position.zero(), 'a', TypeManager.get('int')),
-            Param(Position.zero(), 'b', TypeManager.get('int'))
-        ], TypeManager.get('bool'))
+            Param(Position.zero(), self.scope.type_map.get('int'), 'a'),
+            Param(Position.zero(), self.scope.type_map.get('int'), 'b')
+        ], self.scope.type_map.get('bool'))
         def int_gte_int(ctx: DefinitionContext):
             a = ctx.param_value('a')
             b = ctx.param_value('b')

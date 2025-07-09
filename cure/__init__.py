@@ -23,7 +23,7 @@ class CompileOptions:
 
 def parse(scope: ir.Scope, _: CompileOptions):
     info(f'Compiling {scope.file.as_posix()}')
-    program = CureIRBuilder(scope.src).build()
+    program = CureIRBuilder(scope).build()
 
     info(f'Parsed {scope.file.as_posix()}')
     debug(f'IR = {pformat(program)}')

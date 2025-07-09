@@ -1,7 +1,9 @@
+from typing import cast
+
 from llvmlite import ir as lir
 
 from cure.lib import function, Class, DefinitionContext, CallArgument
-from cure.ir import Param, Position, TypeManager, FunctionFlags
+from cure.ir import Param, Position, Type, FunctionFlags
 from cure.codegen_utils import (
     get_struct_value_field, create_struct_value, cast_value, NULL_BYTE, zero#, get_struct_ptr_field,
     #get_struct_ptr_field_value
@@ -14,14 +16,14 @@ class string(Class):
 
     def init_class(self):
         @function(self, [
-            Param(Position.zero(), 'literal', TypeManager.get('pointer')),
-            Param(Position.zero(), 'length', TypeManager.get('int'))
-        ], TypeManager.get('string'), flags=FunctionFlags(method=True))
+            Param(Position.zero(), self.scope.type_map.get('pointer'), 'literal'),
+            Param(Position.zero(), self.scope.type_map.get('int'), 'length')
+        ], self.scope.type_map.get('string'), flags=FunctionFlags(method=True))
         def new(ctx: DefinitionContext):
             literal = ctx.param_value('literal')
 
             length = cast_value(ctx.builder, ctx.param_value('length'), lir.IntType(64))
-            string_type = TypeManager.get('string').type
+            string_type = cast(Type, self.scope.type_map.get('string')).type
 
             malloc = ctx.c_registry.get('malloc')
             memcpy = ctx.c_registry.get('memcpy')
@@ -44,28 +46,27 @@ class string(Class):
             null_func_ptr = lir.Constant(func_ptr_type, None)
             
             ref = ctx.call('Ref_new', [
-                CallArgument(data_ptr, TypeManager.get('pointer')),
-                CallArgument(null_func_ptr, TypeManager.get('any_function'))
+                CallArgument(data_ptr, cast(Type, self.scope.type_map.get('pointer'))),
+                CallArgument(null_func_ptr, cast(Type, self.scope.type_map.get('any_function')))
             ])
 
             return create_struct_value(ctx.builder, string_type, [data_ptr, length, ref])
 
 
         @function(
-            self,
-            [Param(Position.zero(), 's', TypeManager.get('string'))],
-            TypeManager.get('int'), flags=FunctionFlags(property=True)
+            self, [Param(Position.zero(), self.scope.type_map.get('string'), 's')],
+            self.scope.type_map.get('int'), flags=FunctionFlags(property=True)
         )
         def length(ctx: DefinitionContext):
             s = ctx.param_value('s')
 
             length = get_struct_value_field(ctx.builder, s, 1)
-            return cast_value(ctx.builder, length, TypeManager.get('int').type)
+            return cast_value(ctx.builder, length, cast(Type, self.scope.type_map.get('int')).type)
         
         @function(self, [
-            Param(Position.zero(), 's', TypeManager.get('string')),
-            Param(Position.zero(), 'index', TypeManager.get('int'))
-        ], TypeManager.get('string'), flags=FunctionFlags(method=True))
+            Param(Position.zero(), self.scope.type_map.get('string'), 's'),
+            Param(Position.zero(), self.scope.type_map.get('int'), 'index')
+        ], self.scope.type_map.get('string'), flags=FunctionFlags(method=True))
         def get(ctx: DefinitionContext):
             s = ctx.param_value('s')
             index = ctx.param_value('index')
@@ -81,14 +82,15 @@ class string(Class):
             ptr = get_struct_value_field(ctx.builder, s, 0)
             index_ptr = ctx.builder.gep(ptr, [index])
             return ctx.call('string_new', [
-                CallArgument(index_ptr, TypeManager.get('pointer')),
-                CallArgument(lir.Constant(lir.IntType(32), 1), TypeManager.get('int'))
+                CallArgument(index_ptr, cast(Type, self.scope.type_map.get('pointer'))),
+                CallArgument(lir.Constant(lir.IntType(32), 1),
+                             cast(Type, self.scope.type_map.get('int')))
             ])
         
         # @function(self, [
-        #     Param(Position.zero(), 's', TypeManager.get('string').reference()),
-        #     Param(Position.zero(), 'index', TypeManager.get('int')),
-        #     Param(Position.zero(), 'value', TypeManager.get('string'))
+        #     Param(Position.zero(), self.scope.type_map.get('string').reference(), 's'),
+        #     Param(Position.zero(), self.scope.type_map.get('int'), 'index'),
+        #     Param(Position.zero(), self.scope.type_map.get('string'), 'value')
         # ], flags=FunctionFlags(method=True))
         # def set(ctx: DefinitionContext):
         #     s = ctx.param_value('s')

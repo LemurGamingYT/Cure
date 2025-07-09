@@ -22,13 +22,13 @@ class Analyser(CompilerPass):
             nodes.append(self.run_on(n))
         
         info(f'Finished analysing program {pformat(node, indent=4)}')
-        return ir.Program(node.pos, nodes)
+        return ir.Program(node.pos, node.type, nodes)
     
     def run_on_Type(self, node: ir.Type):
         return node
     
     def run_on_Param(self, node: ir.Param):
-        return ir.Param(node.pos, node.name, self.run_on(node.type), node.is_mutable)
+        return ir.Param(node.pos, self.run_on(node.type), node.name, node.is_mutable)
     
     def run_on_Body(self, node: ir.Body):
         self.scope = self.scope.clone()
@@ -41,34 +41,39 @@ class Analyser(CompilerPass):
 
         info('Exiting body')
         self.scope = cast(ir.Scope, self.scope.parent)
-        return ir.Body(node.pos, nodes)
+        return ir.Body(node.pos, node.type, nodes)
     
     def run_on_Elif(self, node: ir.Elif):
-        return ir.Elif(node.pos, self.run_on(node.condition), self.run_on(node.body))
+        return ir.Elif(
+            node.pos, node.type,
+            self.run_on(node.condition), self.run_on(node.body)
+        )
     
     def run_on_If(self, node: ir.If):
         condition = self.run_on(node.condition)
-        if condition.type != ir.TypeManager.get('bool'):
+        if condition.type != self.scope.type_map.get('bool'):
             node.pos.comptime_error('condition is not a boolean', self.scope.src)
 
         return ir.If(
-            node.pos, condition, self.run_on(node.body),
+            node.pos, node.type, condition, self.run_on(node.body),
             self.run_on(node.else_body) if node.else_body is not None else node.else_body,
             [self.run_on(elseif) for elseif in node.elseifs]
         )
     
     def run_on_While(self, node: ir.While):
         condition = self.run_on(node.condition)
-        if condition.type != ir.TypeManager.get('bool'):
+        if condition.type != self.scope.type_map.get('bool'):
             node.pos.comptime_error('condition is not a boolean', self.scope.src)
         
-        return ir.While(node.pos, condition, self.run_on(node.body))
+        return ir.While(node.pos, node.type, condition, self.run_on(node.body))
     
     def run_on_Function(self, node: ir.Function):
         params = [self.run_on(param) for param in node.params]
         type = self.run_on(node.type)
-        func = ir.Function(node.pos, node.name, params, type, node.body, node.flags, node.overloads)
-        self.scope.symbol_table.add(ir.Symbol(node.name, ir.TypeManager.get('function'), func))
+        func = ir.Function(node.pos, type, node.name, params, node.body, node.flags, node.overloads)
+        self.scope.symbol_table.add(ir.Symbol(
+            node.name, cast(ir.Type, self.scope.type_map.get('function')), func
+        ))
 
         info('Adding parameters to environment')
         for param in params:
@@ -89,11 +94,11 @@ class Analyser(CompilerPass):
             if not symbol.is_mutable:
                 node.pos.comptime_error(f'\'{node.name}\' is immutable', self.scope.src)
 
-            return self.run_on(ir.Assignment(node.pos, node.name, value))
+            return self.run_on(ir.Assignment(node.pos, value.type, node.name, value))
         
-        var_type = value.get_type() if value is not None else node.type
+        var_type = value.type if value is not None else node.type
         self.scope.symbol_table.add(ir.Symbol(node.name, var_type, value, node.is_mutable))
-        return ir.Variable(node.pos, node.name, value, node.is_mutable, var_type)
+        return ir.Variable(node.pos, var_type, node.name, value, node.is_mutable)
     
     def run_on_Assignment(self, node: ir.Assignment):
         symbol = self.scope.symbol_table.get(node.name)
@@ -105,7 +110,7 @@ class Analyser(CompilerPass):
     
     def run_on_Return(self, node: ir.Return):
         value = self.run_on(node.value)
-        return ir.Return(node.pos, value)
+        return ir.Return(node.pos, value.type, value)
     
     def run_on_Int(self, node: ir.Int):
         if node.value > INT_MAX:
@@ -120,9 +125,9 @@ class Analyser(CompilerPass):
         return node
     
     def run_on_String(self, node: ir.String):
-        return self.run_on(ir.Call(node.pos, 'string_new', [
-            ir.StringLiteral(node.pos, node.value),
-            ir.Int(node.pos, len(node.value))
+        return self.run_on(ir.Call(node.pos, node.type, 'string_new', [
+            ir.StringLiteral(node.pos, cast(ir.Type, self.scope.type_map.get('pointer')), node.value),
+            ir.Int(node.pos, cast(ir.Type, self.scope.type_map.get('int')), len(node.value))
         ]))
     
     def run_on_Bool(self, node: ir.Bool):
@@ -136,15 +141,15 @@ class Analyser(CompilerPass):
     
     def run_on_Id(self, node: ir.Id):
         symbol = self.scope.symbol_table.get(node.name)
-        type = ir.TypeManager.get(node.name)
+        type = self.scope.type_map.get(node.name)
         if symbol is None and type is None:
             node.pos.comptime_error(f'unknown identifier \'{node.name}\'', self.scope.src)
             return
         
         if symbol is not None:
-            return ir.Id(node.pos, symbol.name, symbol.type)
+            return ir.Id(node.pos, symbol.type, symbol.name)
         
-        return ir.Id(node.pos, node.name, type)
+        return ir.Id(node.pos, cast(ir.Type, type), node.name)
     
     def run_on_Call(self, node: ir.Call):
         symbol = self.scope.symbol_table.get(node.callee)
@@ -157,8 +162,8 @@ class Analyser(CompilerPass):
     def run_on_BinaryOp(self, node: ir.BinaryOp):
         lhs = self.run_on(node.left)
         rhs = self.run_on(node.right)
-        ltype = lhs.get_type()
-        rtype = rhs.get_type()
+        ltype = lhs.type
+        rtype = rhs.type
         op_name = ir.op_map[node.op]
         callee = f'{ltype}_{op_name}_{rtype}'
         if not self.scope.symbol_table.has(callee):
@@ -167,27 +172,27 @@ class Analyser(CompilerPass):
                 self.scope.src
             )
         
-        return self.run_on(ir.Call(node.pos, callee, [lhs, rhs]))
+        return self.run_on(ir.Call(node.pos, node.type, callee, [lhs, rhs]))
     
     def run_on_UnaryOp(self, node: ir.UnaryOp):
         expr = self.run_on(node.expr)
         op_name = ir.op_map[node.op]
-        callee = f'{op_name}_{expr.get_type()}'
+        callee = f'{op_name}_{expr.type}'
         if not self.scope.symbol_table.has(callee):
             node.pos.comptime_error(
-                f'unsupported operation \'{node.op}\' on type \'{expr.get_type()}\'',
+                f'unsupported operation \'{node.op}\' on type \'{expr.type}\'',
                 self.scope.src
             )
         
-        return self.run_on(ir.Call(node.pos, callee, [expr]))
+        return self.run_on(ir.Call(node.pos, node.type, callee, [expr]))
     
     def run_on_Attribute(self, node: ir.Attribute):
         obj = self.run_on(node.obj)
         args = [obj] + ([self.run_on(arg) for arg in node.args] if node.args is not None else [])
-        callee = f'{obj.get_type()}_{node.attr}'
+        callee = f'{obj.type}_{node.attr}'
         if not self.scope.symbol_table.has(callee):
             node.pos.comptime_error(
-                f'unknown attribute \'{node.attr}\' on type \'{obj.get_type()}\'',
+                f'unknown attribute \'{node.attr}\' on type \'{obj.type}\'',
                 self.scope.src
             )
         
@@ -196,27 +201,37 @@ class Analyser(CompilerPass):
         if func.flags.static:
             args = args[1:]
         
-        return self.run_on(ir.Call(node.pos, callee, args))
+        return self.run_on(ir.Call(node.pos, node.type, callee, args))
     
     def run_on_Cast(self, node: ir.Cast):
         obj = self.run_on(node.obj)
         to_type = self.run_on(node.type)
-        callee = f'{obj.get_type()}_to_{to_type}'
+        callee = f'{obj.type}_to_{to_type}'
         if not self.scope.symbol_table.get(callee):
             node.pos.comptime_error(
-                f'cannot cast type \'{obj.get_type()}\' to type \'{to_type}\'',
+                f'cannot cast type \'{obj.type}\' to type \'{to_type}\'',
                 self.scope.src
             )
         
-        return self.run_on(ir.Call(node.pos, callee, [obj]))
+        return self.run_on(ir.Call(node.pos, node.type, callee, [obj]))
 
     def run_on_Ternary(self, node: ir.Ternary):
-        return ir.Ternary(
-            node.pos, self.run_on(node.condition), self.run_on(node.true), self.run_on(node.false)
-        )
+        true = self.run_on(node.true)
+        false = self.run_on(node.false)
+        if true.type != false.type:
+            node.pos.comptime_error(
+                f'true and false types do not match (\'{true.type}\' and \'{false.type}\')',
+                self.scope.src
+            )
+
+        condition = self.run_on(node.condition)
+        if condition.type != self.scope.type_map.get('bool'):
+            node.pos.comptime_error('condition is not a boolean', self.scope.src)
+
+        return ir.Ternary(node.pos, true.type, condition, true, false)
     
     def run_on_NewArray(self, node: ir.NewArray):
         node.pos.comptime_error('arrays are not implemented', self.scope.src)
         element_type = self.run_on(node.element_type)
         array(self.scope, element_type)
-        return ir.NewArray(node.pos, element_type, self.run_on(node.capacity))
+        return ir.NewArray(node.pos, node.type, element_type, self.run_on(node.capacity))

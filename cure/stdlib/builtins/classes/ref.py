@@ -1,9 +1,10 @@
 from logging import debug
+from typing import cast
 
 from llvmlite import ir as lir
 
 from cure.codegen_utils import set_struct_field, get_struct_ptr_field, NULL, get_type_size, cast_value
-from cure.ir import Param, Position, TypeManager, FunctionFlags
+from cure.ir import Param, Position, FunctionFlags, Type
 from cure.lib import function, Class, DefinitionContext
 
 
@@ -13,16 +14,16 @@ class Ref(Class):
 
     def init_class(self):
         @function(self, [
-            Param(Position.zero(), 'data', TypeManager.get('pointer')),
-            Param(Position.zero(), 'destroy_fn', TypeManager.get('any_function'))
-        ], TypeManager.get('Ref').as_pointer(), flags=FunctionFlags(static=True, method=True))
+            Param(Position.zero(), self.scope.type_map.get('pointer'), 'data'),
+            Param(Position.zero(), self.scope.type_map.get('any_function'), 'destroy_fn')
+        ], self.scope.type_map.get('Ref').as_pointer(), flags=FunctionFlags(static=True, method=True))
         def new(ctx: DefinitionContext):
             malloc = ctx.c_registry.get('malloc')
 
             data = ctx.param_value('data')
             destroy_fn = ctx.param_value('destroy_fn')
 
-            ref_type = TypeManager.get('Ref')
+            ref_type = cast(Type, self.scope.type_map.get('Ref'))
             struct_size = get_type_size(ctx.builder, ref_type.type)
 
             ptr = cast_value(
@@ -43,7 +44,7 @@ class Ref(Class):
 
             return ptr
         
-        @function(self, [Param(Position.zero(), 'self', TypeManager.get('Ref').as_pointer())],
+        @function(self, [Param(Position.zero(), self.scope.type_map.get('Ref').as_pointer(), 'self')],
                 flags=FunctionFlags(method=True))
         def inc(ctx: DefinitionContext):
             self = ctx.param_value('self')
@@ -56,7 +57,7 @@ class Ref(Class):
             new_count = ctx.builder.add(ref_count, one)
             ctx.builder.store(new_count, ref_count_ptr)
         
-        @function(self, [Param(Position.zero(), 'self', TypeManager.get('Ref').as_pointer())],
+        @function(self, [Param(Position.zero(), self.scope.type_map.get('Ref').as_pointer(), 'self')],
                 flags=FunctionFlags(method=True))
         def dec(ctx: DefinitionContext):
             self = ctx.param_value('self')

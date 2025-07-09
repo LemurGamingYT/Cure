@@ -48,8 +48,8 @@ class CodeGeneration(CompilerPass):
         if isinstance(node, DONT_MANAGE_MEMORY):
             return super().run_on(node)
 
-        node_type = node.get_type()
-        if not node_type.needs_memory_management():
+        node_type = node.type
+        if not node_type.needs_memory_management(self.scope):
             return super().run_on(node)
         
         value = super().run_on(node)
@@ -57,13 +57,14 @@ class CodeGeneration(CompilerPass):
             value = self.builder.load(value)
         
         if isinstance(value.type, (lir.LiteralStructType, lir.IdentifiedStructType)):
-            ref_index = index_of_type(value.type, ir.TypeManager.get('Ref').type.as_pointer())
+            Ref = cast(ir.Type, self.scope.type_map.get('Ref'))
+            ref_index = index_of_type(value.type, Ref.type.as_pointer())
             if ref_index == -1:
                 warning(f'Type {node_type} needs memory management but has no Ref* field')
             else:
                 ref = get_struct_value_field(self.builder, value, ref_index)
                 run_function(node.pos, self.builder, self.module, self.scope, 'Ref_inc', [
-                    CallArgument(ref, ir.TypeManager.get('Ref').as_pointer())
+                    CallArgument(ref, Ref.as_pointer())
                 ])
 
         ptr = store_in_pointer(self.builder, node_type.type, value, 'temp_var')
@@ -89,12 +90,13 @@ class CodeGeneration(CompilerPass):
             if isinstance(stmt, ir.Return):
                 info('Inserting Ref_dec methods')
                 for symbol in self.scope.symbol_table:
-                    if not symbol.type.needs_memory_management():
+                    if not symbol.type.needs_memory_management(self.scope):
                         continue
 
                     struct = symbol.value
                     llvm_type = cast(lir.LiteralStructType, symbol.type.type)
-                    ref_index = index_of_type(llvm_type, ir.TypeManager.get('Ref').type.as_pointer())
+                    Ref = cast(ir.Type, self.scope.type_map.get('Ref'))
+                    ref_index = index_of_type(llvm_type, Ref.type.as_pointer())
                     if ref_index == -1:
                         warning(f'Type {symbol.type} needs memory management but has no Ref* field')
                         continue
@@ -104,7 +106,7 @@ class CodeGeneration(CompilerPass):
                         get_struct_value_field(self.builder, struct, ref_index)
                     
                     run_function(stmt.pos, self.builder, self.module, self.scope, 'Ref_dec', [
-                        CallArgument(ref, ir.TypeManager.get('Ref').as_pointer())
+                        CallArgument(ref, Ref.as_pointer())
                     ])
                 
                 info('Finished inserting Ref_dec methods')
@@ -249,7 +251,9 @@ class CodeGeneration(CompilerPass):
         func = lir.Function(self.module, lir.FunctionType(ret_type, param_types), node.name)
         setattr(func, 'params', node.params)
 
-        self.scope.symbol_table.add(ir.Symbol(node.name, ir.TypeManager.get('function'), func))
+        self.scope.symbol_table.add(ir.Symbol(
+            node.name, cast(ir.Type, self.scope.type_map.get('function')), func
+        ))
         
         if isinstance(node.body, ir.Body):
             info('Compiling function body')
@@ -259,10 +263,11 @@ class CodeGeneration(CompilerPass):
 
             for i, param in enumerate(node.params):
                 param_value = func.args[i]
-                if param.type.needs_memory_management() and\
+                if param.type.needs_memory_management(self.scope) and\
                     isinstance(param_value.type, lir.LiteralStructType):
+                    Ref = cast(ir.Type, self.scope.type_map.get('Ref'))
                     ref_index = index_of_type(
-                        param_value.type, ir.TypeManager.get('Ref').type.as_pointer()
+                        param_value.type, Ref.type.as_pointer()
                     )
                     if ref_index == -1:
                         warning(f'Type {param.type} needs memory management but has no Ref* field')
@@ -281,7 +286,7 @@ class CodeGeneration(CompilerPass):
             
             self.run_on(node.body)
 
-            if node.type == ir.TypeManager.get('nil'):
+            if node.type == self.scope.type_map.get('nil'):
                 info(f'{node.name} has no return type, inserting ret NULL')
                 self.builder.ret(NULL())
 
@@ -327,16 +332,16 @@ class CodeGeneration(CompilerPass):
         return value
     
     def run_on_Int(self, node: ir.Int):
-        return lir.Constant(self.run_on(ir.TypeManager.get('int')), node.value)
+        return lir.Constant(self.run_on(cast(ir.Type, self.scope.type_map.get('int'))), node.value)
     
     def run_on_Float(self, node: ir.Float):
-        return lir.Constant(self.run_on(ir.TypeManager.get('float')), node.value)
+        return lir.Constant(self.run_on(cast(ir.Type, self.scope.type_map.get('float'))), node.value)
     
     def run_on_String(self, _):
         raise NotImplementedError
     
     def run_on_Bool(self, node: ir.Bool):
-        return lir.Constant(self.run_on(ir.TypeManager.get('bool')), node.value)
+        return lir.Constant(self.run_on(cast(ir.Type, self.scope.type_map.get('bool'))), node.value)
     
     def run_on_Nil(self, _):
         return NULL()
@@ -365,7 +370,7 @@ class CodeGeneration(CompilerPass):
         
         args = [self.run_on(arg) for arg in node.args]
         if isinstance(symbol.value, ir.Function):
-            call_args = [CallArgument(arg, n.get_type()) for arg, n in zip(args, node.args)]
+            call_args = [CallArgument(arg, n.type) for arg, n in zip(args, node.args)]
             return symbol.value(node.pos, self.scope, call_args, self.module, self.builder)
         elif isinstance(symbol.value, lir.Function):
             return self.builder.call(symbol.value, args)
@@ -393,5 +398,5 @@ class CodeGeneration(CompilerPass):
     def run_on_NewArray(self, node: ir.NewArray):
         arr = array(self.scope, node.element_type)
         return run_function(node.pos, self.builder, self.module, self.scope, f'{arr.type}_new', [
-            lir.Constant(ir.TypeManager.get('int').type, 10)
+            lir.Constant(cast(ir.Type, self.scope.type_map.get('int')).type, 10)
         ])

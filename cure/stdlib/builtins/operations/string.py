@@ -1,16 +1,18 @@
+from typing import cast
+
 from llvmlite import ir as lir
 
 from cure.codegen_utils import cast_value, get_struct_value_field, zero
 from cure.lib import function, Lib, DefinitionContext
-from cure.ir import Param, Position, TypeManager
+from cure.ir import Param, Position, Type
 
 
 class stringOperations(Lib):
     def init_lib(self):
         @function(self, [
-            Param(Position.zero(), 'a', TypeManager.get('string')),
-            Param(Position.zero(), 'b', TypeManager.get('string'))
-        ], TypeManager.get('string'))
+            Param(Position.zero(), self.scope.type_map.get('string'), 'a'),
+            Param(Position.zero(), self.scope.type_map.get('string'), 'b')
+        ], self.scope.type_map.get('string'))
         def string_add_string(ctx: DefinitionContext):
             a = ctx.param_value('a')
             b = ctx.param_value('b')
@@ -37,13 +39,14 @@ class stringOperations(Lib):
             ctx.builder.store(null_byte, null_pos)
             
             return ctx.call('string_new', [
-                ptr, cast_value(ctx.builder, total_length, TypeManager.get('int').type)
+                ptr,
+                cast_value(ctx.builder, total_length, cast(Type, self.scope.type_map.get('int')).type)
             ])
         
         @function(self, [
-            Param(Position.zero(), 'a', TypeManager.get('string')),
-            Param(Position.zero(), 'b', TypeManager.get('string'))
-        ], TypeManager.get('bool'))
+            Param(Position.zero(), self.scope.type_map.get('string'), 'a'),
+            Param(Position.zero(), self.scope.type_map.get('string'), 'b')
+        ], self.scope.type_map.get('bool'))
         def string_eq_string(ctx: DefinitionContext):
             a = ctx.param_value('a')
             b = ctx.param_value('b')
@@ -64,9 +67,9 @@ class stringOperations(Lib):
             )
         
         @function(self, [
-            Param(Position.zero(), 'a', TypeManager.get('string')),
-            Param(Position.zero(), 'b', TypeManager.get('string'))
-        ], TypeManager.get('bool'))
+            Param(Position.zero(), self.scope.type_map.get('string'), 'a'),
+            Param(Position.zero(), self.scope.type_map.get('string'), 'b')
+        ], self.scope.type_map.get('bool'))
         def string_neq_string(ctx: DefinitionContext):
             a = ctx.param_value('a')
             b = ctx.param_value('b')

@@ -1,6 +1,6 @@
+from typing import Callable, Any, cast
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Callable, Any
 from logging import info, debug
 
 from llvmlite import ir as lir
@@ -35,7 +35,7 @@ def function(self: Any, params: list[ir.Param] | None = None, ret_type: ir.Type 
         params = []
     
     if ret_type is None:
-        ret_type = ir.TypeManager.get('nil')
+        ret_type = self.scope.type_map.get('nil')
     
     if flags is None:
         flags = ir.FunctionFlags()
@@ -66,7 +66,7 @@ def overload(overload_of: Callable, params: list[ir.Param] | None = None,
         params = []
     
     if ret_type is None:
-        ret_type = ir.TypeManager.get('nil')
+        ret_type = getattr(overload_of, 'self').scope.type_map.get('nil')
     
     def decorator(func):
         nonlocal name
@@ -113,12 +113,14 @@ def add_instance(self, instance):
         
         if (overload_of := getattr(v, 'overload_of', None)) is not None:
             overload_of.overloads.append(ir.Function(
-                ir.Position.zero(), name, v.params, v.ret_type, v, v.flags
+                ir.Position.zero(), v.ret_type, name, v.params, v, v.flags
             ))
         else:
-            self.scope.symbol_table.add(ir.Symbol(name, ir.TypeManager.get('function'), ir.Function(
-                ir.Position.zero(), name, v.params, v.ret_type, v, v.flags, v.overloads
-            )))
+            self.scope.symbol_table.add(ir.Symbol(
+                name, self.scope.type_map.get('function'), ir.Function(
+                    ir.Position.zero(), v.ret_type, name, v.params, v, v.flags, v.overloads
+                )
+            ))
 
         info(f'Added {name} from {self._name}')
 
@@ -171,11 +173,15 @@ class DefinitionContext:
     def error(self, message: str):
         err_msg = create_string_constant(self.module, message)
         err_string_struct = self.call('string_new', [
-            CallArgument(err_msg, ir.TypeManager.get('pointer')),
-            CallArgument(lir.Constant(lir.IntType(32), len(message)), ir.TypeManager.get('int'))
+            CallArgument(err_msg, cast(ir.Type, self.scope.type_map.get('pointer'))),
+            CallArgument(lir.Constant(lir.IntType(32), len(message)),
+                         cast(ir.Type, self.scope.type_map.get('int')))
         ])
 
-        self.call('error', [CallArgument(err_string_struct, ir.TypeManager.get('string'))])
+        self.call('error', [CallArgument(
+            err_string_struct, cast(ir.Type, self.scope.type_map.get('string'))
+        )])
+        
         self.builder.unreachable()
 
 class Lib(ABC):
@@ -219,11 +225,11 @@ class Class(ABC):
         if not hasattr(self, '_name'):
             self._name = self._class_name + ''.join(f'_{type}' for type in generic_types)
 
-        if not ir.TypeManager.exists(self._name):
-            ir.TypeManager.add(self._name, self._create_struct())
+        if not self.scope.type_map.has(self._name):
+            self.scope.type_map.add(self._name, self._create_struct())
         
         if not hasattr(self, 'type'):
-            self.type = ir.TypeManager.get(self._name)
+            self.type = self.scope.type_map.get(self._name)
 
         self.init_class()
         add_instance(self, self)
