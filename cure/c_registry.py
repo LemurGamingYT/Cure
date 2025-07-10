@@ -1,11 +1,13 @@
 from llvmlite import ir as lir
 
+from cure.target import Target
 from cure import ir
 
 
 class CRegistry:
     def __init__(self, module: lir.Module, scope: ir.Scope):
         self.__registry: dict[str, lir.Function | lir.FunctionType] = {}
+        self.__globals: dict[str, lir.GlobalVariable] = {}
         
         self.module = module
         self.scope = scope
@@ -53,17 +55,6 @@ class CRegistry:
             lir.IntType(64) # count
         ]))
 
-        self.register('__acrt_iob_func', lir.FunctionType(
-            lir.LiteralStructType([lir.IntType(8).as_pointer()]),
-            [lir.IntType(32)])
-        )
-
-        self.register('fgets', lir.FunctionType(lir.IntType(8).as_pointer(), [
-            lir.IntType(8).as_pointer(), # buf
-            lir.IntType(32), # size
-            lir.LiteralStructType([lir.IntType(8).as_pointer()]) # file
-        ]))
-
         self.register('strlen', lir.FunctionType(lir.IntType(64), [
             lir.IntType(8).as_pointer() # str
         ]))
@@ -96,10 +87,24 @@ class CRegistry:
             lir.IntType(8).as_pointer()
         ]))
 
-        # if scope.target == Target.Windows:
-        #     self.register('GetCurrentProcessId', lir.FunctionType(lir.IntType(32), []))
-        # elif scope.target == Target.Linux:
-        #     self.register('getpid', lir.FunctionType(lir.IntType(32), []))
+        stream_type = lir.LiteralStructType([lir.IntType(8).as_pointer()]).as_pointer()
+        if scope.target == Target.Windows:
+            self.register('__acrt_iob_func', lir.FunctionType(
+                lir.LiteralStructType([lir.IntType(8).as_pointer()]),
+                [lir.IntType(32)])
+            )
+
+            stream_type = lir.LiteralStructType([lir.IntType(8).as_pointer()])
+        elif scope.target == Target.Linux:
+            self.register_global('stdin', lir.LiteralStructType(
+                [lir.IntType(8).as_pointer()]).as_pointer()
+            )
+        
+        self.register('fgets', lir.FunctionType(lir.IntType(8).as_pointer(), [
+            lir.IntType(8).as_pointer(), # buf
+            lir.IntType(32), # size
+            stream_type # stream
+        ]))
     
     def get(self, name: str):
         if name not in self.__registry:
@@ -122,3 +127,19 @@ class CRegistry:
     
     def get_registered_functions(self):
         return list(self.__registry.keys())
+    
+    def register_global(self, name: str, type: lir.Type):
+        self.__globals[name] = type
+
+    def get_global(self, name: str):
+        if name not in self.__globals:
+            return None
+
+        gbl = self.__globals[name]
+        if isinstance(gbl, lir.Type):
+            gbl = lir.GlobalVariable(self.module, gbl, name)
+            gbl.linkage = 'external'
+
+            self.__globals[name] = gbl
+        
+        return gbl

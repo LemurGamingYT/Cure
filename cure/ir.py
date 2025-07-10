@@ -99,58 +99,6 @@ class TypeMap:
     def merge(self, other: 'TypeMap'):
         self.types.update(other.types)
 
-# class TypeManager:
-#     type_map: dict[str, lir.Type] = {}
-
-#     @staticmethod
-#     def create_function_type(ret_type: 'Type', param_types: list['Type']):
-#         param_types_str = ', '.join(map(str, param_types))
-#         return Type(
-#             Position.zero(),
-#             f'({param_types_str}) -> {ret_type}',
-#             lir.FunctionType(ret_type.type, [param.type for param in param_types])
-#         )
-    
-#     @staticmethod
-#     def from_llvm(llvm_type: lir.Type):
-#         for k, v in TypeManager.type_map.items():
-#             if v != llvm_type:
-#                 continue
-
-#             return TypeManager.get(k)
-        
-#         # try again without being a pointer
-#         if llvm_type.is_pointer:
-#             llvm_type = llvm_type.pointee
-#             res = TypeManager.from_llvm(llvm_type)
-
-#             # if it returns a non-None result, convert it back into a pointer
-#             if res is not None:
-#                 return res.as_pointer()
-
-#     @staticmethod
-#     def get(name: str) -> Any:
-#         llvm_type = TypeManager.type_map.get(name)
-#         if llvm_type is None:
-#             return None
-        
-#         return Type(Position.zero(), name, llvm_type)
-    
-#     @staticmethod
-#     def exists(name: str):
-#         return name in TypeManager.type_map
-    
-#     @staticmethod
-#     def add(name: str, llvm_type: lir.Type):
-#         if name in TypeManager.type_map:
-#             return
-        
-#         TypeManager.type_map[name] = llvm_type
-    
-#     @staticmethod
-#     def set(name: str, llvm_type: lir.Type):
-#         TypeManager.type_map[name] = llvm_type
-
 @dataclass
 class Scope:
     file: Path
@@ -217,6 +165,7 @@ class Scope:
     def merge(self, other: 'Scope'):
         self.dependencies.extend(other.dependencies)
         self.symbol_table.merge(other.symbol_table)
+        self.type_map.merge(other.type_map)
     
     def use(self, name: str, pos: Position):
         if name in self.dependencies:

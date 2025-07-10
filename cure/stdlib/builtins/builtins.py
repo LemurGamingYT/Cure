@@ -12,6 +12,7 @@ from cure.stdlib.builtins.classes.string import string
 from cure.stdlib.builtins.classes.Math import Math
 from cure.stdlib.builtins.classes.Ref import Ref
 from cure.stdlib.builtins.casts import casts
+from cure.target import Target
 from cure.codegen_utils import (
     get_struct_value_field, create_static_buffer, NULL_BYTE, cast_value, create_string_constant,
     index_of_type, get_struct_ptr_field
@@ -68,7 +69,6 @@ class builtins(Lib):
         
         @function(self, ret_type=self.scope.type_map.get('string'), flags=FunctionFlags(public=True))
         def input(ctx: DefinitionContext):
-            acrt_iob_func = ctx.c_registry.get('__acrt_iob_func')
             strlen = ctx.c_registry.get('strlen')
             fgets = ctx.c_registry.get('fgets')
 
@@ -76,7 +76,14 @@ class builtins(Lib):
 
             buf = create_static_buffer(ctx.module, lir.IntType(8), INPUT_BUF_SIZE)
             size_const = lir.Constant(lir.IntType(32), INPUT_BUF_SIZE)
-            stdin = ctx.builder.call(acrt_iob_func, [lir.Constant(lir.IntType(32), 0)])
+
+            if ctx.scope.target == Target.Windows:
+                acrt_iob_func = ctx.c_registry.get('__acrt_iob_func')
+                stdin = ctx.builder.call(acrt_iob_func, [lir.Constant(lir.IntType(32), 0)])
+            else:
+                stdin_ptr = ctx.c_registry.get_global('stdin')
+                stdin = ctx.builder.load(stdin_ptr)
+            
             ctx.builder.call(fgets, [buf, size_const, stdin])
 
             input_len = ctx.builder.call(strlen, [buf])
