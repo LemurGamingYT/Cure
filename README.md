@@ -24,8 +24,9 @@ Cure is a programming language that is designed to be **very easy-to-learn, fast
 3. Install a C compiler
     - MinGW (gcc): https://sourceforge.net/projects/mingw/files/latest/download
     - LLVM (clang): https://github.com/llvm/llvm-project/releases
-4. Install CMake
+4. Install CMake and Ninja
     - Install CMake 3.10 or higher: https://cmake.org/download/
+    - Install Ninja: https://ninja-build.org
 5. Run the compiler
     - Add the 'bin' directory of the compiler to your PATH environment variable
     - Run the compiler using the command: `cure [actions] [options]`
