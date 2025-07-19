@@ -1,0 +1,31 @@
+extern fn +(string a, string b) -> string
+
+extern fn +(int a, int b) -> int
+extern fn -(int a, int b) -> int
+extern fn *(int a, int b) -> int
+extern fn /(int a, int b) -> int
+extern fn %(int a, int b) -> int
+extern fn ==(int a, int b) -> bool
+extern fn !=(int a, int b) -> bool
+extern fn <(int a, int b) -> bool
+extern fn >(int a, int b) -> bool
+extern fn <=(int a, int b) -> bool
+extern fn >=(int a, int b) -> bool
+
+extern fn +(float a, float b) -> float
+extern fn -(float a, float b) -> float
+extern fn *(float a, float b) -> float
+extern fn /(float a, float b) -> float
+extern fn %(float a, float b) -> float
+extern fn ==(float a, float b) -> bool
+extern fn !=(float a, float b) -> bool
+extern fn <(float a, float b) -> bool
+extern fn >(float a, float b) -> bool
+extern fn <=(float a, float b) -> bool
+extern fn >=(float a, float b) -> bool
+
+extern fn ==(bool a, bool b) -> bool
+extern fn !=(bool a, bool b) -> bool
+extern fn &&(bool a, bool b) -> bool
+extern fn ||(bool a, bool b) -> bool
+extern fn !(bool a) -> bool

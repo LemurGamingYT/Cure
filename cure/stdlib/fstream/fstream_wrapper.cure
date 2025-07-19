@@ -1,0 +1,6 @@
+extern class File {
+    extern static fn new(string filename) -> File
+    extern fn filename -> string
+    extern fn contents -> string
+    extern fn write(string contents)
+}

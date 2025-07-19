@@ -1,6 +1,0 @@
-func main() -> int {
-    x = input("Enter a number: ").parse_int()
-    greater_message = "greater than 10" if x > 10 else "less than or equal to 10"
-    print($"x is {greater_message}")
-    return 0
-}

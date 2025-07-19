@@ -1,2 +1,2 @@
 @echo off
-antlr4 -Dlanguage=Python3 -visitor -no-listener -o ir/parser/ ir/Cure.g4
+antlr4 -Dlanguage=Python3 -o cure/parser -visitor -no-listener cure/Cure.g4

@@ -1,23 +1,21 @@
 from logging import basicConfig, DEBUG
+from sys import argv
 
 from colorama import init
 
-from args_parser import CureArgumentParser
-# from repl import repl
-
-init()
-basicConfig(
-    level=DEBUG, filename='compiler.log', filemode='w',
-    format='%(asctime)s %(levelname)s %(message)s'
-)
+from cure import ArgParser
 
 
-def main() -> None:
-    arg_parser = CureArgumentParser()
-    result = arg_parser.parse_args()
-    if not result.success:
-        print(result)
+def main():
+    arg_parser = ArgParser(argv[1:])
+    arg_parser.parse()
 
 
 if __name__ == '__main__':
+    init()
+    basicConfig(
+        filename='debug.log', filemode='w',
+        format='%(asctime)s [%(levelname)s] %(filename)s (line %(lineno)d) - %(message)s',
+        datefmt='%H:%M:%S', encoding='utf-8', level=DEBUG
+    )
     main()

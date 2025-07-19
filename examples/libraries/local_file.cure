@@ -1,9 +1,0 @@
-// Define a test function
-func test1() -> int {
-    return 10
-}
-
-// Define another function
-func test2(int x) -> int {
-    return x + test1()
-}

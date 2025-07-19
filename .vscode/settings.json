@@ -1,28 +1,11 @@
 {
-    "workbench.colorCustomizations": {
-        "minimap.background": "#00000000",
-        "scrollbar.shadow": "#00000000"
-    },
-    "python.REPL.enableREPLSmartSend": false,
     "files.associations": {
-        "fileio.h": "c",
         "stdlib.h": "c",
-        "tinycsocket.h": "c",
-        "engine.h": "c",
-        "sodium.h": "c",
-        "minigl.h": "c",
-        "glu.h": "c",
-        "miniengine.h": "c",
-        "glad.h": "c",
-        "wingl.h": "c",
-        "pcre2_internal.h": "c",
-        "raylib.h": "c",
-        "uilib.h": "c",
-        "windows.h": "c",
-        "diff_output.h": "c",
-        "tool_setup.h": "c",
-        "string.h": "c",
-        "curetui.h": "c",
-        "tuibox.h": "c"
+        "string": "cpp",
+        "builtins.h": "c",
+        "stat.h": "c",
+        "xlocale": "c",
+        "xstring": "c",
+        "stringbuilder.h": "c"
     }
 }

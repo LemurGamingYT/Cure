@@ -1,0 +1,11 @@
+extern fn Math.pi -> float
+extern fn Math.e -> float
+
+extern static fn Math.pow(float x, float y) -> float
+extern static fn Math.pow(int x, int y) -> int
+extern static fn Math.sqrt(float x) -> float
+extern static fn Math.sqrt(int x) -> int
+extern static fn Math.min(float x, float y) -> float
+extern static fn Math.min(int x, int y) -> int
+extern static fn Math.max(float x, float y) -> float
+extern static fn Math.max(int x, int y) -> int

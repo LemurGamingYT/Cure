@@ -1,9 +1,0 @@
-func main() -> int {
-    // Loop to a billion
-    i = 0
-    while i < ONE_BILLION {
-        i += 1 // Increment by one each iteration
-    }
-
-    return 0
-}

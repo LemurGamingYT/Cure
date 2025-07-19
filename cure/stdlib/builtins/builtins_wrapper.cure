@@ -1,0 +1,31 @@
+extern type RefFunction
+extern type u8
+extern type u64
+extern type pointer
+extern type Ref
+
+extern fn Ref.new(pointer data, RefFunction destroy_fn) -> Ref&
+extern fn Ref.dec(Ref& ref)
+extern fn Ref.inc(Ref& ref)
+
+extern fn string.to_string(string self) -> string
+extern fn string.new(u8& ptr, u64 length) -> string
+extern fn string.destroy(string& s)
+extern fn string.length -> int
+extern fn string.clone(string self) -> string
+extern fn string.set(string& self, int index, string ch)
+extern fn string.at(string self, int index) -> string
+
+extern fn int.to_string(int i) -> string
+
+extern fn float.to_string(float f) -> string
+
+extern fn bool.to_string(bool b) -> string
+
+extern fn nil.to_string(nil n) -> string
+
+extern fn print<T>(T x)
+extern fn print_literal(string s)
+
+extern fn input() -> string
+extern fn input(string prompt) -> string

@@ -1,9 +1,0 @@
-// 'regex' is a library that allows interaction with regular expressions
-use "regex"
-
-
-func main() -> int {
-    re = new Regex("(^[a-zA-Z]+$)") // Create a new regex pattern
-    print(re.match("abc", 1)) // Check if the regex pattern matches the string
-    return 0
-}

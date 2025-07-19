@@ -1,8 +1,0 @@
-func main() -> int {
-    // Create a loop that goes from 1 to 100
-    for i in 1..100 {
-        print(i * 2) // Print the current number doubled
-    }
-
-    return 0
-}
