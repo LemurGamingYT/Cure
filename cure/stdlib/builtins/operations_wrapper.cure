@@ -1,4 +1,6 @@
 extern fn +(string a, string b) -> string
+extern fn ==(string a, string b) -> bool
+extern fn !=(string a, string b) -> bool
 
 extern fn +(int a, int b) -> int
 extern fn -(int a, int b) -> int

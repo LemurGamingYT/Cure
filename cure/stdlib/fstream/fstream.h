@@ -11,4 +11,5 @@ typedef struct {
 File File_new(string filename);
 string File_filename(File* file);
 string File_contents(File* file);
+bool File_exists(File* file);
 nil File_write(File* file, string contents);

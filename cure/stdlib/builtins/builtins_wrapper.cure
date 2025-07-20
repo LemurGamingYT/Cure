@@ -8,6 +8,12 @@ extern fn Ref.new(pointer data, RefFunction destroy_fn) -> Ref&
 extern fn Ref.dec(Ref& ref)
 extern fn Ref.inc(Ref& ref)
 
+extern static fn int.min -> int
+extern static fn int.max -> int
+
+extern static fn float.min -> float
+extern static fn float.max -> float
+
 extern fn string.to_string(string self) -> string
 extern fn string.new(u8& ptr, u64 length) -> string
 extern fn string.destroy(string& s)
@@ -29,3 +35,5 @@ extern fn print_literal(string s)
 
 extern fn input() -> string
 extern fn input(string prompt) -> string
+
+extern fn assert(bool condition, string error_message)

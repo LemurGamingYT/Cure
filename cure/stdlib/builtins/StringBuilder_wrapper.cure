@@ -1,7 +1,9 @@
 extern class StringBuilder {
     extern static fn new() -> StringBuilder
     extern static fn new(int capacity) -> StringBuilder
-    extern fn add<T>(T value)
+    extern fn capacity -> int
+    extern fn length -> int
+    extern fn add(string value)
     extern fn to_string() -> string
     extern fn destroy()
 }

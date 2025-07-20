@@ -23,6 +23,11 @@ string File_contents(File* file) {
     return string_new(ptr, size);
 }
 
+bool File_exists(File* file) {
+    FILE* fp;
+    return fopen_s(&fp, (char*)(file->filename.ptr), "r") == 0;
+}
+
 nil File_write(File* file, string contents) {
     FILE* fp;
     if (!fopen_s(&fp, (char*)(file->filename.ptr), "w"))

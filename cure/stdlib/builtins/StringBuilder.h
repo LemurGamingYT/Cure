@@ -15,6 +15,8 @@ typedef struct {
 
 StringBuilder StringBuilder_new(void);
 StringBuilder StringBuilder_new_0(int capacity);
+int StringBuilder_capacity(StringBuilder* self);
+int StringBuilder_length(StringBuilder* self);
 nil StringBuilder_add(StringBuilder* self, string s);
 string StringBuilder_to_string(StringBuilder self);
 nil StringBuilder_destroy(StringBuilder* self);

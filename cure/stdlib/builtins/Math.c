@@ -14,3 +14,5 @@ float Math_min(float a, float b) { return fminf(a, b); }
 int Math_min_2(int a, int b) { return (int)fminf((int)a, (int)b); }
 float Math_max(float a, float b) { return fmaxf(a, b); }
 int Math_max_3(int a, int b) { return (int)fmaxf((int)a, (int)b); }
+float Math_abs(float x) { return fabsf(x); }
+int Math_abs_4(int x) { return (int)fabsf((float)x); }

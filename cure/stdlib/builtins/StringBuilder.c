@@ -15,6 +15,14 @@ StringBuilder StringBuilder_new_0(int capacity) {
     return sb;
 }
 
+int StringBuilder_capacity(StringBuilder* self) {
+    return self->capacity;
+}
+
+int StringBuilder_length(StringBuilder* self) {
+    return self->length;
+}
+
 nil StringBuilder_add(StringBuilder* self, string s) {
     if (self->length + s.length >= self->capacity) {
         self->capacity = Math_max_3(self->capacity * 2, self->length + s.length);

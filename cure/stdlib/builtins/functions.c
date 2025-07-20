@@ -50,6 +50,13 @@ string input_0(string prompt) {
     return input();
 }
 
+nil assert(bool condition, string error_message) {
+    if (condition) return NIL;
+
+    error("%s", (char*)error_message.ptr);
+    return NIL;
+}
+
 
 pointer heap_alloc(u64 size) {
     pointer ptr = (pointer)malloc(size);

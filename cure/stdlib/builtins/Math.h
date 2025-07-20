@@ -11,3 +11,5 @@ float Math_min(float a, float b);
 int Math_min_2(int a, int b);
 float Math_max(float a, float b);
 int Math_max_3(int a, int b);
+float Math_abs(float x);
+int Math_abs_4(int x);

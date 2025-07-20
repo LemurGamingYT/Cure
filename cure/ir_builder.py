@@ -190,6 +190,9 @@ class IRBuilder(CureVisitor):
         is_property = ctx.LPAREN() is None
         flags = FunctionFlags(property=is_property, method=not is_property,
                               static=ctx.STATIC() is not None)
+        if is_property and extend_type is not None and not flags.static:
+            params.insert(0, Param(pos, extend_type, 'self'))
+        
         return Function(
             self.pos(ctx), self.visitType(ctx.return_type) if ctx.return_type is not None\
                 else self.scope.type_map.get('nil'), name, params,

@@ -6,6 +6,7 @@
         "stat.h": "c",
         "xlocale": "c",
         "xstring": "c",
-        "stringbuilder.h": "c"
+        "stringbuilder.h": "c",
+        "freeglut.h": "c"
     }
 }

@@ -8,6 +8,7 @@ from pathlib import Path
 from colorama import Fore, Style
 
 from cure.cstdlib_headers import ALLOWED_HEADERS
+from cure.target import Target
 
 
 STDLIB_PATH = Path(__file__).parent / 'stdlib'
@@ -139,6 +140,7 @@ class Scope:
     dependencies: list[Path] = field(default_factory=list)
     global_nodes: list['Node'] = field(default_factory=list)
     prepended_nodes: list['Node'] = field(default_factory=list)
+    target: Target = field(default_factory=lambda: Target.get_current())
     
     @property
     def unique_name(self):
@@ -377,7 +379,7 @@ class Param(Node):
         return f'{self.type.codegen(scope)} {self.name}'
     
     def analyse(self, scope):
-        return Param(self.pos, self.type.analyse(scope), self.name)
+        return Param(self.pos, self.type.analyse(scope), self.name, self.is_mutable)
 
 @dataclass
 class Body(Node):
@@ -576,6 +578,9 @@ class Function(Node):
         func = self.find_matching_overload(scope, args)
         if func is None:
             arg_types_str = ', '.join(map(lambda arg: arg.type.display, args))
+            param_types_str = ', '.join(map(lambda param: param.type.display, self.params))
+            error(f'no matching overloads with argument types [{arg_types_str}] for'\
+                  f' function {self.name}. Parameter types [{param_types_str}]')
             pos.comptime_error(scope, f'no matching overloads with argument types [{arg_types_str}]')
         
         debug(f'Found valid function: {func.name}')
@@ -607,7 +612,7 @@ class Function(Node):
         
         new_args: list[Node] = []
         for arg, param in zip(args, func.params):
-            if param.type.is_reference:
+            if param.type.is_reference and not arg.type.is_reference:
                 new_args.append(Ref(arg.pos, arg.type.as_reference(), arg))
             else:
                 new_args.append(arg)
@@ -754,9 +759,14 @@ class If(Node):
         return f'if ({cond}) {body}{elseifs}{else_body}'
     
     def analyse(self, scope):
+        body_scope = scope.make_child()
+        if self.else_body is not None:
+            else_scope = scope.make_child()
+
         return If(
-            self.pos, self.type.analyse(scope), self.cond.analyse(scope), self.body.analyse(scope),
-            self.else_body.analyse(scope) if self.else_body is not None else self.else_body,
+            self.pos, self.type.analyse(scope), self.cond.analyse(scope),
+            self.body.analyse(body_scope),
+            self.else_body.analyse(else_scope) if self.else_body is not None else self.else_body,
             [elseif.analyse(scope) for elseif in self.elseifs]
         )
 

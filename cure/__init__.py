@@ -50,6 +50,8 @@ if (MSVC)
 else()
     target_compile_options({cmake_name} PRIVATE -Wall -Wextra -Wpedantic)
 endif()
+
+add_definitions(-D{scope.target.macro_name}=1)
 """)
     
     kwargs = {'-S': cmakelists.parent.as_posix()}

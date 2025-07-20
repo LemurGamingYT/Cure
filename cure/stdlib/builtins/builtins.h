@@ -45,6 +45,11 @@ Ref* Ref_new(pointer data, RefFunction destroy_fn);
 nil Ref_inc(Ref* ref);
 nil Ref_dec(Ref* ref);
 
+int int_min(void);
+int int_max(void);
+
+float float_min(void);
+float float_max(void);
 
 string string_new(const u8* ptr, u64 length);
 int string_length(string self);
@@ -72,6 +77,7 @@ string nil_to_string(nil n);
 nil print_literal(string s);
 string input(void);
 string input_0(string prompt);
+nil assert(bool condition, string error_message);
 
 
 int int_add_int(int a, int b);

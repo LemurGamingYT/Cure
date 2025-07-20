@@ -1,0 +1,16 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="17.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="C:\Programming\Python\Cure\tests\freeglut-3.6.0\progs\demos\Fractals\fractals.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="C:\Programming\Python\Cure\tests\freeglut-3.6.0\CMakeLists.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{85328407-38A6-393B-8DB7-D511462C7E59}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+</Project>
