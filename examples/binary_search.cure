@@ -1,0 +1,29 @@
+fn binary_search(int[] arr, int target) -> int {
+    mut low = 0
+    mut high = arr.length - 1
+    while low <= high {
+        mid = (low + high) / 2
+        if arr.get(mid) == target {
+            return mid
+        } else if arr.get(mid) < target {
+            low = mid + 1
+        } else {
+            high = mid - 1
+        }
+    }
+
+    return -1
+}
+
+fn main() -> int {
+    arr = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+    target = 8
+    res = binary_search(arr, target)
+    if res != -1 {
+        print("Found " + to_string(target) + " at index " + to_string(res))
+    } else {
+        print(to_string(target) + " not found in array")
+    }
+
+    return 0
+}

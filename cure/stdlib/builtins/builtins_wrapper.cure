@@ -1,39 +1,79 @@
-extern type RefFunction
-extern type u8
-extern type u64
-extern type pointer
-extern type Ref
+extern internal class string {
+    extern property fn length() -> int
+}
 
-extern fn Ref.new(pointer data, RefFunction destroy_fn) -> Ref&
-extern fn Ref.dec(Ref& ref)
-extern fn Ref.inc(Ref& ref)
+extern internal class StringBuilder {
+    extern static method fn new() -> StringBuilder
+    extern property fn str() -> string
+    extern method fn add<T>(T s)
+}
 
-extern static fn int.min -> int
-extern static fn int.max -> int
+extern internal class array<T> {
+    extern static method fn new() -> array
+    extern method fn to_string() -> string
+    extern property fn length() -> int
+    extern method fn add(T item)
+    extern method fn get(int index) -> T
+    extern method fn set(int index, T item)
+}
 
-extern static fn float.min -> float
-extern static fn float.max -> float
+extern method fn to_string(int i) -> string
+extern method fn to_string(float f) -> string
+extern method fn to_string(string s) -> string
+extern method fn to_string(bool b) -> string
+extern method fn to_string(nil n) -> string
+extern method fn to_string(StringBuilder sb) -> string
 
-extern fn string.to_string(string self) -> string
-extern fn string.new(u8& ptr, u64 length) -> string
-extern fn string.destroy(string& s)
-extern fn string.length -> int
-extern fn string.clone(string self) -> string
-extern fn string.set(string& self, int index, string ch)
-extern fn string.at(string self, int index) -> string
+extern static property fn int.max() -> int
+extern static property fn int.min() -> int
 
-extern fn int.to_string(int i) -> string
+extern static property fn float.max() -> float
+extern static property fn float.min() -> float
+extern property fn float.decimal(float x) -> float
+extern property fn float.integer(float x) -> int
 
-extern fn float.to_string(float f) -> string
+extern static method fn Math.abs(float x) -> float
+extern static method fn Math.abs(int x) -> int
+extern static method fn Math.sqrt(float x) -> float
+extern static method fn Math.sqrt(int x) -> int
+extern static method fn Math.floor(float x) -> int
+extern static method fn Math.ceil(float x) -> int
 
-extern fn bool.to_string(bool b) -> string
+extern fn int_add_int(int a, int b) -> int
+extern fn int_sub_int(int a, int b) -> int
+extern fn int_mul_int(int a, int b) -> int
+extern fn int_div_int(int a, int b) -> int
+extern fn int_mod_int(int a, int b) -> int
+extern fn int_eq_int(int a, int b) -> bool
+extern fn int_neq_int(int a, int b) -> bool
+extern fn int_lt_int(int a, int b) -> bool
+extern fn int_gt_int(int a, int b) -> bool
+extern fn int_lte_int(int a, int b) -> bool
+extern fn int_gte_int(int a, int b) -> bool
 
-extern fn nil.to_string(nil n) -> string
+extern fn float_add_float(float a, float b) -> float
+extern fn float_sub_float(float a, float b) -> float
+extern fn float_mul_float(float a, float b) -> float
+extern fn float_div_float(float a, float b) -> float
+extern fn float_mod_float(float a, float b) -> float
+extern fn float_eq_float(float a, float b) -> bool
+extern fn float_neq_float(float a, float b) -> bool
+extern fn float_lt_float(float a, float b) -> bool
+extern fn float_gt_float(float a, float b) -> bool
+extern fn float_lte_float(float a, float b) -> bool
+extern fn float_gte_float(float a, float b) -> bool
 
-extern fn print<T>(T x)
+extern fn string_add_string(string a, string b) -> string
+extern fn string_eq_string(string a, string b) -> bool
+extern fn string_neq_string(string a, string b) -> bool
+
+extern fn bool_eq_bool(bool a, bool b) -> bool
+extern fn bool_neq_bool(bool a, bool b) -> bool
+extern fn bool_and_bool(bool a, bool b) -> bool
+extern fn bool_or_bool(bool a, bool b) -> bool
+extern fn not_bool(bool a) -> bool
+
+extern fn print<T>(T s)
 extern fn print_literal(string s)
-
-extern fn input() -> string
-extern fn input(string prompt) -> string
-
-extern fn assert(bool condition, string error_message)
+extern fn assert(bool b, string msg)
+extern fn assert(bool b)

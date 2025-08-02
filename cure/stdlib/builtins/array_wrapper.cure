@@ -1,7 +1,0 @@
-extern class array<T> {
-    extern static fn new(int capacity) -> array
-    extern fn length -> int
-    extern fn add(T elem)
-    extern fn get(int index) -> T
-    extern fn destroy()
-}

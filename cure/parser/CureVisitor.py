@@ -24,8 +24,23 @@ class CureVisitor(ParseTreeVisitor):
         return self.visitChildren(ctx)
 
 
-    # Visit a parse tree produced by CureParser#bodyStmt.
-    def visitBodyStmt(self, ctx:CureParser.BodyStmtContext):
+    # Visit a parse tree produced by CureParser#stmtBody.
+    def visitStmtBody(self, ctx:CureParser.StmtBodyContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by CureParser#return.
+    def visitReturn(self, ctx:CureParser.ReturnContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by CureParser#break.
+    def visitBreak(self, ctx:CureParser.BreakContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by CureParser#continue.
+    def visitContinue(self, ctx:CureParser.ContinueContext):
         return self.visitChildren(ctx)
 
 
@@ -54,18 +69,13 @@ class CureVisitor(ParseTreeVisitor):
         return self.visitChildren(ctx)
 
 
+    # Visit a parse tree produced by CureParser#forRangeStmt.
+    def visitForRangeStmt(self, ctx:CureParser.ForRangeStmtContext):
+        return self.visitChildren(ctx)
+
+
     # Visit a parse tree produced by CureParser#useStmt.
     def visitUseStmt(self, ctx:CureParser.UseStmtContext):
-        return self.visitChildren(ctx)
-
-
-    # Visit a parse tree produced by CureParser#unsafeStmt.
-    def visitUnsafeStmt(self, ctx:CureParser.UnsafeStmtContext):
-        return self.visitChildren(ctx)
-
-
-    # Visit a parse tree produced by CureParser#externType.
-    def visitExternType(self, ctx:CureParser.ExternTypeContext):
         return self.visitChildren(ctx)
 
 
@@ -86,6 +96,11 @@ class CureVisitor(ParseTreeVisitor):
 
     # Visit a parse tree produced by CureParser#funcName.
     def visitFuncName(self, ctx:CureParser.FuncNameContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by CureParser#functionSignature.
+    def visitFunctionSignature(self, ctx:CureParser.FunctionSignatureContext):
         return self.visitChildren(ctx)
 
 
@@ -186,11 +201,6 @@ class CureVisitor(ParseTreeVisitor):
 
     # Visit a parse tree produced by CureParser#paren.
     def visitParen(self, ctx:CureParser.ParenContext):
-        return self.visitChildren(ctx)
-
-
-    # Visit a parse tree produced by CureParser#ref.
-    def visitRef(self, ctx:CureParser.RefContext):
         return self.visitChildren(ctx)
 
 

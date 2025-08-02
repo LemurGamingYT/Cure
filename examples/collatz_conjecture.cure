@@ -1,0 +1,20 @@
+fn collatz_conjecture(mut int n) -> int {
+    mut step_count = 0
+    while n != 1 {
+        if n % 2 == 0 {
+            n = n / 2
+        } else {
+            n = n * 3 + 1
+        }
+
+        step_count += 1
+    }
+
+    return step_count
+}
+
+fn main() -> int {
+    step_count = collatz_conjecture(10)
+    print("10 takes " + to_string(step_count) + " to reach 1 in the Collatz Conjecture")
+    return 0
+}
