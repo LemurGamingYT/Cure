@@ -1022,7 +1022,7 @@ class ArrayInit(Node):
 
     def codegen(self, scope):
         elements_str = ', '.join(element.codegen(scope) for element in self.elements)
-        return f'{{{elements_str}}}'
+        return f'array<{self.elements[0].type.object_type}>{{{elements_str}}}'
     
     def analyse(self, scope):
         if len(self.elements) == 0:
@@ -1037,11 +1037,8 @@ class ArrayInit(Node):
             self.pos.comptime_error(scope, 'array initialization type mismatch')
         
         scope.define_class(self.pos, 'array', [elem_type])
-        array_name = scope.unique_name
         typ = Type(self.pos, 'array', 'array', array_element_type=elem_type)
-        var = Variable(self.pos, typ, array_name, ArrayInit(self.pos, typ, elements))
-        scope.prepended_nodes.append(var)
-        return Id(self.pos, typ, array_name)
+        return ArrayInit(self.pos, typ, elements)
 
 @dataclass
 class ForRange(Node):
