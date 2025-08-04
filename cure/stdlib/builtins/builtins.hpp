@@ -54,16 +54,16 @@ public:
 
 class StringBuilder {
 public:
-std::stringstream ss;
+    std::stringstream ss;
 
-StringBuilder() {}
+    StringBuilder() {}
 
-string str() const { return string(ss.str()); }
+    string str() const { return string(ss.str()); }
 
-template<typename T>
-nil add(const T& item) {
-    ss << to_string(item);
-    return nil();
+    template<typename T>
+    nil add(const T& item) {
+        ss << to_string(item);
+        return nil();
     }
 };
 

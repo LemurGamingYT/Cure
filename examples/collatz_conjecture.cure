@@ -15,6 +15,6 @@ fn collatz_conjecture(mut int n) -> int {
 
 fn main() -> int {
     step_count = collatz_conjecture(10)
-    print("10 takes " + to_string(step_count) + " to reach 1 in the Collatz Conjecture")
+    print("10 takes " + to_string(step_count) + " steps to reach 1 in the Collatz Conjecture")
     return 0
 }

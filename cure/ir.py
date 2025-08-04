@@ -977,13 +977,12 @@ Symbol = {symbol}""")
         
         if self.attr == 'new':
             return New(self.pos, res.type, res.type, args)
-        
-        # because they're internal, theres a chance that they could not return the right type
-        # e.g. string length in C++ returns size_type but should return an int
         attr = Attribute(self.pos, res.type, object, self.attr, args)
         if res.type == scope.type_map.get('nil'):
             return attr
         
+        # because they're internal, there's a chance that they could not return the right type
+        # e.g. string length in C++ returns size_type but should return an int
         return Cast(self.pos, res.type, attr)
 
 @dataclass
