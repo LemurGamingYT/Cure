@@ -6,8 +6,17 @@
 #include <string>
 #include <vector>
 
+#define _USE_MATH_DEFINES
+#include <math.h>
+
 
 using nil = std::nullptr_t;
+
+
+void error(const char* s) {
+    std::cerr << "error:" << s << std::endl;
+    std::exit(1);
+}
 
 
 class string : public std::string {
@@ -17,109 +26,99 @@ public:
     string(const char* s) : std::string(s) {}
     string() : std::string() {}
 
-    // Custom iterator
-    class iterator {
-        std::string::iterator it;
-    public:
-        using iterator_category = std::forward_iterator_tag;
-        using value_type = string;
-        using difference_type = std::ptrdiff_t;
-        using pointer = string*;
-
-        iterator(std::string::iterator i) : it(i) {}
-
-        string operator*() const {
-            return string(*it);  // return a string of length 1
-        }
-
-        iterator& operator++() {
-            ++it;
-            return *this;
-        }
-
-        iterator operator++(int) {
-            iterator tmp = *this;
-            ++(*this);
-            return tmp;
-        }
-
-        bool operator==(const iterator& other) const {
-            return it == other.it;
-        }
-
-        bool operator!=(const iterator& other) const {
-            return it != other.it;
-        }
-    };
-
-    iterator begin() {
-        return iterator(std::string::begin());
+    string get(int index) {
+        if (index < 0)
+            index = static_cast<int>(length()) + index;
+        
+        if (index >= static_cast<int>(length()))
+            error("string index out of range");
+        
+        return (*this)[index];
     }
 
-    iterator end() {
-        return iterator(std::string::end());
+    nil set(int index, string s) {
+        if (s.length() != 1)
+            error("set expects a string character");
+        
+        if (index < 0)
+            index = static_cast<int>(length()) + index;
+        
+        if (index >= static_cast<int>(length()))
+            error("string index out of range");
+        
+        (*this)[index] = s[0];
+        return nil();
     }
 };
 
+
 class StringBuilder {
 public:
-    std::stringstream ss;
+std::stringstream ss;
 
-    StringBuilder() {}
+StringBuilder() {}
 
-    string str() const { return string(ss.str()); }
+string str() const { return string(ss.str()); }
 
-    template<typename T>
-    nil add(const T& item) {
-        ss << to_string(item);
-        return nil();
+template<typename T>
+nil add(const T& item) {
+    ss << to_string(item);
+    return nil();
     }
 };
 
 template<typename T>
 class array : public std::vector<T> {
 public:
-    template<typename... Args>
-    array(Args... args) : std::vector<T>{std::forward<Args>(args)...} {}
-
+    array(std::initializer_list<T> init) : std::vector<T>(init) {}
+    array() : std::vector<T>() {}
+    
     int length() const { return this->size(); }
-
+    
     nil add(T item) {
         this->push_back(item);
         return nil();
     }
-
-    T get(int index) {
-        return this->at(index);
+    
+    T get(int index) const {
+        if (index < 0)
+        index = length() + index;
+        
+        if (index >= length())
+        error("index out of range");
+        
+        return (*this)[index];
     }
-
+    
     nil set(int index, T item) {
-        this->at(index) = item;
+        if (index < 0)
+        index = length() + index;
+        
+        if (index >= length())
+            error("array index out of range");
+
+        (*this)[index] = item;
         return nil();
     }
 };
 
 
-void error(const string& s) {
-    std::cerr << "error: " << s << std::endl;
-    std::exit(1);
-}
+void error(const string& s) { error(s.c_str()); }
+
 
 string to_string(int i) { return std::to_string(i); }
 string to_string(float f) { return std::to_string(f); }
 string to_string(const string& s) { return s; }
 string to_string(bool b) { return b ? "true" : "false"; }
 string to_string(nil _) { return (string)"nil"; }
-string to_string(const StringBuilder& sb) {
-    return sb.ss.str();
-}
+string to_string(const StringBuilder& sb) { return sb.ss.str(); }
 
 template<typename T>
 string to_string(const array<T>& arr) {
     std::stringstream ss;
     ss << '[';
-    for (size_t i = 0; i < static_cast<size_t>(arr.length()); ++i) {
-        ss << arr.get(i);
+    for (int i = 0; i < arr.length(); ++i) {
+        ss << to_string(arr.get(i));
         if (i < arr.length() - 1)
             ss << ", ";
     }
@@ -136,6 +135,8 @@ float float_min(void) { return std::numeric_limits<float>::min(); }
 float float_decimal(float x) { return std::fmod(x, 1); }
 int float_integer(float x) { return static_cast<int>(x); }
 
+float Math_pi(void) { return M_PI; }
+float Math_e(void) { return M_E; }
 float Math_abs(float x) { return std::abs(x); }
 int Math_abs(int x) { return std::abs(x); }
 float Math_sqrt(float x) { return std::sqrtf((int)x); }
@@ -237,6 +238,17 @@ nil print(const T& s) {
 nil print_literal(const string& s) {
     std::cout << s;
     return nil();
+}
+
+string input(void) {
+    std::string s;
+    std::getline(std::cin, s);
+    return s;
+}
+
+string input(const string& prompt) {
+    std::cout << prompt;
+    return input();
 }
 
 nil assert(bool b, const string& msg) {

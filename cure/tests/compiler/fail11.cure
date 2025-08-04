@@ -1,0 +1,7 @@
+fn main() -> int {
+    for i in "a".."z" {
+        print(i)
+    }
+    
+    return 0
+}

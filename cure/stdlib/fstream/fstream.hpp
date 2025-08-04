@@ -5,14 +5,12 @@
 #include <filesystem>
 #include <fstream>
 
-namespace fs = std::filesystem;
-
 
 class File {
 public:
-    fs::path path;
+    std::filesystem::path path;
 
-    File(string filename) : path(fs::path(filename.c_str())) { }
+    File(string filename) : path(std::filesystem::path(filename.c_str())) { }
 
     string to_string() const { return "File('" + path.string() + "')"; }
     string contents() {
@@ -30,11 +28,7 @@ public:
     }
 
     bool exists() {
-        return fs::exists(path);
-    }
-
-    static bool exists(string filename) {
-        return fs::exists(fs::path(filename.c_str()));
+        return std::filesystem::exists(path);
     }
 };
 

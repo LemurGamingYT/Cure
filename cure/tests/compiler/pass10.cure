@@ -1,0 +1,8 @@
+fn test(string s) -> string {
+    return s + "!"
+}
+
+fn main() -> int {
+    print(test("Hello"))
+    return 0
+}

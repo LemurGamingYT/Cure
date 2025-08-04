@@ -40,9 +40,13 @@ class IRBuilder(CureVisitor):
         )
     
     def visitType(self, ctx):
-        if ctx.LBRACK() is not None:
-            typ = self.visitType(ctx.type_())
-            return Type(self.pos(ctx), typ.type, typ.display, typ)
+        if ctx.type_() is not None and ctx.LBRACK() is not None:
+            array_element_type = self.visitType(ctx.type_())
+            return Type(self.pos(ctx), 'array', 'array', array_element_type=array_element_type)
+        # elif ctx.type_() is not None and ctx.AMPERSAND() is not None:
+        #     typ = self.visitType(ctx.type_())
+        #     typ.is_reference = True
+        #     return typ
         
         txt = ctx.ID().getText()
         return Type(self.pos(ctx), txt, txt)

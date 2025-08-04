@@ -1,7 +1,8 @@
 extern internal class File {
     extern static method fn new(string filename) -> File
-    extern method fn to_string() -> string
     extern property fn contents() -> string
     extern property fn exists() -> bool
     extern method fn write(string content)
 }
+
+extern method fn to_string(File file) -> string

@@ -1,0 +1,4 @@
+fn main() -> int {
+    print_literal("Hello, world!\n")
+    return 0
+}

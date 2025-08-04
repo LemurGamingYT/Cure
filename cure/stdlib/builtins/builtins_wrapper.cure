@@ -1,5 +1,6 @@
 extern internal class string {
     extern property fn length() -> int
+    extern method fn set(int index, string s)
 }
 
 extern internal class StringBuilder {
@@ -32,6 +33,8 @@ extern static property fn float.min() -> float
 extern property fn float.decimal(float x) -> float
 extern property fn float.integer(float x) -> int
 
+extern static property fn Math.pi() -> float
+extern static property fn Math.e() -> float
 extern static method fn Math.abs(float x) -> float
 extern static method fn Math.abs(int x) -> int
 extern static method fn Math.sqrt(float x) -> float
@@ -75,5 +78,7 @@ extern fn not_bool(bool a) -> bool
 
 extern fn print<T>(T s)
 extern fn print_literal(string s)
+extern fn input() -> string
+extern fn input(string prompt) -> string
 extern fn assert(bool b, string msg)
 extern fn assert(bool b)

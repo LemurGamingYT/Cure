@@ -1,0 +1,4 @@
+fn main() -> int {
+    print(Math.sqrt("Hello!"))
+    return 0
+}

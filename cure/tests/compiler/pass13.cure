@@ -1,0 +1,6 @@
+fn main() -> int {
+    float_num = 1.3
+    print(float_num.decimal) 
+    print(float_num.integer)
+    return 0
+}

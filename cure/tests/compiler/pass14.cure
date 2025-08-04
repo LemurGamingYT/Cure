@@ -1,0 +1,11 @@
+fn main() -> int {
+    print(Math.pi)
+    print(Math.e)
+    print(Math.abs(-5))
+    print(Math.abs(2.3))
+    print(Math.floor(3.8))
+    print(Math.ceil(3.3))
+    print(Math.sqrt(4))
+    print(Math.sqrt(10.2))
+    return 0
+}

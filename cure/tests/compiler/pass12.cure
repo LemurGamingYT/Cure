@@ -1,0 +1,9 @@
+use "fstream"
+
+
+fn main() -> int {
+    file = new File("test.txt")
+    file.write("Hello World")
+    print(file.contents)
+    return 0
+}

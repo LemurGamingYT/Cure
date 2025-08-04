@@ -1,0 +1,6 @@
+fn main() -> int {
+    arr = new int[]
+    arr.add(2)
+    print(arr)
+    return 0
+}

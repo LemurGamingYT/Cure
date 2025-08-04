@@ -1,0 +1,8 @@
+fn test(int a) -> int {
+    return a + 1
+}
+
+fn main() -> int {
+    print(test(10))
+    return 0
+}

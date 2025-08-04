@@ -1,6 +1,7 @@
 from logging import debug, info, error
 from sys import exit as sys_exit
 from subprocess import run
+from pprint import pformat
 from pathlib import Path
 
 from colorama import Fore, Style
@@ -9,9 +10,14 @@ from cure.ir import Scope, STDLIB_PATH, Position
 from cure.ir_builder import IRBuilder
 
 
-def compile_to_str(scope: Scope):
+def parse(scope: Scope):
     ir_builder = IRBuilder(scope)
     program = ir_builder.build()
+    debug(f'Parsed program: {pformat(program)}')
+    return program
+
+def compile_to_str(scope: Scope):
+    program = parse(scope)
     return program.analyse(scope).codegen(scope)
 
 def compile_cmake(build_dir: Path = Path.cwd(), **kwargs):
@@ -42,6 +48,7 @@ def compile_to_exe(scope: Scope):
     cmakelists = build_dir / 'CMakeLists.txt'
     cmakelists.write_text(f"""cmake_minimum_required(VERSION 3.10)
 project({cmake_name} LANGUAGES CXX)
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_BUILD_TYPE "{build_type}")
 set(SOURCES {main_file.as_posix()}{''.join(code_files)})
 
@@ -62,7 +69,7 @@ add_definitions(-D{scope.target.macro_name}=1)
     ret_code = compile_cmake(build_dir, **kwargs)
     if ret_code.returncode != 0:
         print(f'{Fore.RED}error: failed to build{Style.RESET_ALL}')
-        sys_exit(1)
+        return
     
     exec_name = f'{cmake_name}.exe'
     debug(f'Executable Name = {exec_name}')
@@ -79,6 +86,11 @@ add_definitions(-D{scope.target.macro_name}=1)
     debug(f'Executable File = {new_exec_path}')
     return new_exec_path
 
+def create_scope(file: Path):
+    scope = Scope(file)
+    scope.use(Position(0, 0), 'builtins')
+    return scope
+
 
 class ArgParser:
     def __init__(self, args: list[str]):
@@ -90,6 +102,8 @@ class ArgParser:
         match action:
             case 'build':
                 self.build()
+            case 'test':
+                self.test()
             case _:
                 error(f'Unknown action {action}')
 
@@ -107,6 +121,10 @@ class ArgParser:
         
         debug(f'No arg at index {index}')
         return None
+    
+    def test(self):
+        from cure.tests import test
+        test()
     
     def build(self, file_path: str | None = None):
         if file_path is None:
@@ -130,12 +148,7 @@ class ArgParser:
             print(f'File \'{file_path}\' is not a file')
             sys_exit(1)
         
-        info('Creating Scope object')
-        scope = Scope(file=path)
-        info('Created Scope object')
-
-        scope.use(Position(0, 0), 'builtins')
-        info('Used builtins')
+        scope = create_scope(path)
 
         info('Compiling to executable')
         exec_path = compile_to_exe(scope)

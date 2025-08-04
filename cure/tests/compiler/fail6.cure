@@ -1,0 +1,9 @@
+fn print_arr(int[] arr) {
+    print(arr)
+}
+
+fn main() -> int {
+    arr = [1.2, 3.9, 0.4]
+    print_arr(arr)
+    return 0
+}

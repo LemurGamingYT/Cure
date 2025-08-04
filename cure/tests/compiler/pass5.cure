@@ -1,0 +1,7 @@
+fn main() -> int {
+    mut x = 10
+    x = x + 5
+
+    name = "CureLang"
+    return 0
+}

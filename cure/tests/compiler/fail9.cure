@@ -1,0 +1,4 @@
+fn main() -> int {
+    x = input(10)
+    return 0
+}

@@ -1,0 +1,5 @@
+fn main() -> int {
+    user = input()
+    user2 = input("> ")
+    return 0
+}

@@ -2,7 +2,12 @@ grammar Cure;
 
 program: stmt* EOF;
 
-type: ID | type LBRACK RBRACK;
+type
+    : ID
+    // | type LT type+ GT
+    | type LBRACK RBRACK
+    // | type AMPERSAND
+    ;
 
 stmt
     : varAssign | funcAssign
@@ -77,7 +82,6 @@ expr
 IF: 'if';
 IN: 'in';
 FOR: 'for';
-NEW: 'new';
 USE: 'use';
 FUNC: 'fn';
 ELSE: 'else';
@@ -97,13 +101,14 @@ BREAK: 'break';
 CONTINUE: 'continue';
 
 // Class keywords
+NEW: 'new';
 CLASS: 'class';
 
 APOSTROPHE: '\'';
 
 INT: '-'? [0-9]+;
 FLOAT: '-'? [0-9]* '.' [0-9]+;
-STRING: '"' .*? '"' | APOSTROPHE .*? APOSTROPHE;
+STRING: /* DOLLAR? */ '"' .*? '"' | APOSTROPHE .*? APOSTROPHE;
 BOOL: 'true' | 'false';
 ID: [a-zA-Z_][a-zA-Z_0-9]*;
 
@@ -125,6 +130,7 @@ NOT: '!';
 DOUBLEDOT: '..';
 DOT: '.';
 COMMA: ',';
+// DOLLAR: '$';
 ASSIGN: '=';
 LPAREN: '(';
 RPAREN: ')';
@@ -133,6 +139,7 @@ RBRACE: '}';
 LBRACK: '[';
 RBRACK: ']';
 RETURNS: '->';
+AMPERSAND: '&';
 
 COMMENT: '//' .*? '\n' -> skip;
 MULTILINE_COMMENT: '/*' .*? '*/' -> skip;

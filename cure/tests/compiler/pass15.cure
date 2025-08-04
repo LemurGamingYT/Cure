@@ -1,0 +1,8 @@
+fn main() -> int {
+    sb = new StringBuilder()
+    sb.add("Hello, ")
+    sb.add("world!")
+    print(sb)
+    print(sb.str)
+    return 0
+}
