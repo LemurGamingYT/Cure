@@ -292,6 +292,12 @@ class ReferenceType(Type):
     type: str # type: ignore
     inner: Type
 
+    def __eq__(self, other):
+        if not isinstance(other, Type):
+            return False
+        
+        return self.inner == other
+
     def codegen(self, scope):
         return f'{self.inner.codegen(scope)}&'
     
@@ -478,6 +484,10 @@ Self Param C++ Type = {', '.join(param.type.codegen(scope) for param in self.par
 Arg Type Display = {', '.join(str(arg.type) for arg in args)}
 Arg C++ Type = {', '.join(arg.type.codegen(scope) for arg in args)}""")
             return pos.comptime_error(scope, f'no matching overload with types [{arg_types_str}]')
+        
+        for arg, param in zip(args, call_func.params):
+            if isinstance(param.type, ReferenceType) and not isinstance(arg, Id):
+                arg.pos.comptime_error(scope, 'cannot pass values to reference types')
         
         debug(f'Found valid callable function {call_func.name}')
         return Call(

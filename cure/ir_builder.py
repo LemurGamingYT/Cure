@@ -8,7 +8,7 @@ from cure.parser.CureLexer import CureLexer
 from cure.ir import (
     Program, Scope, Position, Function, Param, Int, Float, String, Bool, Id, Return, Body, Call,
     Cast, Operation, Use, If, While, Variable, Ternary, Bracketed, Attribute, Break, Continue, Type,
-    Class, NewArray, ArrayInit, ForRange, New, Elseif, ArrayType
+    Class, NewArray, ArrayInit, ForRange, New, Elseif, ArrayType, ReferenceType
 )
 
 
@@ -43,10 +43,9 @@ class IRBuilder(CureVisitor):
         if ctx.type_() is not None and ctx.LBRACK() is not None:
             array_element_type = self.visitType(ctx.type_())
             return ArrayType(self.pos(ctx), f'{array_element_type}[]', array_element_type)
-        # elif ctx.type_() is not None and ctx.AMPERSAND() is not None:
-        #     typ = self.visitType(ctx.type_())
-        #     typ.is_reference = True
-        #     return typ
+        elif ctx.type_() is not None and ctx.AMPERSAND() is not None:
+            typ = self.visitType(ctx.type_())
+            return ReferenceType(self.pos(ctx), f'{typ.type}', typ)
         
         txt = ctx.ID().getText()
         return Type(self.pos(ctx), txt)
