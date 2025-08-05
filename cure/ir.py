@@ -11,6 +11,21 @@ from colorama import Fore, Style
 from cure.target import Target
 
 
+# a list of all reserved keywords in C++ that are not in this language
+RESERVED_CPP_KEYWORDS = {'alignas', 'alignof', 'and', 'and_eq', 'asm', 'atomic_cancel',
+                         'atomic_commit', 'atomic_noexcept', 'auto', 'bitand', 'bitor', 'bool',
+                         'break', 'case', 'catch', 'char', 'char8_t', 'char16_t', 'char32_t',
+                         'char32_t', 'compl', 'concept', 'const', 'consteval', 'constexpr',
+                         'constinit', 'const_cast', 'continue', 'contract_assert', 'co_await',
+                         'co_return', 'co_yield', 'decltype', 'default', 'delete', 'do', 'double',
+                         'dynamic_cast', 'enum', 'explicit', 'export', 'extern', 'false', 'friend',
+                         'goto', 'inline', 'long', 'mutable', 'namespace', 'noexcept', 'not',
+                         'not_eq', 'nullptr', 'operator', 'or', 'or_eq', 'private', 'protected',
+                         'public', 'reflexpr', 'register', 'reinterpret_cast', 'requires',
+                         'return', 'short', 'signed', 'sizeof', 'static_assert', 'static_cast',
+                         'struct', 'switch', 'synchronized', 'template', 'this', 'thread_local',
+                         'throw', 'try', 'typedef', 'typeid', 'typename', 'union', 'unsigned',
+                         'using', 'virtual', 'void', 'volatile', 'wchar_t', 'xor', 'xor_eq'}
 STDLIB_PATH = Path(__file__).parent / 'stdlib'
 op_map = {'+': 'add', '-': 'sub', '*': 'mul', '/': 'div', '%': 'mod', '==': 'eq', '!=': 'neq',
           '<': 'lt', '>': 'gt', '<=': 'lte', '>=': 'gte', '&&': 'and', '||': 'or', '!': 'not'}
@@ -22,6 +37,9 @@ class Position:
 
     def comptime_error(self, scope: 'Scope', message: str):
         src = scope.src
+        if self.line > len(src.splitlines()):
+            self.line = len(src.splitlines())
+        
         print(src.splitlines()[self.line - 1], file=stderr)
         print(' ' * self.column + '^', file=stderr)
         print(f'{Style.BRIGHT}{Fore.RED}error: {message}{Style.RESET_ALL}', file=stderr)
@@ -68,12 +86,9 @@ class SymbolTable:
 @dataclass
 class TypeMap:
     types: dict[str, 'Type'] = field(default_factory=dict)
-
-    def add(self, display: str, c_type: str | None = None):
-        self.types[display] = Type(Position.zero(), c_type or display, display)
     
-    def add_type(self, type: 'Type'):
-        self.types[str(type)] = type
+    def add(self, type: 'Type'):
+        self.types[type.type] = type
     
     def get(self, display: str):
         return self.types.get(display)
@@ -121,16 +136,16 @@ class Scope:
         else:
             self._unique_name_idx = -1
             
-            self.type_map.add('int')
-            self.type_map.add('float')
-            self.type_map.add('string')
-            self.type_map.add('bool')
-            self.type_map.add('nil')
+            self.type_map.add(PrimitiveType(Position.zero(), 'int'))
+            self.type_map.add(PrimitiveType(Position.zero(), 'float'))
+            self.type_map.add(ClassType(Position.zero(), 'string'))
+            self.type_map.add(PrimitiveType(Position.zero(), 'bool'))
+            self.type_map.add(PrimitiveType(Position.zero(), 'nil'))
 
-            self.type_map.add('any')
-            self.type_map.add('function')
+            self.type_map.add(PrimitiveType(Position.zero(), 'any'))
+            self.type_map.add(PrimitiveType(Position.zero(), 'function'))
 
-            self.type_map.add('Math')
+            self.type_map.add(PrimitiveType(Position.zero(), 'Math'))
     
     def use(self, pos: Position, name: str):
         file = Path(name).resolve()
@@ -228,77 +243,63 @@ class Program(Node):
 @dataclass
 class Type(Node):
     type: str # type: ignore
-    display: str
-    generic_types: list['Type'] = field(default_factory=list)
-    array_element_type: Union['Type', None] = None
-    is_reference: bool = False
-
-    @property
-    def object_type(self):
-        obj_type = self.cpp_type
-        if self.is_reference:
-            obj_type = obj_type.removesuffix('&')
-        
-        return obj_type
-    
-    @property
-    def cpp_type(self):
-        cpp_type = self.type
-        if len(self.generic_types) > 0:
-            generic_types_str = ', '.join(t.cpp_type for t in self.generic_types)
-            cpp_type = f'{self.type}<{generic_types_str}>'
-        elif self.array_element_type is not None:
-            cpp_type = f'array<{self.array_element_type.cpp_type}>'
-        
-        if self.is_reference:
-            cpp_type = f'{cpp_type}&'
-        
-        return cpp_type
 
     def __str__(self):
-        display = self.display
-        if len(self.generic_types) > 0:
-            generic_types_str = ', '.join(str(t) for t in self.generic_types)
-            display = f'{self.display}<{generic_types_str}>'
-        elif self.array_element_type is not None:
-            display = f'{self.array_element_type}[]'
+        return self.type
 
-        if self.is_reference:
-            display = f'{display}&'
-        
-        return display
-    
-    def __eq__(self, other):
-        if not isinstance(other, Type):
-            return False
-
-        return self.object_type == other.object_type
-    
     def codegen(self, _):
-        return self.cpp_type
+        return self.type
 
-    def analyse(self, scope):
-        if len(self.generic_types) > 0:
-            generic_types = [t.analyse(scope) for t in self.generic_types]
-            cls = scope.define_class(self.pos, self.display, generic_types)
-            if cls is None:
-                self.pos.comptime_error(scope, f'unknown class \'{self.display}\'')
-            
-            return cls.type
-        elif self.array_element_type is not None:
-            array_element_type = self.array_element_type.analyse(scope)
-            scope.define_class(self.pos, 'array', [array_element_type])
-            return Type(
-                self.pos, self.type, self.display,
-                array_element_type=array_element_type.analyse(scope),
-                is_reference=self.is_reference
-            )
-
-        typ = scope.type_map.get(self.display)
+    def analyse(self, scope: Scope):
+        typ = scope.type_map.get(self.type)
         if typ is None:
-            self.pos.comptime_error(scope, f'unknown type \'{self}\'')
+            self.pos.comptime_error(scope, f'unknown type \'{self.type}\'')
         
         return typ
+
+@dataclass
+class PrimitiveType(Type):
+    pass
+
+@dataclass
+class ArrayType(Type):
+    element_type: Type
+
+    def codegen(self, scope):
+        return f'array<{self.element_type.codegen(scope)}>'
+    
+    def analyse(self, scope):
+        elem_type = self.element_type.analyse(scope)
+        array_cls = scope.define_class(self.pos, 'array', [elem_type])
+        return array_cls.type
+
+@dataclass
+class ClassType(Type):
+    generic_types: list[Type] = field(default_factory=list)
+
+    def codegen(self, scope):
+        if self.generic_types:
+            generic_types_str = ', '.join(typ.codegen(scope) for typ in self.generic_types)
+            return f'{self.type}<{generic_types_str}>'
+    
+        return self.type
+    
+    def analyse(self, scope):
+        return ClassType(self.pos, self.type, [typ.analyse(scope) for typ in self.generic_types])
+
+@dataclass
+class ReferenceType(Type):
+    type: str # type: ignore
+    inner: Type
+
+    def codegen(self, scope):
+        return f'{self.inner.codegen(scope)}&'
+    
+    def analyse(self, scope):
+        return ReferenceType(
+            self.pos, self.type if self.type.endswith('&') else f'{self.type}&',
+            self.inner.analyse(scope)
+        )
 
 @dataclass
 class Param(Node):
@@ -382,12 +383,16 @@ class Function(Node):
         extend_type = self.extend_type.analyse(scope) if self.extend_type is not None else None
         name = self.name
         if extend_type is not None:
-            name = f'{extend_type.cpp_type}_{name}'
+            name = f'{extend_type.codegen(scope)}_{name}'
 
             debug(f'Function {self.name} extends type {extend_type}, mangled name = {name}')
         
+        _name = name
+        if name in RESERVED_CPP_KEYWORDS:
+            name = f'_{name}'
+        
         for generic_name in self.generic_names:
-            scope.type_map.add(generic_name)
+            scope.type_map.add(PrimitiveType(self.pos, generic_name))
 
         func = Function(
             self.pos, self.type.analyse(scope), name, self.ret_type.analyse(scope),
@@ -403,7 +408,7 @@ class Function(Node):
             
             base_func.overloads.append(func)
         else:
-            scope.symbol_table.add(Symbol(func.name, func.type, func))
+            scope.symbol_table.add(Symbol(func.name, func.type, func), _name)
         
         if func.body is not None:
             body_scope = scope.make_child()
@@ -419,7 +424,7 @@ class Function(Node):
                 ))
         
         for generic_name in self.generic_names:
-            scope.type_map.add(generic_name)
+            scope.type_map.remove(generic_name)
         
         return func
     
@@ -445,9 +450,11 @@ class Function(Node):
 
                 debug(f"""Type mismatch with Param Type {param.type} and Arg Type {arg.type}
 Param Type Display = {str(param.type)}
-Param C++ Type = {param.type.cpp_type}
+Param C++ Type = {param.type.codegen(scope)}
+Param Type = {param.type!r}
 Arg Type Display = {str(arg.type)}
-Arg C++ Type = {arg.type.cpp_type}""")
+Arg C++ Type = {arg.type.codegen(scope)}
+Arg Type = {arg.type!r}""")
                 valid_params = False
                 break
             
@@ -467,9 +474,9 @@ Arg C++ Type = {arg.type.cpp_type}""")
             arg_types_str = ', '.join(str(arg.type) for arg in args)
             error(f"""no matching overloads with types [{arg_types_str}]
 Self Param Type Display = {', '.join(str(param.type) for param in self.params)}
-Self Param C++ Type = {', '.join(param.type.cpp_type for param in self.params)}
+Self Param C++ Type = {', '.join(param.type.codegen(scope) for param in self.params)}
 Arg Type Display = {', '.join(str(arg.type) for arg in args)}
-Arg C++ Type = {', '.join(arg.type.cpp_type for arg in args)}""")
+Arg C++ Type = {', '.join(arg.type.codegen(scope) for arg in args)}""")
             return pos.comptime_error(scope, f'no matching overload with types [{arg_types_str}]')
         
         debug(f'Found valid callable function {call_func.name}')
@@ -490,12 +497,16 @@ class Variable(Node):
         return f'{self.type.codegen(scope)} {self.name} = {self.value.codegen(scope)}'
     
     def analyse(self, scope):
+        name = self.name
+        if name in RESERVED_CPP_KEYWORDS:
+            name = f'_{name}'
+
         value = self.value.analyse(scope)
         if scope.symbol_table.has(self.name):
             return Assignment(self.pos, value.type, self.name, value, self.op).analyse(scope)
 
-        scope.symbol_table.add(Symbol(self.name, value.type, value, self.is_mutable))
-        return Variable(self.pos, value.type, self.name, value, self.is_mutable, self.op)
+        scope.symbol_table.add(Symbol(name, value.type, value, self.is_mutable), self.name)
+        return Variable(self.pos, value.type, name, value, self.is_mutable, self.op)
 
 @dataclass
 class Assignment(Node):
@@ -518,7 +529,7 @@ class Assignment(Node):
                 value
             ).analyse(scope)
 
-        return Assignment(self.pos, value.type, self.name, value, self.op)
+        return Assignment(self.pos, value.type, symbol.name, value, self.op)
 
 @dataclass
 class Class(Node):
@@ -531,7 +542,7 @@ class Class(Node):
         return ''
     
     def analyse(self, scope):
-        scope.type_map.add(self.name)
+        scope.type_map.add(ClassType(self.pos, self.name))
         typ = scope.type_map.get(self.name)
         scope.symbol_table.add(Symbol(self.name, typ, self))
         if not self.generic_names:
@@ -540,11 +551,11 @@ class Class(Node):
         return Class(self.pos, typ, self.members, self.generic_names)
     
     def replace_type(self, typ: Type, **generics: Type):
-        if typ.display not in generics:
+        if typ.type not in generics:
             return typ
         
-        info(f'Replacing return type with generic type {generics[typ.display]}')
-        return generics[typ.display]
+        info(f'Replacing return type with generic type {generics[typ.type]}')
+        return generics[typ.type]
     
     def define_method(self, member: Function, scope: Scope, cls_type: Type, typ: Type,
                       **generics: Type):
@@ -571,12 +582,17 @@ class Class(Node):
             self.pos, self.replace_type(param.type, **generics), param.name, param.is_mutable
         ) for param in member.params)
 
+        name = f'{cls_type}_{member.name}'
+        debug(f'Creating method with name {name}')
         method = Function(
-            self.pos, member.type, member.name, ret_type, params, member.body, member.overloads,
-            flags, member.generic_names, cls_type
+            self.pos, member.type, name, ret_type, params, member.body,
+            member.overloads, # TODO: method overloads
+            flags, member.generic_names
         )
 
         method.analyse(scope)
+
+        method.name = member.name
         return method
     
     def define(self, scope: Scope, generic_types: list['Type']):
@@ -592,22 +608,25 @@ class Class(Node):
         typ = scope.type_map.get(self.name)
         if self.generic_names:
             generics_display_str = ', '.join(str(t) for t in generics.values())
-            generics_type_str = ', '.join(t.cpp_type for t in generics.values())
             cls_display_str = f'{self.name}<{generics_display_str}>'
-            cls_type_str = f'{self.name}<{generics_type_str}>'
+            cls_type: Type
             if self.name == 'array':
                 cls_display_str = f'{generics_display_str}[]'
-            
-            cls_type = Type(self.pos, cls_type_str, cls_display_str)
 
-            debug(f'Created generic class type {str(cls_type)} (Type = {cls_type.cpp_type})')
+                cls_type = ArrayType(self.pos, cls_display_str, generics['T'])
+            # elif self.name == 'string':
+            #     cls_type = PrimitiveType(self.pos, 'string')
+            else:
+                cls_type = ClassType(self.pos, cls_display_str, list(generics.values()))
+
+            debug(f'Created generic class type {cls_type} (Type = {cls_type.codegen(scope)})')
             # TODO: check if this generic class has already been defined
             # if scope.type_map.has(str(cls_type)):
             #     info('Generic class already defined')
             #     return Class(self.pos, cls_type, self.name, self.members, self.generic_names,
             #                  self.is_internal)
             
-            scope.type_map.add_type(cls_type)
+            scope.type_map.add(cls_type)
         else:
             cls_type = typ
 
@@ -811,13 +830,13 @@ class Call(Node):
         return f'{self.callee.codegen(scope)}({args_str})'
     
     def analyse(self, scope):
-        callee = self.callee.analyse(scope)
+        self.callee.analyse(scope)
 
         # don't need to check if the symbol exists, already done in Id.analyse
-        symbol = cast(Symbol, scope.symbol_table.get(callee.name))
+        symbol = cast(Symbol, scope.symbol_table.get(self.callee.name))
         func = symbol.value
         if not isinstance(func, Function):
-            self.pos.comptime_error(scope, f'invalid function \'{callee.name}\'')
+            self.pos.comptime_error(scope, f'invalid function \'{self.callee.name}\'')
 
         args = [arg.analyse(scope) for arg in self.args]
         return func(self.pos, scope, args)
@@ -827,19 +846,19 @@ class Cast(Node):
     object: Node
 
     def codegen(self, scope):
-        return f'static_cast<{self.type.object_type}>({self.object.codegen(scope)})'
+        return f'static_cast<{self.type.codegen(scope)}>({self.object.codegen(scope)})'
     
     def analyse(self, scope):
         object = self.object.analyse(scope)
         if object.type == self.type:
             return object
         
-        callee = f'{object.type.object_type}_to_{self.type.object_type}'
+        callee = f'{object.type}_to_{self.type}'
         symbol = scope.symbol_table.get(callee)
 
         debug(f"""Analysing Cast node
-Object Type Display = {object}
-Object Object Type = {object.type.object_type}
+Object Type Display = {object.type}
+Object C++ Type = {object.type.codegen(scope)}
 Callee = {callee}
 Callee Symbol = {symbol}""")
         if symbol is None:
@@ -871,22 +890,22 @@ class Operation(Node):
         op_name = op_map[self.op]
 
         debug(f"""Analysing Operation node
-Left Type Display = {left}
-Left Object Type = {left.type.object_type}""")
+Left Type Display = {left.type}
+Left C++ Type = {left.type.codegen(scope)}""")
         if self.right is None:
-            callee = f'{op_name}_{left.type.object_type}'
+            callee = f'{op_name}_{left.type}'
             error_message = f'cannot perform operation \'{self.op}\' on type \'{left.type}\''
             args = [left]
         else:
             right = self.right.analyse(scope)
-            callee = f'{left.type.object_type}_{op_name}_{right.type.object_type}'
+            debug(f"""Right Type Display = {right.type}
+Right Object Type = {right.type.codegen(scope)}
+""")
+            
+            callee = f'{left.type}_{op_name}_{right.type}'
             error_message = f'cannot perform operation \'{self.op}\' on type \'{left.type}\' and '\
                 f'\'{right.type}\''
             args = [left, right]
-
-            debug(f"""Right Type Display = {right}
-Right Object Type = {right.type.object_type}
-""")
         
         symbol = scope.symbol_table.get(callee)
         debug(f"""Callee = {callee}
@@ -947,12 +966,12 @@ class Attribute(Node):
     def analyse(self, scope):
         object = self.object.analyse(scope)
         args = [object] + ([arg.analyse(scope) for arg in self.args] if self.args else [])
-        callee = f'{object.type.object_type}_{self.attr}'
+        callee = f'{object.type}_{self.attr}'
         symbol = scope.symbol_table.get(callee)
 
         debug(f"""Analysing Attribute node
-Object Type Display = {object}
-Object Object Type = {object.type.object_type}
+Object Type Display = {object.type}
+Object C++ Type = {object.type.codegen(scope)}
 Attr = {self.attr}
 Callee = {callee}
 Symbol = {symbol}""")
@@ -968,6 +987,12 @@ Symbol = {symbol}""")
         if func.flags.static or func.flags.internal:
             args = args[1:]
         
+        # is_call_a_property = self.args is None
+        # if is_call_a_property and func.flags.method:
+        #     self.pos.comptime_error(scope, f'\'{self.attr}\' is a method, not a property')
+        # elif not is_call_a_property and func.flags.property:
+        #     self.pos.comptime_error(scope, f'\'{self.attr}\' is a property, not a method')
+        
         res = Call(
             self.pos, self.type, Id(self.pos, scope.type_map.get('function'), callee), args
         ).analyse(scope)
@@ -977,6 +1002,7 @@ Symbol = {symbol}""")
         
         if self.attr == 'new':
             return New(self.pos, res.type, res.type, args)
+        
         attr = Attribute(self.pos, res.type, object, self.attr, args)
         if res.type == scope.type_map.get('nil'):
             return attr
@@ -992,7 +1018,7 @@ class New(Node):
 
     def codegen(self, scope):
         args_str = ', '.join(arg.codegen(scope) for arg in self.args)
-        return f'{self.new_type.object_type}{{{args_str}}}'
+        return f'{self.new_type.codegen(scope)}{{{args_str}}}'
 
     def analyse(self, scope):
         new_type = self.new_type.analyse(scope)
@@ -1005,16 +1031,13 @@ class NewArray(Node):
     element_type: Type
     size: Node | None = None
 
-    def codegen(self, _):
-        return f'array<{self.element_type.object_type}>()'
+    def codegen(self, scope):
+        return f'array<{self.element_type.codegen(scope)}>()'
     
     def analyse(self, scope):
         typ = self.element_type.analyse(scope)
-        scope.define_class(self.pos, 'array', [typ])
-        return NewArray(
-            self.pos, Type(self.pos, 'array', 'array', array_element_type=typ),
-            typ, self.size
-        )
+        array_cls = scope.define_class(self.pos, 'array', [typ])
+        return NewArray(self.pos, array_cls.type, typ, self.size)
 
 @dataclass
 class ArrayInit(Node):
@@ -1022,7 +1045,7 @@ class ArrayInit(Node):
 
     def codegen(self, scope):
         elements_str = ', '.join(element.codegen(scope) for element in self.elements)
-        return f'array<{self.elements[0].type.object_type}>{{{elements_str}}}'
+        return f'array<{self.elements[0].type.codegen(scope)}>{{{elements_str}}}'
     
     def analyse(self, scope):
         if len(self.elements) == 0:
@@ -1036,9 +1059,8 @@ class ArrayInit(Node):
 
             self.pos.comptime_error(scope, 'array initialization type mismatch')
         
-        scope.define_class(self.pos, 'array', [elem_type])
-        typ = Type(self.pos, 'array', 'array', array_element_type=elem_type)
-        return ArrayInit(self.pos, typ, elements)
+        array_cls = scope.define_class(self.pos, 'array', [elem_type])
+        return ArrayInit(self.pos, array_cls.type, elements)
 
 @dataclass
 class ForRange(Node):

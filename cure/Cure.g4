@@ -69,7 +69,8 @@ expr
     | NEW type LBRACK RBRACK #newArray
     | LBRACK args? RBRACK #arrayInit // make args optional so we can do the error message
     | expr IF expr ELSE expr #ternary
-    | expr DOT ID (LPAREN args? RPAREN)? #attr
+    | expr DOT ID LPAREN args? RPAREN #method
+    | expr DOT ID #property
     | expr op=(MUL | DIV | MOD) expr #multiplication
     | expr op=(ADD | SUB) expr #addition
     | expr op=(EEQ | NEQ | GT | LT | GTE | LTE) expr #relational

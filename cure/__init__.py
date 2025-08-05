@@ -1,7 +1,7 @@
 from logging import debug, info, error
 from sys import exit as sys_exit
+# from pprint import pformat
 from subprocess import run
-from pprint import pformat
 from pathlib import Path
 
 from colorama import Fore, Style
@@ -13,7 +13,7 @@ from cure.ir_builder import IRBuilder
 def parse(scope: Scope):
     ir_builder = IRBuilder(scope)
     program = ir_builder.build()
-    debug(f'Parsed program: {pformat(program)}')
+    # debug(f'Parsed program: {pformat(program)}')
     return program
 
 def compile_to_str(scope: Scope):

@@ -1,0 +1,14 @@
+fn double_n(int n) -> int {
+    return n * 2
+}
+
+fn main() -> int {
+    arr = [1, 2, 3, 4, 5]
+    result = new int[]
+    for i in 0..arr.length {
+        result.add(double_n(arr.get(i)))
+    }
+
+    print(result)
+    return 0
+}

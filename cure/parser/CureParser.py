@@ -10,7 +10,7 @@ else:
 
 def serializedATN():
     return [
-        4,1,54,309,2,0,7,0,2,1,7,1,2,2,7,2,2,3,7,3,2,4,7,4,2,5,7,5,2,6,7,
+        4,1,54,310,2,0,7,0,2,1,7,1,2,2,7,2,2,3,7,3,2,4,7,4,2,5,7,5,2,6,7,
         6,2,7,7,7,2,8,7,8,2,9,7,9,2,10,7,10,2,11,7,11,2,12,7,12,2,13,7,13,
         2,14,7,14,2,15,7,15,2,16,7,16,2,17,7,17,2,18,7,18,2,19,7,19,2,20,
         7,20,2,21,7,21,2,22,7,22,2,23,7,23,2,24,7,24,1,0,5,0,52,8,0,10,0,
@@ -34,10 +34,10 @@ def serializedATN():
         1,24,1,24,1,24,1,24,1,24,1,24,3,24,269,8,24,1,24,1,24,1,24,3,24,
         274,8,24,1,24,1,24,1,24,1,24,1,24,1,24,1,24,1,24,1,24,1,24,1,24,
         1,24,1,24,1,24,1,24,1,24,1,24,1,24,1,24,1,24,1,24,1,24,1,24,3,24,
-        299,8,24,1,24,3,24,302,8,24,5,24,304,8,24,10,24,12,24,307,9,24,1,
-        24,0,2,2,48,25,0,2,4,6,8,10,12,14,16,18,20,22,24,26,28,30,32,34,
+        299,8,24,1,24,1,24,1,24,1,24,5,24,305,8,24,10,24,12,24,308,9,24,
+        1,24,0,2,2,48,25,0,2,4,6,8,10,12,14,16,18,20,22,24,26,28,30,32,34,
         36,38,40,42,44,46,48,0,8,1,0,11,12,2,0,17,17,24,24,1,0,25,29,2,0,
-        25,26,38,38,1,0,27,29,1,0,25,26,1,0,30,35,1,0,36,37,337,0,53,1,0,
+        25,26,38,38,1,0,27,29,1,0,25,26,1,0,30,35,1,0,36,37,338,0,53,1,0,
         0,0,2,58,1,0,0,0,4,77,1,0,0,0,6,84,1,0,0,0,8,86,1,0,0,0,10,95,1,
         0,0,0,12,107,1,0,0,0,14,112,1,0,0,0,16,115,1,0,0,0,18,119,1,0,0,
         0,20,127,1,0,0,0,22,130,1,0,0,0,24,142,1,0,0,0,26,155,1,0,0,0,28,
@@ -96,7 +96,7 @@ def serializedATN():
         3,44,22,0,225,223,1,0,0,0,226,229,1,0,0,0,227,225,1,0,0,0,227,228,
         1,0,0,0,228,230,1,0,0,0,229,227,1,0,0,0,230,231,5,32,0,0,231,47,
         1,0,0,0,232,233,6,24,-1,0,233,234,5,43,0,0,234,235,3,2,1,0,235,236,
-        5,44,0,0,236,237,3,48,24,18,237,274,1,0,0,0,238,239,5,24,0,0,239,
+        5,44,0,0,236,237,3,48,24,19,237,274,1,0,0,0,238,239,5,24,0,0,239,
         241,5,43,0,0,240,242,3,38,19,0,241,240,1,0,0,0,241,242,1,0,0,0,242,
         243,1,0,0,0,243,274,5,44,0,0,244,245,5,43,0,0,245,246,3,48,24,0,
         246,247,5,44,0,0,247,274,1,0,0,0,248,274,5,20,0,0,249,274,5,21,0,
@@ -109,20 +109,20 @@ def serializedATN():
         272,7,3,0,0,272,274,3,48,24,1,273,232,1,0,0,0,273,238,1,0,0,0,273,
         244,1,0,0,0,273,248,1,0,0,0,273,249,1,0,0,0,273,250,1,0,0,0,273,
         251,1,0,0,0,273,252,1,0,0,0,273,253,1,0,0,0,273,261,1,0,0,0,273,
-        266,1,0,0,0,273,271,1,0,0,0,274,305,1,0,0,0,275,276,10,7,0,0,276,
-        277,5,1,0,0,277,278,3,48,24,0,278,279,5,6,0,0,279,280,3,48,24,8,
-        280,304,1,0,0,0,281,282,10,5,0,0,282,283,7,4,0,0,283,304,3,48,24,
-        6,284,285,10,4,0,0,285,286,7,5,0,0,286,304,3,48,24,5,287,288,10,
-        3,0,0,288,289,7,6,0,0,289,304,3,48,24,4,290,291,10,2,0,0,291,292,
-        7,7,0,0,292,304,3,48,24,3,293,294,10,6,0,0,294,295,5,40,0,0,295,
-        301,5,24,0,0,296,298,5,43,0,0,297,299,3,38,19,0,298,297,1,0,0,0,
-        298,299,1,0,0,0,299,300,1,0,0,0,300,302,5,44,0,0,301,296,1,0,0,0,
-        301,302,1,0,0,0,302,304,1,0,0,0,303,275,1,0,0,0,303,281,1,0,0,0,
-        303,284,1,0,0,0,303,287,1,0,0,0,303,290,1,0,0,0,303,293,1,0,0,0,
-        304,307,1,0,0,0,305,303,1,0,0,0,305,306,1,0,0,0,306,49,1,0,0,0,307,
-        305,1,0,0,0,32,53,66,77,84,90,101,105,132,135,138,144,149,155,160,
-        167,171,176,183,188,193,202,206,216,227,241,257,268,273,298,301,
-        303,305
+        266,1,0,0,0,273,271,1,0,0,0,274,306,1,0,0,0,275,276,10,8,0,0,276,
+        277,5,1,0,0,277,278,3,48,24,0,278,279,5,6,0,0,279,280,3,48,24,9,
+        280,305,1,0,0,0,281,282,10,5,0,0,282,283,7,4,0,0,283,305,3,48,24,
+        6,284,285,10,4,0,0,285,286,7,5,0,0,286,305,3,48,24,5,287,288,10,
+        3,0,0,288,289,7,6,0,0,289,305,3,48,24,4,290,291,10,2,0,0,291,292,
+        7,7,0,0,292,305,3,48,24,3,293,294,10,7,0,0,294,295,5,40,0,0,295,
+        296,5,24,0,0,296,298,5,43,0,0,297,299,3,38,19,0,298,297,1,0,0,0,
+        298,299,1,0,0,0,299,300,1,0,0,0,300,305,5,44,0,0,301,302,10,6,0,
+        0,302,303,5,40,0,0,303,305,5,24,0,0,304,275,1,0,0,0,304,281,1,0,
+        0,0,304,284,1,0,0,0,304,287,1,0,0,0,304,290,1,0,0,0,304,293,1,0,
+        0,0,304,301,1,0,0,0,305,308,1,0,0,0,306,304,1,0,0,0,306,307,1,0,
+        0,0,307,49,1,0,0,0,308,306,1,0,0,0,31,53,66,77,84,90,101,105,132,
+        135,138,144,149,155,160,167,171,176,183,188,193,202,206,216,227,
+        241,257,268,273,298,304,306
     ]
 
 class CureParser ( Parser ):
@@ -1993,6 +1993,34 @@ class CureParser ( Parser ):
                 return visitor.visitChildren(self)
 
 
+    class MethodContext(ExprContext):
+
+        def __init__(self, parser, ctx:ParserRuleContext): # actually a CureParser.ExprContext
+            super().__init__(parser)
+            self.copyFrom(ctx)
+
+        def expr(self):
+            return self.getTypedRuleContext(CureParser.ExprContext,0)
+
+        def DOT(self):
+            return self.getToken(CureParser.DOT, 0)
+        def ID(self):
+            return self.getToken(CureParser.ID, 0)
+        def LPAREN(self):
+            return self.getToken(CureParser.LPAREN, 0)
+        def RPAREN(self):
+            return self.getToken(CureParser.RPAREN, 0)
+        def args(self):
+            return self.getTypedRuleContext(CureParser.ArgsContext,0)
+
+
+        def accept(self, visitor:ParseTreeVisitor):
+            if hasattr( visitor, "visitMethod" ):
+                return visitor.visitMethod(self)
+            else:
+                return visitor.visitChildren(self)
+
+
     class ArrayInitContext(ExprContext):
 
         def __init__(self, parser, ctx:ParserRuleContext): # actually a CureParser.ExprContext
@@ -2186,6 +2214,27 @@ class CureParser ( Parser ):
                 return visitor.visitChildren(self)
 
 
+    class PropertyContext(ExprContext):
+
+        def __init__(self, parser, ctx:ParserRuleContext): # actually a CureParser.ExprContext
+            super().__init__(parser)
+            self.copyFrom(ctx)
+
+        def expr(self):
+            return self.getTypedRuleContext(CureParser.ExprContext,0)
+
+        def DOT(self):
+            return self.getToken(CureParser.DOT, 0)
+        def ID(self):
+            return self.getToken(CureParser.ID, 0)
+
+        def accept(self, visitor:ParseTreeVisitor):
+            if hasattr( visitor, "visitProperty" ):
+                return visitor.visitProperty(self)
+            else:
+                return visitor.visitChildren(self)
+
+
     class RelationalContext(ExprContext):
 
         def __init__(self, parser, ctx:ParserRuleContext): # actually a CureParser.ExprContext
@@ -2258,34 +2307,6 @@ class CureParser ( Parser ):
         def accept(self, visitor:ParseTreeVisitor):
             if hasattr( visitor, "visitMultiplication" ):
                 return visitor.visitMultiplication(self)
-            else:
-                return visitor.visitChildren(self)
-
-
-    class AttrContext(ExprContext):
-
-        def __init__(self, parser, ctx:ParserRuleContext): # actually a CureParser.ExprContext
-            super().__init__(parser)
-            self.copyFrom(ctx)
-
-        def expr(self):
-            return self.getTypedRuleContext(CureParser.ExprContext,0)
-
-        def DOT(self):
-            return self.getToken(CureParser.DOT, 0)
-        def ID(self):
-            return self.getToken(CureParser.ID, 0)
-        def LPAREN(self):
-            return self.getToken(CureParser.LPAREN, 0)
-        def RPAREN(self):
-            return self.getToken(CureParser.RPAREN, 0)
-        def args(self):
-            return self.getTypedRuleContext(CureParser.ArgsContext,0)
-
-
-        def accept(self, visitor:ParseTreeVisitor):
-            if hasattr( visitor, "visitAttr" ):
-                return visitor.visitAttr(self)
             else:
                 return visitor.visitChildren(self)
 
@@ -2365,7 +2386,7 @@ class CureParser ( Parser ):
                 self.state = 235
                 self.match(CureParser.RPAREN)
                 self.state = 236
-                self.expr(18)
+                self.expr(19)
                 pass
 
             elif la_ == 2:
@@ -2512,24 +2533,24 @@ class CureParser ( Parser ):
 
 
             self._ctx.stop = self._input.LT(-1)
-            self.state = 305
+            self.state = 306
             self._errHandler.sync(self)
-            _alt = self._interp.adaptivePredict(self._input,31,self._ctx)
+            _alt = self._interp.adaptivePredict(self._input,30,self._ctx)
             while _alt!=2 and _alt!=ATN.INVALID_ALT_NUMBER:
                 if _alt==1:
                     if self._parseListeners is not None:
                         self.triggerExitRuleEvent()
                     _prevctx = localctx
-                    self.state = 303
+                    self.state = 304
                     self._errHandler.sync(self)
-                    la_ = self._interp.adaptivePredict(self._input,30,self._ctx)
+                    la_ = self._interp.adaptivePredict(self._input,29,self._ctx)
                     if la_ == 1:
                         localctx = CureParser.TernaryContext(self, CureParser.ExprContext(self, _parentctx, _parentState))
                         self.pushNewRecursionContext(localctx, _startState, self.RULE_expr)
                         self.state = 275
-                        if not self.precpred(self._ctx, 7):
+                        if not self.precpred(self._ctx, 8):
                             from antlr4.error.Errors import FailedPredicateException
-                            raise FailedPredicateException(self, "self.precpred(self._ctx, 7)")
+                            raise FailedPredicateException(self, "self.precpred(self._ctx, 8)")
                         self.state = 276
                         self.match(CureParser.IF)
                         self.state = 277
@@ -2537,7 +2558,7 @@ class CureParser ( Parser ):
                         self.state = 278
                         self.match(CureParser.ELSE)
                         self.state = 279
-                        self.expr(8)
+                        self.expr(9)
                         pass
 
                     elif la_ == 2:
@@ -2617,40 +2638,47 @@ class CureParser ( Parser ):
                         pass
 
                     elif la_ == 6:
-                        localctx = CureParser.AttrContext(self, CureParser.ExprContext(self, _parentctx, _parentState))
+                        localctx = CureParser.MethodContext(self, CureParser.ExprContext(self, _parentctx, _parentState))
                         self.pushNewRecursionContext(localctx, _startState, self.RULE_expr)
                         self.state = 293
-                        if not self.precpred(self._ctx, 6):
+                        if not self.precpred(self._ctx, 7):
                             from antlr4.error.Errors import FailedPredicateException
-                            raise FailedPredicateException(self, "self.precpred(self._ctx, 6)")
+                            raise FailedPredicateException(self, "self.precpred(self._ctx, 7)")
                         self.state = 294
                         self.match(CureParser.DOT)
                         self.state = 295
                         self.match(CureParser.ID)
-                        self.state = 301
+                        self.state = 296
+                        self.match(CureParser.LPAREN)
+                        self.state = 298
                         self._errHandler.sync(self)
-                        la_ = self._interp.adaptivePredict(self._input,29,self._ctx)
-                        if la_ == 1:
-                            self.state = 296
-                            self.match(CureParser.LPAREN)
-                            self.state = 298
-                            self._errHandler.sync(self)
-                            _la = self._input.LA(1)
-                            if (((_la) & ~0x3f) == 0 and ((1 << _la) & 149808592584704) != 0):
-                                self.state = 297
-                                self.args()
+                        _la = self._input.LA(1)
+                        if (((_la) & ~0x3f) == 0 and ((1 << _la) & 149808592584704) != 0):
+                            self.state = 297
+                            self.args()
 
 
-                            self.state = 300
-                            self.match(CureParser.RPAREN)
+                        self.state = 300
+                        self.match(CureParser.RPAREN)
+                        pass
 
-
+                    elif la_ == 7:
+                        localctx = CureParser.PropertyContext(self, CureParser.ExprContext(self, _parentctx, _parentState))
+                        self.pushNewRecursionContext(localctx, _startState, self.RULE_expr)
+                        self.state = 301
+                        if not self.precpred(self._ctx, 6):
+                            from antlr4.error.Errors import FailedPredicateException
+                            raise FailedPredicateException(self, "self.precpred(self._ctx, 6)")
+                        self.state = 302
+                        self.match(CureParser.DOT)
+                        self.state = 303
+                        self.match(CureParser.ID)
                         pass
 
              
-                self.state = 307
+                self.state = 308
                 self._errHandler.sync(self)
-                _alt = self._interp.adaptivePredict(self._input,31,self._ctx)
+                _alt = self._interp.adaptivePredict(self._input,30,self._ctx)
 
         except RecognitionException as re:
             localctx.exception = re
@@ -2680,7 +2708,7 @@ class CureParser ( Parser ):
 
     def expr_sempred(self, localctx:ExprContext, predIndex:int):
             if predIndex == 1:
-                return self.precpred(self._ctx, 7)
+                return self.precpred(self._ctx, 8)
          
 
             if predIndex == 2:
@@ -2700,6 +2728,10 @@ class CureParser ( Parser ):
          
 
             if predIndex == 6:
+                return self.precpred(self._ctx, 7)
+         
+
+            if predIndex == 7:
                 return self.precpred(self._ctx, 6)
          
 

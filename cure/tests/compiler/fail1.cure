@@ -1,3 +1,6 @@
-func main() -> int {
+fn main() -> int {
+    s = "Hello world"
+    i = 30
+    s + i
     return 0
 }

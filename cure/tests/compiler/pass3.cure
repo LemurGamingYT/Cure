@@ -1,8 +1,7 @@
 fn main() -> int {
-    mut i = 0
-    while i < 10 {
-        i += 1
-    }
-    
+    // double is a reserved keyword in C++
+    mut double = 2
+    double = 4
+    print(double)
     return 0
 }

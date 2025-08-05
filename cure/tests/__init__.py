@@ -9,7 +9,7 @@ from cure import create_scope, compile_to_str, compile_to_exe
 
 
 def format_file(file: Path):
-    return file.relative_to(Path.cwd() / 'cure' / 'tests').as_posix()
+    return file.relative_to(Path.cwd()).as_posix()
 
 def test_compiler():
     compiler_dir = Path.cwd() / 'cure' / 'tests' / 'compiler'
@@ -18,7 +18,30 @@ def test_compiler():
 
     fails = []
     for file in files:
-        print(f'Testing file {file.as_posix()}')
+        print(f'Compiling file {file.as_posix()}')
+        if file.stem.startswith('pass'):
+            try:
+                scope = create_scope(file)
+                compile_to_str(scope)
+            except SystemExit:
+                fails.append(file)
+        elif file.stem.startswith('fail'):
+            with suppress(SystemExit):
+                scope = create_scope(file)
+                compile_to_str(scope)
+                fails.append(file)
+    
+    return fails, num_files
+
+def test_examples():
+    examples_dir = Path.cwd() / 'examples'
+    files = list(examples_dir.glob('*.cure'))
+    num_files = len(files)
+
+    fails = []
+    for file in files:
+        print(f'Compiling file {file.as_posix()}')
+        scope = create_scope(file)
         if file.stem.startswith('pass'):
             try:
                 scope = create_scope(file)
@@ -40,7 +63,7 @@ def test_runtime():
 
     fails = []
     for file in files:
-        print(f'Testing file {file.as_posix()}')
+        print(f'Compiling file {file.as_posix()}')
         scope = create_scope(file)
 
         try:
@@ -49,10 +72,9 @@ def test_runtime():
                 fails.append(file)
                 continue
 
+            print(f'Running file {file.as_posix()}')
             res = run(exec_file)
-            if res.returncode != 0 and file.stem.startswith('pass'):
-                fails.append(file)
-            elif res.returncode == 0 and file.stem.startswith('fail'):
+            if res.returncode != 0:
                 fails.append(file)
         except SystemExit:
             fails.append(file)
@@ -70,9 +92,10 @@ def test_runtime():
 def test():
     compile_fails, compile_num_files = test_compiler()
     runtime_fails, runtime_num_files = test_runtime()
+    examples_fails, examples_num_files = test_examples()
 
-    total_num_files = compile_num_files + runtime_num_files
-    all_fails = compile_fails + runtime_fails
+    total_num_files = compile_num_files + runtime_num_files + examples_num_files
+    all_fails = compile_fails + runtime_fails + examples_fails
     success = len(all_fails) == 0
     if success:
         print(f'{Fore.GREEN}{Style.BRIGHT}All tests passed{Style.RESET_ALL}')

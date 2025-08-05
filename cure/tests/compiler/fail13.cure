@@ -1,4 +1,14 @@
+fn test(int a) -> int {
+    return a * 2
+}
+
+fn test(float a) -> int {
+    return a * 2
+}
+
 fn main() -> int {
-    arr = [[1, 2, 3], 4, 5, 6]
+    print(test(2))
+    print(test(1.9))
+    print(test("Hey"))
     return 0
 }

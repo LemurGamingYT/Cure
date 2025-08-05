@@ -1,7 +1,13 @@
-fn main() -> int {
-    mut x = 10
-    x = x + 5
+fn test(int a) -> int {
+    return a + 2
+}
 
-    name = "CureLang"
+fn test(float a) -> float {
+    return a + 2.0
+}
+
+fn main() -> int {
+    print(test(1))
+    print(test(3.9))
     return 0
 }

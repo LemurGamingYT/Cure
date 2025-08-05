@@ -8,7 +8,7 @@ from cure.parser.CureLexer import CureLexer
 from cure.ir import (
     Program, Scope, Position, Function, Param, Int, Float, String, Bool, Id, Return, Body, Call,
     Cast, Operation, Use, If, While, Variable, Ternary, Bracketed, Attribute, Break, Continue, Type,
-    Class, NewArray, ArrayInit, ForRange, New, Elseif
+    Class, NewArray, ArrayInit, ForRange, New, Elseif, ArrayType
 )
 
 
@@ -42,14 +42,14 @@ class IRBuilder(CureVisitor):
     def visitType(self, ctx):
         if ctx.type_() is not None and ctx.LBRACK() is not None:
             array_element_type = self.visitType(ctx.type_())
-            return Type(self.pos(ctx), 'array', 'array', array_element_type=array_element_type)
+            return ArrayType(self.pos(ctx), f'{array_element_type}[]', array_element_type)
         # elif ctx.type_() is not None and ctx.AMPERSAND() is not None:
         #     typ = self.visitType(ctx.type_())
         #     typ.is_reference = True
         #     return typ
         
         txt = ctx.ID().getText()
-        return Type(self.pos(ctx), txt, txt)
+        return Type(self.pos(ctx), txt)
     
     def visitArgs(self, ctx):
         return [self.visitArg(arg) for arg in ctx.arg()] if ctx is not None else []
@@ -208,10 +208,15 @@ class IRBuilder(CureVisitor):
     def visitCast(self, ctx):
         return Cast(self.pos(ctx), self.visitType(ctx.type_()), self.visit(ctx.expr()))
     
-    def visitAttr(self, ctx):
+    def visitProperty(self, ctx):
+        return Attribute(
+            self.pos(ctx), self.scope.type_map.get('any'), self.visit(ctx.expr()), ctx.ID().getText()
+        )
+    
+    def visitMethod(self, ctx):
         return Attribute(
             self.pos(ctx), self.scope.type_map.get('any'), self.visit(ctx.expr()), ctx.ID().getText(),
-            self.visitArgs(ctx.args()) if ctx.LPAREN() is not None else None
+            self.visitArgs(ctx.args())
         )
     
     def visitTernary(self, ctx):

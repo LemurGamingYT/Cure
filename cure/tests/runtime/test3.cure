@@ -1,0 +1,26 @@
+fn binary_search(int[] arr, int target) -> int {
+    mut low = 0
+    mut high = arr.length - 1
+    while low <= high {
+        mid = (low + high) / 2
+        if arr.get(mid) == target {
+            return mid
+        } else if arr.get(mid) < target {
+            low = mid + 1
+        } else {
+            high = mid - 1
+        }
+    }
+
+    return -1
+}
+
+fn main() -> int {
+    arr = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+    assert(binary_search(arr, 1) == 0)
+    assert(binary_search(arr, 5) == 4)
+    assert(binary_search(arr, 11) == -1)
+    assert(binary_search(arr, 94039) == -1)
+    assert(binary_search(arr, 7) == 6)
+    return 0
+}

@@ -159,6 +159,11 @@ class CureVisitor(ParseTreeVisitor):
         return self.visitChildren(ctx)
 
 
+    # Visit a parse tree produced by CureParser#method.
+    def visitMethod(self, ctx:CureParser.MethodContext):
+        return self.visitChildren(ctx)
+
+
     # Visit a parse tree produced by CureParser#arrayInit.
     def visitArrayInit(self, ctx:CureParser.ArrayInitContext):
         return self.visitChildren(ctx)
@@ -204,6 +209,11 @@ class CureVisitor(ParseTreeVisitor):
         return self.visitChildren(ctx)
 
 
+    # Visit a parse tree produced by CureParser#property.
+    def visitProperty(self, ctx:CureParser.PropertyContext):
+        return self.visitChildren(ctx)
+
+
     # Visit a parse tree produced by CureParser#relational.
     def visitRelational(self, ctx:CureParser.RelationalContext):
         return self.visitChildren(ctx)
@@ -216,11 +226,6 @@ class CureVisitor(ParseTreeVisitor):
 
     # Visit a parse tree produced by CureParser#multiplication.
     def visitMultiplication(self, ctx:CureParser.MultiplicationContext):
-        return self.visitChildren(ctx)
-
-
-    # Visit a parse tree produced by CureParser#attr.
-    def visitAttr(self, ctx:CureParser.AttrContext):
         return self.visitChildren(ctx)
 
 
