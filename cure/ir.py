@@ -244,6 +244,12 @@ class Program(Node):
 class Type(Node):
     type: str # type: ignore
 
+    def object_type(self, scope: Scope):
+        """The type that will be used in mangled function names and to access methods and properties
+in the symbol table. Defaults to the C++ type name (by calling `.codegen`)."""
+
+        return self.codegen(scope)
+
     def __str__(self):
         return self.type
 
@@ -291,6 +297,9 @@ class ClassType(Type):
 class ReferenceType(Type):
     type: str # type: ignore
     inner: Type
+
+    def object_type(self, scope):
+        return self.inner.object_type(scope)
 
     def __eq__(self, other):
         if not isinstance(other, Type):
@@ -389,7 +398,7 @@ class Function(Node):
         extend_type = self.extend_type.analyse(scope) if self.extend_type is not None else None
         name = self.name
         if extend_type is not None:
-            name = f'{extend_type.codegen(scope)}_{name}'
+            name = f'{extend_type.object_type(scope)}_{name}'
 
             debug(f'Function {self.name} extends type {extend_type}, mangled name = {name}')
         
@@ -457,9 +466,11 @@ class Function(Node):
                 debug(f"""Type mismatch with Param Type {param.type} and Arg Type {arg.type}
 Param Type Display = {str(param.type)}
 Param C++ Type = {param.type.codegen(scope)}
+Param Object Type = {param.type.object_type(scope)}
 Param Type = {param.type!r}
 Arg Type Display = {str(arg.type)}
 Arg C++ Type = {arg.type.codegen(scope)}
+arg Object Type = {arg.type.object_type(scope)}
 Arg Type = {arg.type!r}""")
                 valid_params = False
                 break
@@ -479,10 +490,9 @@ Arg Type = {arg.type!r}""")
         if call_func is None:
             arg_types_str = ', '.join(str(arg.type) for arg in args)
             error(f"""no matching overloads with types [{arg_types_str}]
-Self Param Type Display = {', '.join(str(param.type) for param in self.params)}
-Self Param C++ Type = {', '.join(param.type.codegen(scope) for param in self.params)}
 Arg Type Display = {', '.join(str(arg.type) for arg in args)}
-Arg C++ Type = {', '.join(arg.type.codegen(scope) for arg in args)}""")
+Arg C++ Type = {', '.join(arg.type.codegen(scope) for arg in args)}
+Arg Object Type = {', '.join(arg.type.object_type(scope) for arg in args)}""")
             return pos.comptime_error(scope, f'no matching overload with types [{arg_types_str}]')
         
         for arg, param in zip(args, call_func.params):
@@ -592,7 +602,7 @@ class Class(Node):
             self.pos, self.replace_type(param.type, **generics), param.name, param.is_mutable
         ) for param in member.params)
 
-        name = f'{cls_type}_{member.name}'
+        name = f'{cls_type.object_type(scope)}_{member.name}'
         debug(f'Creating method with name {name}')
         method = Function(
             self.pos, member.type, name, ret_type, params, member.body,
@@ -856,19 +866,20 @@ class Cast(Node):
     object: Node
 
     def codegen(self, scope):
-        return f'static_cast<{self.type.codegen(scope)}>({self.object.codegen(scope)})'
+        return f'static_cast<{self.type.object_type(scope)}>({self.object.codegen(scope)})'
     
     def analyse(self, scope):
         object = self.object.analyse(scope)
         if object.type == self.type:
             return object
         
-        callee = f'{object.type}_to_{self.type}'
+        callee = f'{object.type.object_type(scope)}_to_{self.type.object_type(scope)}'
         symbol = scope.symbol_table.get(callee)
 
         debug(f"""Analysing Cast node
-Object Type Display = {object.type}
-Object C++ Type = {object.type.codegen(scope)}
+Type Display = {object.type}
+C++ Type = {object.type.codegen(scope)}
+Object Type = {object.type.object_type(scope)}
 Callee = {callee}
 Callee Symbol = {symbol}""")
         if symbol is None:
@@ -901,18 +912,20 @@ class Operation(Node):
 
         debug(f"""Analysing Operation node
 Left Type Display = {left.type}
-Left C++ Type = {left.type.codegen(scope)}""")
+Left C++ Type = {left.type.codegen(scope)}
+Left Object Type = {left.type.object_type(scope)}""")
         if self.right is None:
-            callee = f'{op_name}_{left.type}'
+            callee = f'{op_name}_{left.type.object_type(scope)}'
             error_message = f'cannot perform operation \'{self.op}\' on type \'{left.type}\''
             args = [left]
         else:
             right = self.right.analyse(scope)
             debug(f"""Right Type Display = {right.type}
-Right Object Type = {right.type.codegen(scope)}
+Right C++ Type = {right.type.codegen(scope)}
+Right Object Type = {right.type.object_type(scope)}
 """)
             
-            callee = f'{left.type}_{op_name}_{right.type}'
+            callee = f'{left.type.object_type(scope)}_{op_name}_{right.type.object_type(scope)}'
             error_message = f'cannot perform operation \'{self.op}\' on type \'{left.type}\' and '\
                 f'\'{right.type}\''
             args = [left, right]
@@ -976,12 +989,13 @@ class Attribute(Node):
     def analyse(self, scope):
         object = self.object.analyse(scope)
         args = [object] + ([arg.analyse(scope) for arg in self.args] if self.args else [])
-        callee = f'{object.type}_{self.attr}'
+        callee = f'{object.type.object_type(scope)}_{self.attr}'
         symbol = scope.symbol_table.get(callee)
 
         debug(f"""Analysing Attribute node
-Object Type Display = {object.type}
-Object C++ Type = {object.type.codegen(scope)}
+Type Display = {object.type}
+C++ Type = {object.type.codegen(scope)}
+Object Type = {object.type.object_type(scope)}
 Attr = {self.attr}
 Callee = {callee}
 Symbol = {symbol}""")

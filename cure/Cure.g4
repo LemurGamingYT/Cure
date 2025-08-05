@@ -4,9 +4,9 @@ program: stmt* EOF;
 
 type
     : ID
-    // | type LT type+ GT
+    // | type LT type (COMMA type)* GT
     | type LBRACK RBRACK
-    // | type AMPERSAND
+    | type AMPERSAND
     ;
 
 stmt
