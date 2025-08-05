@@ -105,3 +105,6 @@ def test():
 
         all_fails_str = ', '.join(format_file(file) for file in all_fails)
         print(f'fails: {all_fails_str}')
+    
+    debug_log = Path.cwd() / 'debug.log'
+    debug_log.unlink(missing_ok=True)
