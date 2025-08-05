@@ -1,3 +1,4 @@
 fn main() -> int {
+    print(7 - 2 * 3 + (Math.sqrt(4) / 2))
     return 0
 }

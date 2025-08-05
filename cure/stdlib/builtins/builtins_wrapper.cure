@@ -42,39 +42,63 @@ extern static method fn Math.sqrt(int x) -> int
 extern static method fn Math.floor(float x) -> int
 extern static method fn Math.ceil(float x) -> int
 
-extern fn int_add_int(int a, int b) -> int
-extern fn int_sub_int(int a, int b) -> int
-extern fn int_mul_int(int a, int b) -> int
-extern fn int_div_int(int a, int b) -> int
-extern fn int_mod_int(int a, int b) -> int
-extern fn int_eq_int(int a, int b) -> bool
-extern fn int_neq_int(int a, int b) -> bool
-extern fn int_lt_int(int a, int b) -> bool
-extern fn int_gt_int(int a, int b) -> bool
-extern fn int_lte_int(int a, int b) -> bool
-extern fn int_gte_int(int a, int b) -> bool
+extern fn +(int a, int b) -> int
+extern fn -(int a, int b) -> int
+extern fn *(int a, int b) -> int
+extern fn /(int a, int b) -> int
+extern fn %(int a, int b) -> int
+extern internal fn ==(int a, int b) -> bool
+extern internal fn !=(int a, int b) -> bool
+extern internal fn <(int a, int b) -> bool
+extern internal fn >(int a, int b) -> bool
+extern internal fn <=(int a, int b) -> bool
+extern internal fn >=(int a, int b) -> bool
 
-extern fn float_add_float(float a, float b) -> float
-extern fn float_sub_float(float a, float b) -> float
-extern fn float_mul_float(float a, float b) -> float
-extern fn float_div_float(float a, float b) -> float
-extern fn float_mod_float(float a, float b) -> float
-extern fn float_eq_float(float a, float b) -> bool
-extern fn float_neq_float(float a, float b) -> bool
-extern fn float_lt_float(float a, float b) -> bool
-extern fn float_gt_float(float a, float b) -> bool
-extern fn float_lte_float(float a, float b) -> bool
-extern fn float_gte_float(float a, float b) -> bool
+extern fn +(float a, float b) -> float
+extern fn -(float a, float b) -> float
+extern fn *(float a, float b) -> float
+extern fn /(float a, float b) -> float
+extern fn %(float a, float b) -> float
+extern internal fn ==(float a, float b) -> bool
+extern internal fn !=(float a, float b) -> bool
+extern internal fn <(float a, float b) -> bool
+extern internal fn >(float a, float b) -> bool
+extern internal fn <=(float a, float b) -> bool
+extern internal fn >=(float a, float b) -> bool
 
-extern fn string_add_string(string a, string b) -> string
-extern fn string_eq_string(string a, string b) -> bool
-extern fn string_neq_string(string a, string b) -> bool
+extern fn +(float a, int b) -> float
+extern fn -(float a, int b) -> float
+extern fn *(float a, int b) -> float
+extern fn /(float a, int b) -> float
+extern fn %(float a, int b) -> float
+extern internal fn ==(float a, int b) -> float
+extern internal fn !=(float a, int b) -> float
+extern internal fn <(float a, int b) -> float
+extern internal fn >(float a, int b) -> float
+extern internal fn <=(float a, int b) -> float
+extern internal fn >=(float a, int b) -> float
 
-extern fn bool_eq_bool(bool a, bool b) -> bool
-extern fn bool_neq_bool(bool a, bool b) -> bool
-extern fn bool_and_bool(bool a, bool b) -> bool
-extern fn bool_or_bool(bool a, bool b) -> bool
-extern fn not_bool(bool a) -> bool
+extern fn +(int a, float b) -> float
+extern fn -(int a, float b) -> float
+extern fn *(int a, float b) -> float
+extern fn /(int a, float b) -> float
+extern fn %(int a, float b) -> float
+extern internal fn ==(int a, float b) -> float
+extern internal fn !=(int a, float b) -> float
+extern internal fn <(int a, float b) -> float
+extern internal fn >(int a, float b) -> float
+extern internal fn <=(int a, float b) -> float
+extern internal fn >=(int a, float b) -> float
+
+extern internal fn +(string a, string b) -> string
+extern internal fn ==(string a, string b) -> bool
+extern internal fn !=(string a, string b) -> bool
+
+extern internal fn ==(bool a, bool b) -> bool
+extern internal fn !=(bool a, bool b) -> bool
+extern internal fn &&(bool a, bool b) -> bool
+extern internal fn ||(bool a, bool b) -> bool
+extern internal fn !(bool a) -> bool
 
 extern fn print<T>(T s)
 extern fn print_literal(string s)

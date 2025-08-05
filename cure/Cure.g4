@@ -35,7 +35,10 @@ externFunc: EXTERN INTERNAL? STATIC? (PROPERTY | METHOD)? functionSignature;
 externClass: EXTERN INTERNAL? CLASS ID genericParams? body;
 externStmt: externFunc | externClass;
 
-funcName: (extend_type=type DOT)? (ID | NEW);
+funcName
+    : (extend_type=type DOT)? (ID | NEW)
+    | op=(ADD | SUB | MUL | DIV | MOD | EEQ | NEQ | LT | GT | LTE | GTE | AND | OR | NOT)
+    ;
 
 functionSignature
     : FUNC funcName genericParams? LPAREN params? RPAREN (RETURNS return_type=type)?

@@ -96,7 +96,14 @@ class IRBuilder(CureVisitor):
         if ctx.extend_type is not None:
             extend_type = self.visitType(ctx.extend_type)
         
-        name = ctx.ID().getText() if ctx.ID() is not None else 'new'
+        name: str
+        if ctx.ID() is not None:
+            name = ctx.ID().getText()
+        elif ctx.NEW() is not None:
+            name = 'new'
+        elif ctx.op is not None:
+            name = ctx.op.text
+
         return extend_type, name
     
     def visitFunctionSignature(self, ctx):

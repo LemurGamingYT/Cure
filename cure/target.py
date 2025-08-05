@@ -19,9 +19,5 @@ class Target(Enum):
         return self.name.upper()
     
     @property
-    def object_ext(self):
-        return 'obj' if self == Target.Windows else 'o'
-    
-    @property
     def exe_ext(self):
         return 'exe' if self == Target.Windows else ''

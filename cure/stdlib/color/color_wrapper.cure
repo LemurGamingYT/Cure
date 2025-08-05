@@ -1,0 +1,13 @@
+extern internal class Color {
+    extern static method fn new(int r, int g, int b) -> Color
+    // extern static method fn new(string hex) -> Color
+    extern property fn r() -> int
+    extern property fn g() -> int
+    extern property fn b() -> int
+    extern property fn hex() -> string
+    /*extern property fn h() -> float
+    extern property fn s() -> float
+    extern property fn v() -> float*/
+}
+
+extern method fn to_string(Color color) -> string

@@ -397,6 +397,14 @@ class Function(Node):
     def analyse(self, scope):
         extend_type = self.extend_type.analyse(scope) if self.extend_type is not None else None
         name = self.name
+        if name in op_map:
+            op_name = op_map[name]
+            if len(self.params) == 2:
+                name = f'{self.params[0].type.object_type(scope)}_{op_name}_'\
+                    f'{self.params[1].type.object_type(scope)}'
+            elif len(self.params) == 1:
+                name = f'{op_name}_{self.params[0].type.object_type(scope)}'
+        
         if extend_type is not None:
             name = f'{extend_type.object_type(scope)}_{name}'
 
@@ -602,11 +610,21 @@ class Class(Node):
             self.pos, self.replace_type(param.type, **generics), param.name, param.is_mutable
         ) for param in member.params)
 
-        name = f'{cls_type.object_type(scope)}_{member.name}'
+        name = member.name
+        if member.name in op_map:
+            for i, param in enumerate(params):
+                print(param.type.__repr__(), typ.__repr__())
+                if param.type != typ:
+                    continue
+
+                params[i].type = cls_type
+        else:
+            name = f'{cls_type.object_type(scope)}_{member.name}'
+        
         debug(f'Creating method with name {name}')
         method = Function(
             self.pos, member.type, name, ret_type, params, member.body,
-            member.overloads, # TODO: method overloads
+            member.overloads,
             flags, member.generic_names
         )
 
@@ -915,6 +933,7 @@ Left Type Display = {left.type}
 Left C++ Type = {left.type.codegen(scope)}
 Left Object Type = {left.type.object_type(scope)}""")
         if self.right is None:
+            right = None
             callee = f'{op_name}_{left.type.object_type(scope)}'
             error_message = f'cannot perform operation \'{self.op}\' on type \'{left.type}\''
             args = [left]
@@ -935,6 +954,13 @@ Right Object Type = {right.type.object_type(scope)}
 Callee Symbol = {symbol}""")
         if symbol is None:
             self.pos.comptime_error(scope, error_message)
+        
+        func = symbol.value
+        if not isinstance(func, Function):
+            self.pos.comptime_error(scope, f'invalid function \'{callee}\'')
+        
+        if func.flags.internal:
+            return Operation(self.pos, func.ret_type, self.op, left, right)
         
         return Call(
             self.pos, self.type, Id(self.pos, scope.type_map.get('function'), callee), args
