@@ -82,3 +82,7 @@ extern fn input() -> string
 extern fn input(string prompt) -> string
 extern fn assert(bool b, string msg)
 extern fn assert(bool b)
+
+extern fn range(int start, int end) -> int[]
+extern fn range(int end) -> int[]
+extern fn range(int start, int end, int step) -> int[]
