@@ -8,7 +8,7 @@ from cure.parser.CureLexer import CureLexer
 from cure.ir import (
     Program, Scope, Position, Function, Param, Int, Float, String, Bool, Id, Return, Body, Call,
     Cast, Operation, Use, If, While, Variable, Ternary, Bracketed, Attribute, Break, Continue, Type,
-    Class, NewArray, ArrayInit, ForRange, New, Elseif, ArrayType, ReferenceType
+    Class, NewArray, ArrayInit, ForRange, New, Elseif, ArrayType, ReferenceType, ClassType
 )
 
 
@@ -40,12 +40,18 @@ class IRBuilder(CureVisitor):
         )
     
     def visitType(self, ctx):
-        if ctx.type_() is not None and ctx.LBRACK() is not None:
-            array_element_type = self.visitType(ctx.type_())
+        if len(ctx.type_()) == 1 and ctx.LBRACK() is not None:
+            array_element_type = self.visitType(ctx.type_(0))
             return ArrayType(self.pos(ctx), f'{array_element_type}[]', array_element_type)
-        elif ctx.type_() is not None and ctx.AMPERSAND() is not None:
-            typ = self.visitType(ctx.type_())
+        elif len(ctx.type_()) == 1 and ctx.AMPERSAND() is not None:
+            typ = self.visitType(ctx.type_(0))
             return ReferenceType(self.pos(ctx), f'{typ.type}', typ)
+        elif ctx.type_() is not None and ctx.LT() is not None:
+            cls_type = self.visitType(ctx.type_(0))
+            return ClassType(
+                self.pos(ctx), f'{cls_type.type}',
+                [self.visitType(type_) for type_ in ctx.type_()[1:]]
+            )
         
         txt = ctx.ID().getText()
         return Type(self.pos(ctx), txt)
@@ -96,7 +102,7 @@ class IRBuilder(CureVisitor):
         if ctx.extend_type is not None:
             extend_type = self.visitType(ctx.extend_type)
         
-        name: str
+        name = ''
         if ctx.ID() is not None:
             name = ctx.ID().getText()
         elif ctx.NEW() is not None:

@@ -12,7 +12,6 @@ public:
 
     File(const string& filename) : path(std::filesystem::path(filename.c_str())) { }
 
-    string to_string() const { return "File('" + path.string() + "')"; }
     string contents() {
         std::ifstream file(path.string());
         string result;
@@ -32,4 +31,4 @@ public:
     }
 };
 
-string to_string(const File& file) { return file.to_string(); }
+string to_string(const File& file) { return "File('" + file.path.string() + "')"; }

@@ -1,21 +1,63 @@
 extern internal class string {
+    extern method fn get(int index) -> self
+    extern method fn set(int index, self s)
+    extern method fn contains(self substring) -> bool
+    extern method fn startswith(self prefix) -> bool
+    extern method fn endswith(self suffix) -> bool
+    extern method fn index_of(self substring) -> int
+    extern method fn repeat(int times) -> string
+
     extern property fn length() -> int
-    extern method fn set(int index, string s)
+    extern property fn lowercase() -> string
+    extern property fn uppercase() -> string
+    extern property fn is_alpha() -> bool
+    extern property fn is_empty() -> bool
+    extern property fn is_digit() -> bool
+    extern property fn is_alphanumeric() -> bool
+    extern property fn is_whitespace() -> bool
+    extern property fn reversed() -> string
+
+    extern internal fn +(self a, self b) -> self
+    extern internal fn ==(self a, self b) -> bool
+    extern internal fn !=(self a, self b) -> bool
 }
 
 extern internal class StringBuilder {
-    extern static method fn new() -> StringBuilder
-    extern property fn str() -> string
+    extern static method fn new() -> self
     extern method fn add<T>(T s)
+    extern method fn clear()
+
+    extern property fn str() -> string
+
+    extern internal fn ==(self a, self b) -> bool
+    extern internal fn !=(self a, self b) -> bool
 }
 
 extern internal class array<T> {
-    extern static method fn new() -> array
+    extern static method fn new() -> self
     extern method fn to_string() -> string
-    extern property fn length() -> int
     extern method fn add(T item)
+    extern method fn add_all(self items)
+    extern method fn remove_first(T value) -> int
+    extern method fn remove_all(T value) -> int[]
+    extern method fn remove_at(int index) -> T
     extern method fn get(int index) -> T
     extern method fn set(int index, T item)
+    extern method fn contains(T item) -> bool
+    extern method fn index_of(T item) -> int
+    extern method fn clear()
+    extern method fn reserve(int size)
+    extern method fn reverse()
+    extern method fn sort()
+
+    extern property fn length() -> int
+    extern property fn is_empty() -> bool
+    extern property fn reversed() -> self
+    extern property fn sorted() -> self
+
+    extern internal fn +(self a, self b) -> self
+    extern internal fn ==(self a, self b) -> self
+    extern internal fn !=(self a, self b) -> self
 }
 
 extern method fn to_string(int i) -> string
@@ -41,6 +83,12 @@ extern static method fn Math.sqrt(float x) -> float
 extern static method fn Math.sqrt(int x) -> int
 extern static method fn Math.floor(float x) -> int
 extern static method fn Math.ceil(float x) -> int
+
+extern static property fn System.cwd() -> string
+extern static property fn System.pid() -> int
+extern static method fn System.exit()
+extern static method fn System.exit(int code)
+extern static method fn System.sleep(int milliseconds)
 
 extern fn +(int a, int b) -> int
 extern fn -(int a, int b) -> int
@@ -90,10 +138,6 @@ extern internal fn >(int a, float b) -> float
 extern internal fn <=(int a, float b) -> float
 extern internal fn >=(int a, float b) -> float
 
-extern internal fn +(string a, string b) -> string
-extern internal fn ==(string a, string b) -> bool
-extern internal fn !=(string a, string b) -> bool
-
 extern internal fn ==(bool a, bool b) -> bool
 extern internal fn !=(bool a, bool b) -> bool
 extern internal fn &&(bool a, bool b) -> bool
@@ -107,6 +151,6 @@ extern fn input(string prompt) -> string
 extern fn assert(bool b, string msg)
 extern fn assert(bool b)
 
-extern fn range(int start, int end) -> int[]
 extern fn range(int end) -> int[]
+extern fn range(int start, int end) -> int[]
 extern fn range(int start, int end, int step) -> int[]

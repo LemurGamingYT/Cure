@@ -146,6 +146,7 @@ class Scope:
             self.type_map.add(PrimitiveType(Position.zero(), 'function'))
 
             self.type_map.add(PrimitiveType(Position.zero(), 'Math'))
+            self.type_map.add(PrimitiveType(Position.zero(), 'System'))
     
     def use(self, pos: Position, name: str):
         file = Path(name).resolve()
@@ -404,6 +405,8 @@ class Function(Node):
                     f'{self.params[1].type.object_type(scope)}'
             elif len(self.params) == 1:
                 name = f'{op_name}_{self.params[0].type.object_type(scope)}'
+            
+            debug(f'Function name is an operator {self.name}, mangled name = {name}')
         
         if extend_type is not None:
             name = f'{extend_type.object_type(scope)}_{name}'
@@ -413,6 +416,7 @@ class Function(Node):
         _name = name
         if name in RESERVED_CPP_KEYWORDS:
             name = f'_{name}'
+            debug(f'{_name} is a reserved keyword, mangled name to {name}')
         
         for generic_name in self.generic_names:
             scope.type_map.add(PrimitiveType(self.pos, generic_name))
@@ -497,8 +501,7 @@ Arg Type = {arg.type!r}""")
         
         if call_func is None:
             arg_types_str = ', '.join(str(arg.type) for arg in args)
-            error(f"""no matching overloads with types [{arg_types_str}]
-Arg Type Display = {', '.join(str(arg.type) for arg in args)}
+            error(f"""Arg Type Display = {', '.join(str(arg.type) for arg in args)}
 Arg C++ Type = {', '.join(arg.type.codegen(scope) for arg in args)}
 Arg Object Type = {', '.join(arg.type.object_type(scope) for arg in args)}""")
             return pos.comptime_error(scope, f'no matching overload with types [{arg_types_str}]')
@@ -578,7 +581,10 @@ class Class(Node):
         
         return Class(self.pos, typ, self.members, self.generic_names)
     
-    def replace_type(self, typ: Type, **generics: Type):
+    def replace_type(self, typ: Type, cls_type: Type, **generics: Type):
+        if typ.type == 'self':
+            return cls_type
+        
         if typ.type not in generics:
             return typ
         
@@ -605,30 +611,36 @@ class Class(Node):
             params.append(Param(self.pos, cls_type, 'self', True))
             info(f'Added self parameter to {member.name}\'s parameters')
         
-        ret_type = self.replace_type(member.ret_type, **generics)
+        for generic_name in member.generic_names:
+            scope.type_map.add(PrimitiveType(self.pos, generic_name))
+        
+        ret_type = self.replace_type(member.ret_type, cls_type, **generics).analyse(scope)
         params.extend(Param(
-            self.pos, self.replace_type(param.type, **generics), param.name, param.is_mutable
+            self.pos, self.replace_type(param.type, cls_type, **generics).analyse(scope),
+            param.name, param.is_mutable
         ) for param in member.params)
+
+        for generic_name in member.generic_names:
+            scope.type_map.remove(generic_name)
 
         name = member.name
         if member.name in op_map:
-            for i, param in enumerate(params):
-                print(param.type.__repr__(), typ.__repr__())
-                if param.type != typ:
-                    continue
-
-                params[i].type = cls_type
+            op_name = op_map[name]
+            if len(params) == 2:
+                name = f'{params[0].type.object_type(scope)}_{op_name}_'\
+                    f'{params[1].type.object_type(scope)}'
+            elif len(params) == 1:
+                name = f'{op_name}_{params[0].type.object_type(scope)}'
         else:
             name = f'{cls_type.object_type(scope)}_{member.name}'
         
         debug(f'Creating method with name {name}')
         method = Function(
             self.pos, member.type, name, ret_type, params, member.body,
-            member.overloads,
-            flags, member.generic_names
+            member.overloads, flags, member.generic_names
         )
 
-        method.analyse(scope)
+        scope.symbol_table.add(Symbol(name, scope.type_map.get('function'), method))
 
         method.name = member.name
         return method
@@ -659,10 +671,10 @@ class Class(Node):
 
             debug(f'Created generic class type {cls_type} (Type = {cls_type.codegen(scope)})')
             # TODO: check if this generic class has already been defined
-            # if scope.type_map.has(str(cls_type)):
-            #     info('Generic class already defined')
-            #     return Class(self.pos, cls_type, self.name, self.members, self.generic_names,
-            #                  self.is_internal)
+            if scope.type_map.has(str(cls_type)):
+                info('Generic class already defined')
+                return Class(self.pos, cls_type, self.name, self.members, self.generic_names,
+                             self.is_internal)
             
             scope.type_map.add(cls_type)
         else:
@@ -779,6 +791,9 @@ class Int(Node):
 
     def codegen(self, _):
         return str(self.value)
+    
+    def analyse(self, scope):
+        return Int(self.pos, self.type.analyse(scope), self.value)
 
 @dataclass
 class Float(Node):
@@ -786,6 +801,9 @@ class Float(Node):
 
     def codegen(self, _):
         return f'{self.value}f'
+    
+    def analyse(self, scope):
+        return Float(self.pos, self.type.analyse(scope), self.value)
 
 @dataclass
 class String(Node):
@@ -793,6 +811,9 @@ class String(Node):
 
     def codegen(self, _):
         return f'string("{self.value}")'
+    
+    def analyse(self, scope):
+        return String(self.pos, self.type.analyse(scope), self.value)
 
 # TODO: add support for String interpolation
 @dataclass
@@ -834,11 +855,17 @@ class Bool(Node):
 
     def codegen(self, _):
         return str(self.value).lower()
+    
+    def analyse(self, scope):
+        return Bool(self.pos, self.type.analyse(scope), self.value)
 
 @dataclass
 class Nil(Node):
     def codegen(self, _):
         return 'nil()'
+    
+    def analyse(self, scope):
+        return Nil(self.pos, self.type.analyse(scope))
 
 @dataclass
 class Id(Node):

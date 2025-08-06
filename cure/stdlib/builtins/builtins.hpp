@@ -1,10 +1,14 @@
 #pragma once
 
+#include <filesystem>
+#include <algorithm>
 #include <iostream>
 #include <sstream>
+#include <thread>
 #include <limits>
 #include <string>
 #include <vector>
+#include <cctype>
 
 #define _USE_MATH_DEFINES
 #include <math.h>
@@ -25,29 +29,90 @@ public:
     string(char c) : std::string(1, c) {}
     string(const char* s) : std::string(s) {}
     string() : std::string() {}
-
-    string get(int index) {
+    
+    string get(int index) const {
         if (index < 0)
-            index = static_cast<int>(length()) + index;
+        index = static_cast<int>(length()) + index;
         
         if (index >= static_cast<int>(length()))
-            error("string index out of range");
+        error("string index out of range");
         
         return (*this)[index];
     }
-
+    
     nil set(int index, string s) {
         if (s.length() != 1)
-            error("set expects a string character");
+        error("set expects a string character");
         
         if (index < 0)
-            index = static_cast<int>(length()) + index;
+        index = static_cast<int>(length()) + index;
         
         if (index >= static_cast<int>(length()))
-            error("string index out of range");
+        error("string index out of range");
         
         (*this)[index] = s[0];
         return nil();
+    }
+    
+    bool contains(const string& substring) const {
+        return this->find(substring) != std::string::npos;
+    }
+
+    bool startswith(const string& prefix) const {
+        return this->find(prefix) == 0;
+    }
+
+    bool endswith(const string& suffix) const {
+        return this->find(suffix) == this->length() - suffix.length();
+    }
+
+    string repeat(int times) const {
+        string result;
+        for (int i = 0; i < times; i++)
+            result += *this;
+        
+        return result;
+    }
+
+    int index_of(const string& substring) const { return this->find(substring); }
+
+
+    string lowercase() const {
+        std::string result;
+        std::transform(this->begin(), this->end(), result.begin(), ::tolower);
+        return result;
+    }
+
+    string uppercase() const {
+        std::string result;
+        std::transform(this->begin(), this->end(), result.begin(), ::toupper);
+        return result;
+    }
+
+    bool is_alpha() const {
+        return std::all_of(this->begin(), this->end(), ::isalpha);
+    }
+
+    bool is_empty() const {
+        return length() == static_cast<size_t>(0);
+    }
+
+    bool is_digit() const {
+        return std::all_of(this->begin(), this->end(), ::isdigit);
+    }
+
+    bool is_alphanumeric() const {
+        return std::all_of(this->begin(), this->end(), ::isalnum);
+    }
+
+    bool is_whitespace() const {
+        return std::all_of(this->begin(), this->end(), ::isspace);
+    }
+
+    string reversed() const {
+        std::string result = *this;
+        std::reverse(result.begin(), result.end());
+        return result;
     }
 };
 
@@ -65,6 +130,14 @@ public:
         ss << to_string(item);
         return nil();
     }
+
+    nil clear() {
+        ss.clear();
+        return nil();
+    }
+
+    bool operator==(const StringBuilder& other) const { return str() == other.str(); }
+    bool operator!=(const StringBuilder& other) const { return str() != other.str(); }
 };
 
 template<typename T>
@@ -73,32 +146,136 @@ public:
     array(std::initializer_list<T> init) : std::vector<T>(init) {}
     array() : std::vector<T>() {}
     
-    int length() const { return this->size(); }
-    
     nil add(T item) {
         this->push_back(item);
         return nil();
     }
     
-    T get(int index) const {
+    nil add_all(array<T> items) {
+        this->insert(this->end(), items.begin(), items.end());
+        return nil();
+    }
+    
+    int remove_first(T value) {
+        auto it = std::find(this->begin(), this->end(), value);
+        if (it == this->end())
+            return -1;
+        
+        this->erase(it);
+        return it - this->begin();
+    }
+
+    array<int> remove_all(T value) {
+        array<int> indexes;
+        auto it = std::find(this->begin(), this->end(), value);
+        while (it != this->end()) {
+            indexes.add(it - this->begin());
+            this->erase(it);
+            it = std::find(this->begin(), this->end(), value);
+        }
+
+        return indexes;
+    }
+    
+    T remove_at(int index) {
         if (index < 0)
-        index = length() + index;
+            index = length() + index;
         
         if (index >= length())
-        error("index out of range");
+            error("array index out of range");
+        
+        T item = (*this)[index];
+        this->erase(this->begin() + index);
+        return item;
+    }
+    
+    T get(int index) const {
+        if (index < 0)
+            index = length() + index;
+        
+        if (index >= length())
+            error("index out of range");
         
         return (*this)[index];
     }
     
     nil set(int index, T item) {
         if (index < 0)
-        index = length() + index;
+            index = length() + index;
         
         if (index >= length())
             error("array index out of range");
-
+        
         (*this)[index] = item;
         return nil();
+    }
+    
+    bool contains(T item) const {
+        return std::find(this->begin(), this->end(), item) != this->end();
+    }
+
+    int index_of(T item) const {
+        auto it = std::find(this->begin(), this->end(), item);
+        if (it == this->end())
+            return -1;
+        
+        return it - this->begin();
+    }
+
+    nil clear() const {
+        this->clear();
+        return nil();
+    }
+
+    nil reserve(int size) const {
+        this->reserve(size);
+        return nil();
+    }
+
+    nil reverse() const {
+        std::reverse(this->begin(), this->end());
+        return nil();
+    }
+
+    nil sort() const {
+        std::sort(this->begin(), this->end());
+        return nil();
+    }
+    
+    
+    int length() const { return this->size(); }
+    bool is_empty() const { return length() == 0; }
+    array<T> reversed() const {
+        array<T> result;
+        result.insert(result.end(), this->rbegin(), this->rend());
+        return result;
+    }
+
+    array<T> sorted() const {
+        array<T> result;
+        result.insert(result.end(), this->begin(), this->end());
+        std::sort(result.begin(), result.end());
+        return result;
+    }
+
+
+    array<T> operator+(const array<T>& other) const {
+        array<T> result;
+        result.insert(result.end(), this->begin(), this->end());
+        result.insert(result.end(), other.begin(), other.end());
+        return result;
+    }
+
+    bool operator==(const array<T>& other) const {
+        return this->size() == other.size() && std::equal(
+            this->begin(), this->end(), other.begin()
+        );
+    }
+
+    bool operator!=(const array<T>& other) const {
+        return this->size() != other.size() || !std::equal(
+            this->begin(), this->end(), other.begin()
+        );
     }
 };
 
@@ -143,6 +320,26 @@ float Math_sqrt(float x) { return std::sqrtf((int)x); }
 int Math_sqrt(int x) { return std::sqrtf((int)x); }
 int Math_floor(float x) { return std::floorf(x); }
 int Math_ceil(float x) { return std::ceilf(x); }
+
+
+string System_cwd(void) { return std::filesystem::current_path().string(); }
+int System_pid(void) {
+#if WINDOWS
+    return _getpid();
+#else
+    return getpid();
+#endif
+}
+
+nil System_exit(int code = 0) {
+    std::exit(code);
+    return nil();
+}
+
+nil System_sleep(int ms) {
+    std::this_thread::sleep_for(std::chrono::milliseconds(ms));
+    return nil();
+}
 
 
 int int_add_int(int a, int b) {
@@ -246,15 +443,15 @@ nil assert(bool b, const string& msg) {
 
 nil assert(bool b) { return assert(b, "assertion failed"); }
 
-array<int> range(int start, int end) {
-    array<int> arr;
-    for (int i = start; i < end; i++) arr.add(i);
-    return arr;
-}
-
 array<int> range(int end) {
     array<int> arr;
     for (int i = 0; i < end; i++) arr.add(i);
+    return arr;
+}
+
+array<int> range(int start, int end) {
+    array<int> arr;
+    for (int i = start; i < end; i++) arr.add(i);
     return arr;
 }
 
