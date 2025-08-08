@@ -1,7 +1,12 @@
+fn double_n(int n) -> int {
+    return n * 2
+}
+
+fn transformer((int) -> int func, int n) -> int {
+    return func(n)
+}
+
 fn main() -> int {
-    // double is a reserved keyword in C++
-    mut double = 2
-    double = 4
-    print(double)
+    print(transformer(double_n, 2))
     return 0
 }

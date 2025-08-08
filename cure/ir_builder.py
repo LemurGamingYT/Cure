@@ -8,7 +8,7 @@ from cure.parser.CureLexer import CureLexer
 from cure.ir import (
     Program, Scope, Position, Function, Param, Int, Float, String, Bool, Id, Return, Body, Call,
     Cast, Operation, Use, If, While, Variable, Ternary, Bracketed, Attribute, Break, Continue, Type,
-    Class, NewArray, ArrayInit, ForRange, New, Elseif, ArrayType, ReferenceType, ClassType
+    Class, NewArray, ArrayInit, ForRange, New, Elseif, ArrayType, ReferenceType, FunctionType
 )
 
 
@@ -46,11 +46,19 @@ class IRBuilder(CureVisitor):
         elif len(ctx.type_()) == 1 and ctx.AMPERSAND() is not None:
             typ = self.visitType(ctx.type_(0))
             return ReferenceType(self.pos(ctx), f'{typ.type}', typ)
-        elif ctx.type_() is not None and ctx.LT() is not None:
-            cls_type = self.visitType(ctx.type_(0))
-            return ClassType(
-                self.pos(ctx), f'{cls_type.type}',
-                [self.visitType(type_) for type_ in ctx.type_()[1:]]
+        # elif len(ctx.type_()) >= 2 and ctx.LT() is not None:
+        #     cls_type = self.visitType(ctx.type_(0))
+        #     return ClassType(
+        #         self.pos(ctx), f'{cls_type.type}',
+        #         [self.visitType(type_) for type_ in ctx.type_()[1:]]
+        #     )
+        elif len(ctx.type_()) > 1 and ctx.LPAREN() is not None:
+            return_type = self.visitType(ctx.type_()[-1])
+            param_types = [self.visitType(type_) for type_ in ctx.type_()[:-1]]
+            param_types_str = ', '.join(t.codegen(self.scope) for t in param_types)
+            return FunctionType(
+                self.pos(ctx), f'({param_types_str}) -> {return_type.codegen(self.scope)}',
+                return_type, param_types
             )
         
         txt = ctx.ID().getText()

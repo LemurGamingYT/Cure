@@ -7,6 +7,7 @@ type
     // | type LT type (COMMA type)* GT
     | type LBRACK RBRACK
     | type AMPERSAND
+    | LPAREN (type (COMMA type)*)? RPAREN RETURNS type
     ;
 
 stmt

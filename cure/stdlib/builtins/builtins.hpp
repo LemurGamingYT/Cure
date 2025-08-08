@@ -1,6 +1,7 @@
 #pragma once
 
 #include <filesystem>
+#include <functional> // used for std::function types (not in this file)
 #include <algorithm>
 #include <iostream>
 #include <sstream>
@@ -18,7 +19,7 @@ using nil = std::nullptr_t;
 
 
 void error(const char* s) {
-    std::cerr << "error:" << s << std::endl;
+    std::cerr << "error: " << s << std::endl;
     std::exit(1);
 }
 
@@ -241,6 +242,19 @@ public:
         std::sort(this->begin(), this->end());
         return nil();
     }
+
+    array<T> map(std::function<T(T)> func) const {
+        array<T> result;
+        result.insert(result.end(), this->begin(), this->end());
+        std::transform(result.begin(), result.end(), result.begin(), func);
+        return result;
+    }
+
+    array<T> filter(std::function<bool(T)> func) const {
+        array<T> result;
+        std::copy_if(this->begin(), this->end(), std::back_inserter(result), func);
+        return result;
+    }
     
     
     int length() const { return this->size(); }
@@ -323,7 +337,7 @@ int Math_ceil(float x) { return std::ceilf(x); }
 
 
 string System_cwd(void) { return std::filesystem::current_path().string(); }
-int System_pid(void) {
+int System_pid(void) { // TODO: test if this works on all the target platforms
 #if WINDOWS
     return _getpid();
 #else

@@ -10,6 +10,8 @@ class Color {
 public:
     Color(int r, int g, int b) : _r(r), _g(g), _b(b) {}
 
+    // TODO: Color(string hex)
+
     int r() const { return _r; }
     int g() const { return _g; }
     int b() const { return _b; }
@@ -19,6 +21,8 @@ public:
         snprintf(buf, sizeof(buf), "#%02x%02x%02x", _r, _g, _b);
         return buf;
     }
+
+    // TODO: .h, .s, .v
 
     bool operator==(const Color& other) const {
         return _r == other._r && _g == other._g && _b == other._b;

@@ -49,6 +49,8 @@ extern internal class array<T> {
     extern method fn reserve(int size)
     extern method fn reverse()
     extern method fn sort()
+    extern method fn map((T) -> T func) -> self
+    extern method fn filter((T) -> bool func) -> self
 
     extern property fn length() -> int
     extern property fn is_empty() -> bool
@@ -56,8 +58,8 @@ extern internal class array<T> {
     extern property fn sorted() -> self
 
     extern internal fn +(self a, self b) -> self
-    extern internal fn ==(self a, self b) -> self
-    extern internal fn !=(self a, self b) -> self
+    extern internal fn ==(self a, self b) -> bool
+    extern internal fn !=(self a, self b) -> bool
 }
 
 extern method fn to_string(int i) -> string

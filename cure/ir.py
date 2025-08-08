@@ -1,4 +1,4 @@
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, fields
 from sys import exit as sys_exit, stderr
 from tempfile import NamedTemporaryFile
 from logging import debug, info, error
@@ -215,6 +215,20 @@ class Node(ABC):
     pos: Position = field(compare=False, repr=False, hash=False)
     type: 'Type'
 
+    @property
+    def children(self):
+        children = []
+        for f in fields(self):
+            child = getattr(self, f.name)
+            if isinstance(child, list):
+                for c in child:
+                    if isinstance(c, Node):
+                        children.append(c)
+            elif isinstance(child, Node):
+                children.append(child)
+        
+        return children
+
     @abstractmethod
     def codegen(self, scope: Scope) -> str:
         ...
@@ -299,14 +313,14 @@ class ReferenceType(Type):
     type: str # type: ignore
     inner: Type
 
-    def object_type(self, scope):
-        return self.inner.object_type(scope)
-
     def __eq__(self, other):
         if not isinstance(other, Type):
             return False
         
         return self.inner == other
+
+    def object_type(self, scope):
+        return self.inner.object_type(scope)
 
     def codegen(self, scope):
         return f'{self.inner.codegen(scope)}&'
@@ -318,16 +332,73 @@ class ReferenceType(Type):
         )
 
 @dataclass
+class FunctionType(Type):
+    return_type: Type
+    param_types: list[Type] = field(default_factory=list)
+
+    @staticmethod
+    def new(pos: Position, return_type: Type, param_types: list[Type]):
+        param_types_str = ', '.join(str(t) for t in param_types)
+        return FunctionType(
+            pos, f'({param_types_str}) -> {return_type}',
+            return_type, param_types
+        )
+
+    def __eq__(self, other):
+        if not isinstance(other, FunctionType):
+            return False
+        
+        return self.return_type == other.return_type and self.param_types == other.param_types
+
+    def object_type(self, _):
+        return 'function'
+
+    def codegen(self, scope):
+        param_types_str = ', '.join(typ.codegen(scope) for typ in self.param_types)
+        return f'std::function<{self.return_type.codegen(scope)}({param_types_str})>'
+    
+    def analyse(self, scope):
+        param_types = [typ.analyse(scope) for typ in self.param_types]
+        return_type = self.return_type.analyse(scope)
+        return FunctionType.new(self.pos, return_type, param_types)
+
+@dataclass
+class GenericType(Type):
+    real_type: Type | None = None
+
+    def __eq__(self, other):
+        if not isinstance(other, GenericType):
+            return False
+        
+        if self.real_type is None:
+            return self.type == other.type
+        
+        return self.real_type == other.real_type
+    
+    def codegen(self, scope):
+        if self.real_type is not None:
+            return self.real_type.codegen(scope)
+        
+        return self.type
+    
+    def analyse(self, scope):
+        return GenericType(
+            self.pos, self.type,
+            self.real_type.analyse(scope) if self.real_type is not None else None
+        )
+
+@dataclass
 class Param(Node):
     name: str
     is_mutable: bool = False
     default: Node | None = None
 
     def codegen(self, scope):
+        typ = self.type.codegen(scope)
         if self.default is not None:
-            return f'{self.type.codegen(scope)} {self.name} = {self.default.codegen(scope)}'
+            return f'{typ} {self.name} = {self.default.codegen(scope)}'
         
-        return f'{self.type.codegen(scope)} {self.name}'
+        return f'{typ} {self.name}'
     
     def analyse(self, scope):
         return Param(
@@ -415,8 +486,9 @@ class Function(Node):
         
         _name = name
         if name in RESERVED_CPP_KEYWORDS:
-            name = f'_{name}'
-            debug(f'{_name} is a reserved keyword, mangled name to {name}')
+            self.pos.comptime_error(
+                scope, f'\'{name}\' is a reserved name, it cannot be used as a function name'
+            )
         
         for generic_name in self.generic_names:
             scope.type_map.add(PrimitiveType(self.pos, generic_name))
@@ -435,7 +507,9 @@ class Function(Node):
             
             base_func.overloads.append(func)
         else:
-            scope.symbol_table.add(Symbol(func.name, func.type, func), _name)
+            scope.symbol_table.add(Symbol(func.name, FunctionType.new(
+                func.pos, func.ret_type, [param.type for param in func.params]
+            ), func), _name)
         
         if func.body is not None:
             body_scope = scope.make_child()
@@ -454,68 +528,6 @@ class Function(Node):
             scope.type_map.remove(generic_name)
         
         return func
-    
-    
-    def __call__(self, pos: Position, scope: Scope, args: list[Node]):
-        info(f'Calling function {self.name} with {len(args)} arguments')
-
-        functions = [cast(Function, self)] + self.overloads
-        functions_str = ', '.join(func.name for func in functions)
-        debug(f'Possible functions = [{functions_str}]')
-
-        call_func = None
-        for func in functions:
-            if len(func.params) != len(args):
-                continue
-
-            valid_params = True
-            for param, arg in zip(func.params, args):
-                info(f'Checking Param Type {param.type} and Arg Type {arg.type}')
-                if param.type == arg.type or param.type.type in func.generic_names or\
-                        param.type.type == 'any':
-                    continue
-
-                debug(f"""Type mismatch with Param Type {param.type} and Arg Type {arg.type}
-Param Type Display = {str(param.type)}
-Param C++ Type = {param.type.codegen(scope)}
-Param Object Type = {param.type.object_type(scope)}
-Param Type = {param.type!r}
-Arg Type Display = {str(arg.type)}
-Arg C++ Type = {arg.type.codegen(scope)}
-arg Object Type = {arg.type.object_type(scope)}
-Arg Type = {arg.type!r}""")
-                valid_params = False
-                break
-            
-            if not valid_params:
-                continue
-            
-            call_func = func
-            break
-
-            # TODO: handle ambiguous function calls
-            # if call_func is not None:
-            #     self.pos.comptime_error(
-            #         scope, 'ambiguous function call (multiple overloads with the same signature)'
-            #     )
-        
-        if call_func is None:
-            arg_types_str = ', '.join(str(arg.type) for arg in args)
-            error(f"""Arg Type Display = {', '.join(str(arg.type) for arg in args)}
-Arg C++ Type = {', '.join(arg.type.codegen(scope) for arg in args)}
-Arg Object Type = {', '.join(arg.type.object_type(scope) for arg in args)}""")
-            return pos.comptime_error(scope, f'no matching overload with types [{arg_types_str}]')
-        
-        for arg, param in zip(args, call_func.params):
-            if isinstance(param.type, ReferenceType) and not isinstance(arg, Id):
-                arg.pos.comptime_error(scope, 'cannot pass values to reference types')
-        
-        debug(f'Found valid callable function {call_func.name}')
-        return Call(
-            pos, call_func.ret_type,
-            Id(pos, call_func.type, call_func.name),
-            args
-        )
 
 @dataclass
 class Variable(Node):
@@ -530,7 +542,9 @@ class Variable(Node):
     def analyse(self, scope):
         name = self.name
         if name in RESERVED_CPP_KEYWORDS:
-            name = f'_{name}'
+            self.pos.comptime_error(
+                scope, f'\'{name}\' is a reserved name, it cannot be used as a variable name'
+            )
 
         value = self.value.analyse(scope)
         if scope.symbol_table.has(self.name):
@@ -581,15 +595,28 @@ class Class(Node):
         
         return Class(self.pos, typ, self.members, self.generic_names)
     
-    def replace_type(self, typ: Type, cls_type: Type, **generics: Type):
+    def replace_type(self, scope: Scope, typ: Type, cls_type: Type, **generics: Type):
+        out_type = None
         if typ.type == 'self':
-            return cls_type
+            out_type = cls_type
+        elif typ.type not in generics:
+            out_type = typ
+        else:
+            info(f'Replacing return type with generic type {generics[typ.type]}')
+            out_type = generics[typ.type]
         
-        if typ.type not in generics:
-            return typ
+        for f in fields(out_type):
+            child = getattr(out_type, f.name)
+            if isinstance(child, Type):
+                setattr(out_type, f.name, self.replace_type(scope, child, cls_type, **generics))
+            elif isinstance(child, list):
+                for i, item in enumerate(child):
+                    if not isinstance(item, Type):
+                        continue
+
+                    child[i] = self.replace_type(scope, item, cls_type, **generics)
         
-        info(f'Replacing return type with generic type {generics[typ.type]}')
-        return generics[typ.type]
+        return out_type.analyse(scope)
     
     def define_method(self, member: Function, scope: Scope, cls_type: Type, typ: Type,
                       **generics: Type):
@@ -612,11 +639,11 @@ class Class(Node):
             info(f'Added self parameter to {member.name}\'s parameters')
         
         for generic_name in member.generic_names:
-            scope.type_map.add(PrimitiveType(self.pos, generic_name))
+            scope.type_map.add(GenericType(self.pos, generic_name))
         
-        ret_type = self.replace_type(member.ret_type, cls_type, **generics).analyse(scope)
+        ret_type = self.replace_type(scope, member.ret_type, cls_type, **generics)
         params.extend(Param(
-            self.pos, self.replace_type(param.type, cls_type, **generics).analyse(scope),
+            self.pos, self.replace_type(scope, param.type, cls_type, **generics),
             param.name, param.is_mutable
         ) for param in member.params)
 
@@ -670,7 +697,6 @@ class Class(Node):
                 cls_type = ClassType(self.pos, cls_display_str, list(generics.values()))
 
             debug(f'Created generic class type {cls_type} (Type = {cls_type.codegen(scope)})')
-            # TODO: check if this generic class has already been defined
             if scope.type_map.has(str(cls_type)):
                 info('Generic class already defined')
                 return Class(self.pos, cls_type, self.name, self.members, self.generic_names,
@@ -683,8 +709,15 @@ class Class(Node):
         members: list[Node] = []
         for member in self.members:
             if isinstance(member, Function):
+                # add class generic types here because the method could override them
+                # for generic_name in generics:
+                #     scope.type_map.add(PrimitiveType(self.pos, generic_name))
+
                 # copy the member so we're not modifying the original
                 members.append(self.define_method(member, scope, cls_type, typ, **generics))
+
+                # for generic_name in generics:
+                #     scope.type_map.remove(generic_name)
             else:
                 raise NotImplementedError(f'Class {self.name} does not support member {member}')
         
@@ -900,11 +933,80 @@ class Call(Node):
         # don't need to check if the symbol exists, already done in Id.analyse
         symbol = cast(Symbol, scope.symbol_table.get(self.callee.name))
         func = symbol.value
-        if not isinstance(func, Function):
+        if not isinstance(func, Function) and not isinstance(func.type, FunctionType):
             self.pos.comptime_error(scope, f'invalid function \'{self.callee.name}\'')
 
         args = [arg.analyse(scope) for arg in self.args]
-        return func(self.pos, scope, args)
+        arg_types = [arg.type for arg in args]
+        if isinstance(func.type, FunctionType):
+            info(f'Calling function type {func.type}')
+
+            if not self.check_params(func.type.param_types, arg_types):
+                arg_types_str = ', '.join(str(t) for t in arg_types)
+                self.pos.comptime_error(
+                    scope, f'cannot call function type with argument types {arg_types_str}'
+                )
+            
+            return Call(self.pos, func.type.return_type, self.callee, args)
+
+        info(f'Calling function {symbol.name} with {len(args)} arguments')
+
+        functions = [func] + func.overloads
+        functions_str = ', '.join(func.name for func in functions)
+        debug(f'Possible functions = [{functions_str}]')
+
+        call_func = None
+        for func in functions:
+            if not self.check_params(
+                [param.type for param in func.params], [arg.type for arg in args],
+                func.generic_names
+            ):
+                continue
+            
+            if call_func is not None:
+                self.pos.comptime_error(
+                    scope, 'ambiguous function call (multiple overloads with the same signature)'
+                )
+            
+            call_func = func
+        
+        if call_func is None:
+            arg_types_str = ', '.join(str(t) for t in arg_types)
+            error(f"""Arg Type Display = {', '.join(str(t) for t in arg_types)}
+Arg C++ Type = {', '.join(t.codegen(scope) for t in arg_types)}
+Arg Object Type = {', '.join(t.object_type(scope) for t in arg_types)}""")
+            return self.pos.comptime_error(scope, f'no matching overload with types [{arg_types_str}]')
+        
+        for arg, param in zip(args, call_func.params):
+            if isinstance(param.type, ReferenceType) and not isinstance(arg, Id):
+                arg.pos.comptime_error(scope, 'cannot pass values to reference types')
+        
+        debug(f'Found valid callable function {call_func.name}')
+        return Call(
+            self.pos, call_func.ret_type,
+            Id(self.pos, call_func.type, call_func.name),
+            args
+        )
+    
+    @staticmethod
+    def check_params(param_types: list[Type], arg_types: list[Type],
+                     generic_names: list[str] | None = None):
+        if len(param_types) != len(arg_types):
+            return False
+        
+        if generic_names is None:
+            generic_names = []
+        
+        for param_type, arg_type in zip(param_types, arg_types):
+            if param_type == arg_type or param_type.type == 'any' or param_type.type in generic_names:
+                continue
+
+            debug(f"""Type mismatch with Param Type {param_type} and Arg Type {arg_type}
+Param Type = {param_type!r}
+Arg Type = {arg_type!r}""")
+            return False
+        
+        return True
 
 @dataclass
 class Cast(Node):
@@ -1162,7 +1264,6 @@ class ForRange(Node):
         if start.type != end.type:
             self.pos.comptime_error(scope, 'range type mismatch')
         
-        # TODO: allow more range types
         if start.type not in (scope.type_map.get('int'), scope.type_map.get('float')):
             self.pos.comptime_error(scope, f'invalid start type for range loop \'{start.type}\'')
         

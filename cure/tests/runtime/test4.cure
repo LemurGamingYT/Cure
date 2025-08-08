@@ -1,0 +1,14 @@
+fn double_n(int n) -> int {
+    return n * 2
+}
+
+fn is_even(int n) -> bool {
+    return n % 2 == 0
+}
+
+fn main() -> int {
+    arr = range(1, 11)
+    assert(arr.map(double_n) == [2, 4, 6, 8, 10, 12, 14, 16, 18, 20])
+    assert(arr.filter(is_even) == [2, 4, 6, 8, 10])
+    return 0
+}
