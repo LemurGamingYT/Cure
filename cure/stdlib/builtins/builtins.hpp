@@ -12,14 +12,22 @@
 #include <cctype>
 
 #define _USE_MATH_DEFINES
+#include <stdarg.h>
 #include <math.h>
 
 
 using nil = std::nullptr_t;
 
 
-void error(const char* s) {
-    std::cerr << "error: " << s << std::endl;
+void error(const char* s, ...) {
+    va_list args;
+    va_start(args, s);
+    
+    std::cerr << "error: ";
+    vfprintf(stderr, s, args);
+    std::cerr << std::endl;
+    
+    va_end(args);
     std::exit(1);
 }
 
@@ -294,7 +302,17 @@ public:
 };
 
 
-void error(const string& s) { error(s.c_str()); }
+void error(const string& s, ...) {
+    va_list args;
+    va_start(args, s);
+    
+    std::cerr << "error: ";
+    vfprintf(stderr, s.c_str(), args);
+    std::cerr << std::endl;
+    
+    va_end(args);
+    std::exit(1);
+}
 
 
 string to_string(int i) { return std::to_string(i); }

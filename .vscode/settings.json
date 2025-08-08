@@ -59,6 +59,19 @@
         "iomanip": "cpp",
         "numbers": "cpp",
         "optional": "cpp",
-        "ratio": "cpp"
+        "ratio": "cpp",
+        "*.rh": "cpp",
+        "cerrno": "cpp",
+        "cfloat": "cpp",
+        "climits": "cpp",
+        "deque": "cpp",
+        "functional": "cpp",
+        "list": "cpp",
+        "stack": "cpp",
+        "stop_token": "cpp",
+        "thread": "cpp",
+        "unordered_map": "cpp",
+        "unordered_set": "cpp",
+        "xhash": "cpp"
     }
 }
