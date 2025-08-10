@@ -51,7 +51,7 @@ varAssign
     | MUTABLE? ID ASSIGN expr
     ;
 
-arg: expr;
+arg: (label=ID COLON)? expr;
 args: arg (COMMA arg)*;
 
 param: MUTABLE? type ID (ASSIGN expr)?;
@@ -135,6 +135,7 @@ NOT: '!';
 DOUBLEDOT: '..';
 DOT: '.';
 COMMA: ',';
+COLON: ':';
 // DOLLAR: '$';
 ASSIGN: '=';
 LPAREN: '(';

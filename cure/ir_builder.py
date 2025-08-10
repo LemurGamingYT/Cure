@@ -8,7 +8,7 @@ from cure.parser.CureLexer import CureLexer
 from cure.ir import (
     Program, Scope, Position, Function, Param, Int, Float, String, Bool, Id, Return, Body, Call,
     Cast, Operation, Use, If, While, Variable, Ternary, Bracketed, Attribute, Break, Continue, Type,
-    Class, NewArray, ArrayInit, ForRange, New, Elseif, ArrayType, ReferenceType, FunctionType
+    Class, NewArray, ArrayInit, ForRange, New, Elseif, ArrayType, ReferenceType, FunctionType, Arg
 )
 
 
@@ -68,7 +68,8 @@ class IRBuilder(CureVisitor):
         return [self.visitArg(arg) for arg in ctx.arg()] if ctx is not None else []
     
     def visitArg(self, ctx):
-        return self.visit(ctx.expr())
+        value = self.visit(ctx.expr())
+        return Arg(self.pos(ctx), value.type, value, ctx.label.text if ctx.label is not None else None)
     
     def visitStmtBody(self, ctx):
         return self.visit(ctx.stmt())

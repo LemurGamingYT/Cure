@@ -387,6 +387,18 @@ class GenericType(Type):
             self.real_type.analyse(scope) if self.real_type is not None else None
         )
 
+@dataclass
+class Arg(Node):
+    value: Node
+    label: str | None = None
+
+    def codegen(self, scope):
+        return self.value.codegen(scope)
+    
+    def analyse(self, scope):
+        value = self.value.analyse(scope)
+        return Arg(self.pos, value.type, value, self.label)
+
 @dataclass(unsafe_hash=True)
 class Param(Node):
     name: str
@@ -394,9 +406,10 @@ class Param(Node):
     default: Node | None = None
 
     def codegen(self, scope):
+        # default parameters are handled in function calls
         typ = self.type.codegen(scope)
         if self.default is not None:
-            return f'{typ} {self.name} = {self.default.codegen(scope)}'
+            return f'{typ} {self.name} /* = {self.default.codegen(scope)} */'
         
         return f'{typ} {self.name}'
     
@@ -921,7 +934,7 @@ class Id(Node):
 @dataclass(unsafe_hash=True)
 class Call(Node):
     callee: Id
-    args: list[Node] = field(default_factory=list)
+    args: list[Arg] = field(default_factory=list)
 
     def codegen(self, scope):
         args_str = ', '.join(arg.codegen(scope) for arg in self.args)
@@ -957,12 +970,12 @@ class Call(Node):
 
         call_func = None
         for func in functions:
-            _args = self.build_args(args, func.params)
-            if _args is None:
+            func_args = self.build_args(scope, args, func.params)
+            if func_args is None:
                 continue
 
             if not self.check_params(
-                [param.type for param in func.params], [arg.type for arg in _args],
+                [param.type for param in func.params], [arg.type for arg in func_args],
                 func.generic_names
             ):
                 continue
@@ -972,7 +985,7 @@ class Call(Node):
                     scope, 'ambiguous function call (multiple overloads with the same signature)'
                 )
             
-            call_func = func
+            call_func = (func, func_args)
         
         if call_func is None:
             arg_types_str = ', '.join(str(t) for t in arg_types)
@@ -981,6 +994,7 @@ Arg C++ Type = {', '.join(t.codegen(scope) for t in arg_types)}
 Arg Object Type = {', '.join(t.object_type(scope) for t in arg_types)}""")
             return self.pos.comptime_error(scope, f'no matching overload with types [{arg_types_str}]')
         
+        call_func, args = call_func
         for arg, param in zip(args, call_func.params):
             if isinstance(param.type, ReferenceType) and not isinstance(arg, Id):
                 arg.pos.comptime_error(scope, 'cannot pass values to reference types')
@@ -992,37 +1006,43 @@ Arg Object Type = {', '.join(t.object_type(scope) for t in arg_types)}""")
             args
         )
     
-    @staticmethod
-    def index_param_name(params: list[Param], name: str):
+    def index_param_name(self, params: list[Param], name: str):
         for i, param in enumerate(params):
             if param.name == name:
                 return i
     
-    @staticmethod
-    def build_args(args: list[Node], params: list[Param]):
+    def build_args(self, scope: Scope, args: list[Arg], params: list[Param]):
         if len(params) == 0:
             return args
 
-        temp_args: list[Node | None] = [None] * len(params)
+        new_args: list[Arg | None] = [None] * len(params)
         for i, arg in enumerate(args):
-            temp_args[i] = arg
+            if arg.label is not None:
+                param_index = self.index_param_name(params, arg.label)
+                if param_index is None:
+                    self.pos.comptime_error(
+                        scope, f'unknown parameter name in argument label \'{arg.label}\''
+                    )
+                
+                new_args[param_index] = arg
+            else:
+                new_args[i] = arg
         
         for i, param in enumerate(params):
-            if temp_args[i] is not None:
+            if new_args[i] is not None:
                 continue
             
             if param.default is None:
-                return None
+                return None # missing non-optional parameter
 
-            temp_args[i] = param.default
+            new_args[i] = Arg(self.pos, param.type, param.default)
         
-        if any(arg is None for arg in temp_args):
+        if any(arg is None for arg in new_args):
             return None
         
-        return temp_args
+        return new_args
     
-    @staticmethod
-    def check_params(param_types: list[Type], arg_types: list[Type],
+    def check_params(self, param_types: list[Type], arg_types: list[Type],
                      generic_names: list[str] | None = None):
         if generic_names is None:
             generic_names = []
