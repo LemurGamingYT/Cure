@@ -408,8 +408,8 @@ class Param(Node):
     def codegen(self, scope):
         # default parameters are handled in function calls
         typ = self.type.codegen(scope)
-        if self.default is not None:
-            return f'{typ} {self.name} /* = {self.default.codegen(scope)} */'
+        # if self.default is not None:
+        #     return f'{typ} {self.name} /* = {self.default.codegen(scope)} */'
         
         return f'{typ} {self.name}'
     
@@ -965,19 +965,23 @@ class Call(Node):
         info(f'Calling function {symbol.name} with {len(args)} arguments')
 
         functions = [func] + func.overloads
-        functions_str = ', '.join(func.name for func in functions)
-        debug(f'Possible functions = [{functions_str}]')
+        functions_str = ', '.join(
+            '(' + ', '.join(str(param.type) for param in func.params) + ')'
+            for func in functions
+        )
+        debug(f'Possible function signatures = [{functions_str}]')
 
         call_func = None
         for func in functions:
-            func_args = self.build_args(scope, args, func.params)
+            func_args = self.build_args(args, func.params)
             if func_args is None:
                 continue
 
-            if not self.check_params(
+            are_params_valid = self.check_params(
                 [param.type for param in func.params], [arg.type for arg in func_args],
                 func.generic_names
-            ):
+            )
+            if not are_params_valid:
                 continue
             
             if call_func is not None:
@@ -1011,22 +1015,31 @@ Arg Object Type = {', '.join(t.object_type(scope) for t in arg_types)}""")
             if param.name == name:
                 return i
     
-    def build_args(self, scope: Scope, args: list[Arg], params: list[Param]):
-        if len(params) == 0:
+    def build_args(self, args: list[Arg], params: list[Param]):
+        # no ideas why these two if statements break everything if you remove them
+        if len(params) == 0 and len(args) > 0:
+            return None
+        elif len(params) == 0:
             return args
 
+        debug(f'Building arguments with {len(params)} parameters')
         new_args: list[Arg | None] = [None] * len(params)
         for i, arg in enumerate(args):
             if arg.label is not None:
+                debug(f'Argument {i} has label \'{arg.label}\'')
                 param_index = self.index_param_name(params, arg.label)
                 if param_index is None:
-                    self.pos.comptime_error(
-                        scope, f'unknown parameter name in argument label \'{arg.label}\''
-                    )
+                    return None
                 
+                debug(f'Found parameter at index {param_index}')
                 new_args[param_index] = arg
             else:
-                new_args[i] = arg
+                debug(f'Argument {i} has no label, assuming positional argument')
+                try:
+                    new_args[i] = arg
+                except IndexError:
+                    debug(f'Argument {i} is out of range')
+                    return None
         
         for i, param in enumerate(params):
             if new_args[i] is not None:
@@ -1035,6 +1048,7 @@ Arg Object Type = {', '.join(t.object_type(scope) for t in arg_types)}""")
             if param.default is None:
                 return None # missing non-optional parameter
 
+            debug(f'Parameter {i} has no argument, using default value')
             new_args[i] = Arg(self.pos, param.type, param.default)
         
         if any(arg is None for arg in new_args):
@@ -1086,7 +1100,7 @@ Callee Symbol = {symbol}""")
         
         return Call(
             self.pos, self.type, Id(self.pos, scope.type_map.get('function'), callee),
-            [object]
+            [Arg(object.pos, object.type, object)]
         ).analyse(scope)
 
 @dataclass(unsafe_hash=True)
@@ -1115,7 +1129,7 @@ Left Object Type = {left.type.object_type(scope)}""")
             right = None
             callee = f'{op_name}_{left.type.object_type(scope)}'
             error_message = f'cannot perform operation \'{self.op}\' on type \'{left.type}\''
-            args = [left]
+            args = [Arg(left.pos, left.type, left)]
         else:
             right = self.right.analyse(scope)
             debug(f"""Right Type Display = {right.type}
@@ -1126,7 +1140,7 @@ Right Object Type = {right.type.object_type(scope)}
             callee = f'{left.type.object_type(scope)}_{op_name}_{right.type.object_type(scope)}'
             error_message = f'cannot perform operation \'{self.op}\' on type \'{left.type}\' and '\
                 f'\'{right.type}\''
-            args = [left, right]
+            args = [Arg(left.pos, left.type, left), Arg(right.pos, right.type, right)]
         
         symbol = scope.symbol_table.get(callee)
         debug(f"""Callee = {callee}
@@ -1193,7 +1207,10 @@ class Attribute(Node):
     
     def analyse(self, scope):
         object = self.object.analyse(scope)
-        args = [object] + ([arg.analyse(scope) for arg in self.args] if self.args else [])
+        args = [Arg(object.pos, object.type, object)] + (
+            [arg.analyse(scope) for arg in self.args]
+            if self.args else []
+        )
         callee = f'{object.type.object_type(scope)}_{self.attr}'
         symbol = scope.symbol_table.get(callee)
 

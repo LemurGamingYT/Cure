@@ -83,8 +83,8 @@ extern internal class Vector2 {
 }
 
 extern internal class Vector3 {
-    extern static method fn new(float x, float y) -> self
-    extern static method fn new(int x, int y) -> self
+    extern static method fn new(float x, float y, float z) -> self
+    extern static method fn new(int x, int y, int z) -> self
     extern method fn distance(self other) -> int
     extern method fn distance_squared(self other) -> int
 
