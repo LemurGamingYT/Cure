@@ -95,7 +95,7 @@ class IRBuilder(CureVisitor):
     def visitParam(self, ctx):
         return Param(
             self.pos(ctx), self.visitType(ctx.type_()), ctx.ID().getText(),
-            ctx.MUTABLE() is not None
+            ctx.MUTABLE() is not None, self.visit(ctx.expr()) if ctx.expr() is not None else None
         )
     
     def visitGenericParams(self, ctx):

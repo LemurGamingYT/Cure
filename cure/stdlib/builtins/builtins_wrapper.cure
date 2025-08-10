@@ -17,9 +17,9 @@ extern internal class string {
     extern property fn is_whitespace() -> bool
     extern property fn reversed() -> string
 
-    extern internal fn +(self a, self b) -> self
-    extern internal fn ==(self a, self b) -> bool
-    extern internal fn !=(self a, self b) -> bool
+    extern fn +(self a, self b) -> self
+    extern fn ==(self a, self b) -> bool
+    extern fn !=(self a, self b) -> bool
 }
 
 extern internal class StringBuilder {
@@ -29,8 +29,8 @@ extern internal class StringBuilder {
 
     extern property fn str() -> string
 
-    extern internal fn ==(self a, self b) -> bool
-    extern internal fn !=(self a, self b) -> bool
+    extern fn ==(self a, self b) -> bool
+    extern fn !=(self a, self b) -> bool
 }
 
 extern internal class array<T> {
@@ -57,9 +57,49 @@ extern internal class array<T> {
     extern property fn reversed() -> self
     extern property fn sorted() -> self
 
-    extern internal fn +(self a, self b) -> self
-    extern internal fn ==(self a, self b) -> bool
-    extern internal fn !=(self a, self b) -> bool
+    extern fn +(self a, self b) -> self
+    extern fn ==(self a, self b) -> bool
+    extern fn !=(self a, self b) -> bool
+}
+
+extern internal class Vector2 {
+    extern static method fn new(float x, float y) -> self
+    extern static method fn new(int x, int y) -> self
+    extern method fn distance(self other) -> int
+    extern method fn distance_squared(self other) -> int
+    
+    extern property fn x() -> float
+    extern property fn y() -> float
+    extern property fn length() -> int
+    extern property fn length_squared() -> int
+    extern property fn normalized() -> self
+
+    extern fn +(self a, self b) -> self
+    extern fn -(self a, self b) -> self
+    extern fn *(self a, self b) -> self
+    extern fn /(self a, self b) -> self
+    extern fn ==(self a, self b) -> bool
+    extern fn !=(self a, self b) -> bool
+}
+
+extern internal class Vector3 {
+    extern static method fn new(float x, float y) -> self
+    extern static method fn new(int x, int y) -> self
+    extern method fn distance(self other) -> int
+    extern method fn distance_squared(self other) -> int
+
+    extern property fn x() -> float
+    extern property fn y() -> float
+    extern property fn length() -> int
+    extern property fn length_squared() -> int
+    extern property fn normalized() -> self
+
+    extern fn +(self a, self b) -> self
+    extern fn -(self a, self b) -> self
+    extern fn *(self a, self b) -> self
+    extern fn /(self a, self b) -> self
+    extern fn ==(self a, self b) -> bool
+    extern fn !=(self a, self b) -> bool
 }
 
 extern method fn to_string(int i) -> string
@@ -68,6 +108,8 @@ extern method fn to_string(string s) -> string
 extern method fn to_string(bool b) -> string
 extern method fn to_string(nil n) -> string
 extern method fn to_string(StringBuilder sb) -> string
+// TODO extern method fn to_string<T>(array<T> arr) -> string
+extern method fn to_string(Vector2 vec) -> string
 
 extern static property fn int.max() -> int
 extern static property fn int.min() -> int

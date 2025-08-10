@@ -54,7 +54,7 @@ varAssign
 arg: expr;
 args: arg (COMMA arg)*;
 
-param: MUTABLE? type ID;
+param: MUTABLE? type ID (ASSIGN expr)?;
 params: param (COMMA param)*;
 
 genericParam: ID;

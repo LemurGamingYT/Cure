@@ -27,31 +27,41 @@ public:
     int width() const { return _width; }
     int height() const { return _height; }
 
-    nil line(int x1, int y1, int x2, int y2, const Color& color) {
-        SDL_SetRenderDrawColor(renderer, color.r(), color.g(), color.b(), 255);
-        if (!SDL_RenderLine(renderer, x1, y1, x2, y2))
+    nil line(const Vector2& start, const Vector2& end, const Color& color) {
+        if (!SDL_SetRenderDrawColor(renderer, color.r(), color.g(), color.b(), 255))
+            error("graphics.Window.line failed: %s", SDL_GetError());
+
+        if (!SDL_RenderLine(renderer, start.x(), start.y(), end.x(), end.y()))
             error("graphics.Window.line failed: %s", SDL_GetError());
         
         return nil();
     }
 
     nil set_title(const string& title) {
-        SDL_SetWindowTitle(window, title.c_str());
+        if (!SDL_SetWindowTitle(window, title.c_str()))
+            error("graphics.Window.set_title failed: %s", SDL_GetError());
+        
         return nil();
     }
 
     nil set_width(int width) {
-        SDL_SetWindowSize(window, width, height());
+        if (!SDL_SetWindowSize(window, width, height()))
+            error("graphics.Window.set_width failed: %s", SDL_GetError());
+        
         return nil();
     }
 
     nil set_height(int height) {
-        SDL_SetWindowSize(window, width(), height);
+        if (!SDL_SetWindowSize(window, width(), height))
+            error("graphics.Window.set_height failed: %s", SDL_GetError());
+        
         return nil();
     }
 
     nil set_size(int width, int height) {
-        SDL_SetWindowSize(window, width, height);
+        if (!SDL_SetWindowSize(window, width, height))
+            error("graphics.Window.set_size failed: %s", SDL_GetError());
+        
         return nil();
     }
 };

@@ -301,8 +301,36 @@ public:
     }
 };
 
+class Vector2 {
+    float _x, _y;
+public:
+    Vector2(float x, float y) : _x(x), _y(y) {}
 
-void error(const string& s, ...) {
+    float x() const { return _x; }
+    float y() const { return _y; }
+
+    int length() const { return std::sqrt(_x * _x + _y * _y); }
+    int length_squared() const { return _x * _x + _y * _y; }
+    Vector2 normalized() const { return Vector2(_x / length(), _y / length()); }
+    int distance(const Vector2& other) const {
+        return std::sqrt((_x - other.x()) * (_x - other.x()) + (_y - other.y()) * (_y - other.y()));
+    }
+
+    int distance_squared(const Vector2& other) const {
+        return (_x - other.x()) * (_x - other.x()) + (_y - other.y()) * (_y - other.y());
+    }
+
+    Vector2 operator+(const Vector2& other) const { return Vector2(_x + other.x(), _y + other.y()); }
+    Vector2 operator-(const Vector2& other) const { return Vector2(_x - other.x(), _y - other.y()); }
+    Vector2 operator*(const Vector2& other) const { return Vector2(_x * other.x(), _y * other.y()); }
+    Vector2 operator/(const Vector2& other) const { return Vector2(_x / other.x(), _y / other.y()); }
+
+    bool operator==(const Vector2& other) const { return _x == other.x() && _y == other.y(); }
+    bool operator!=(const Vector2& other) const { return _x != other.x() || _y != other.y(); }
+};
+
+
+void error(const string s, ...) {
     va_list args;
     va_start(args, s);
     
@@ -321,6 +349,9 @@ string to_string(const string& s) { return s; }
 string to_string(bool b) { return b ? "true" : "false"; }
 string to_string(nil _) { return (string)"nil"; }
 string to_string(const StringBuilder& sb) { return sb.ss.str(); }
+string to_string(const Vector2& v) {
+    return "Vector2(x=" + to_string(v.x()) + ", y=" + to_string(v.y()) + ")";
+}
 
 template<typename T>
 string to_string(const array<T>& arr) {

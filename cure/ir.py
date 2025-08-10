@@ -210,7 +210,7 @@ class Scope:
         return cast(Class, symbol.value).define(self, generic_types)
 
 
-@dataclass
+@dataclass(unsafe_hash=True)
 class Node(ABC):
     pos: Position = field(compare=False, repr=False, hash=False)
     type: 'Type'
@@ -236,7 +236,7 @@ class Node(ABC):
     def analyse(self, scope: Scope) -> 'Node':
         return self
 
-@dataclass
+@dataclass(unsafe_hash=True)
 class Program(Node):
     nodes: list[Node] = field(default_factory=list)
 
@@ -255,7 +255,7 @@ class Program(Node):
     def analyse(self, scope):
         return Program(self.pos, self.type.analyse(scope), [node.analyse(scope) for node in self.nodes])
 
-@dataclass
+@dataclass(unsafe_hash=True)
 class Type(Node):
     type: str # type: ignore
 
@@ -278,11 +278,11 @@ in the symbol table. Defaults to the C++ type name (by calling `.codegen`)."""
         
         return typ
 
-@dataclass
+@dataclass(unsafe_hash=True)
 class PrimitiveType(Type):
     pass
 
-@dataclass
+@dataclass(unsafe_hash=True)
 class ArrayType(Type):
     element_type: Type
 
@@ -294,7 +294,7 @@ class ArrayType(Type):
         array_cls = scope.define_class(self.pos, 'array', [elem_type])
         return array_cls.type
 
-@dataclass
+@dataclass(unsafe_hash=True)
 class ClassType(Type):
     generic_types: list[Type] = field(default_factory=list)
 
@@ -308,7 +308,7 @@ class ClassType(Type):
     def analyse(self, scope):
         return ClassType(self.pos, self.type, [typ.analyse(scope) for typ in self.generic_types])
 
-@dataclass
+@dataclass(unsafe_hash=True)
 class ReferenceType(Type):
     type: str # type: ignore
     inner: Type
@@ -331,7 +331,7 @@ class ReferenceType(Type):
             self.inner.analyse(scope)
         )
 
-@dataclass
+@dataclass(unsafe_hash=True)
 class FunctionType(Type):
     return_type: Type
     param_types: list[Type] = field(default_factory=list)
@@ -362,7 +362,7 @@ class FunctionType(Type):
         return_type = self.return_type.analyse(scope)
         return FunctionType.new(self.pos, return_type, param_types)
 
-@dataclass
+@dataclass(unsafe_hash=True)
 class GenericType(Type):
     real_type: Type | None = None
 
@@ -387,7 +387,7 @@ class GenericType(Type):
             self.real_type.analyse(scope) if self.real_type is not None else None
         )
 
-@dataclass
+@dataclass(unsafe_hash=True)
 class Param(Node):
     name: str
     is_mutable: bool = False
@@ -406,7 +406,7 @@ class Param(Node):
             self.default.analyse(scope) if self.default is not None else None
         )
 
-@dataclass
+@dataclass(unsafe_hash=True)
 class Body(Node):
     nodes: list[Node] = field(default_factory=list)
 
@@ -425,7 +425,7 @@ class Body(Node):
         
         return Body(self.pos, self.type.analyse(scope), nodes)
 
-@dataclass
+@dataclass(unsafe_hash=True)
 class Return(Node):
     value: Node
 
@@ -436,7 +436,7 @@ class Return(Node):
         value = self.value.analyse(scope)
         return Return(self.pos, value.type, value)
 
-@dataclass(kw_only=True)
+@dataclass(kw_only=True, unsafe_hash=True)
 class FunctionFlags:
     static: bool = False
     property: bool = False
@@ -444,7 +444,7 @@ class FunctionFlags:
     public: bool = False
     internal: bool = False
 
-@dataclass
+@dataclass(unsafe_hash=True)
 class Function(Node):
     name: str
     ret_type: Type
@@ -529,7 +529,7 @@ class Function(Node):
         
         return func
 
-@dataclass
+@dataclass(unsafe_hash=True)
 class Variable(Node):
     name: str
     value: Node
@@ -553,7 +553,7 @@ class Variable(Node):
         scope.symbol_table.add(Symbol(name, value.type, value, self.is_mutable), self.name)
         return Variable(self.pos, value.type, name, value, self.is_mutable, self.op)
 
-@dataclass
+@dataclass(unsafe_hash=True)
 class Assignment(Node):
     name: str
     value: Node
@@ -576,7 +576,7 @@ class Assignment(Node):
 
         return Assignment(self.pos, value.type, symbol.name, value, self.op)
 
-@dataclass
+@dataclass(unsafe_hash=True)
 class Class(Node):
     name: str
     members: list[Node] = field(default_factory=list)
@@ -723,7 +723,7 @@ class Class(Node):
         
         return Class(self.pos, cls_type, self.name, members, self.generic_names, self.is_internal)
 
-@dataclass
+@dataclass(unsafe_hash=True)
 class Elseif(Node):
     cond: Node
     body: Body
@@ -737,7 +737,7 @@ class Elseif(Node):
         body_scope = scope.make_child()
         return Elseif(self.pos, self.type, self.cond.analyse(scope), self.body.analyse(body_scope))
 
-@dataclass
+@dataclass(unsafe_hash=True)
 class If(Node):
     cond: Node
     body: Body
@@ -766,7 +766,7 @@ class If(Node):
             [elseif.analyse(scope) for elseif in self.elseifs]
         )
 
-@dataclass
+@dataclass(unsafe_hash=True)
 class While(Node):
     cond: Node
     body: Body
@@ -785,7 +785,7 @@ class While(Node):
         body_scope.in_loop = True
         return While(self.pos, self.type.analyse(scope), cond, self.body.analyse(body_scope))
 
-@dataclass
+@dataclass(unsafe_hash=True)
 class Break(Node):
     def codegen(self, _):
         return 'break'
@@ -796,7 +796,7 @@ class Break(Node):
         
         return self
 
-@dataclass
+@dataclass(unsafe_hash=True)
 class Continue(Node):
     def codegen(self, _):
         return 'continue'
@@ -807,7 +807,7 @@ class Continue(Node):
         
         return self
 
-@dataclass
+@dataclass(unsafe_hash=True)
 class Use(Node):
     path: str
 
@@ -818,7 +818,7 @@ class Use(Node):
         scope.use(self.pos, self.path)
         return self
 
-@dataclass
+@dataclass(unsafe_hash=True)
 class Int(Node):
     value: int
 
@@ -828,7 +828,7 @@ class Int(Node):
     def analyse(self, scope):
         return Int(self.pos, self.type.analyse(scope), self.value)
 
-@dataclass
+@dataclass(unsafe_hash=True)
 class Float(Node):
     value: float
 
@@ -838,7 +838,7 @@ class Float(Node):
     def analyse(self, scope):
         return Float(self.pos, self.type.analyse(scope), self.value)
 
-@dataclass
+@dataclass(unsafe_hash=True)
 class String(Node):
     value: str
 
@@ -849,7 +849,7 @@ class String(Node):
         return String(self.pos, self.type.analyse(scope), self.value)
 
 # TODO: add support for String interpolation
-@dataclass
+@dataclass(unsafe_hash=True)
 class FormattedString(Node):
     value: str
 
@@ -882,7 +882,7 @@ class FormattedString(Node):
             program = parse(scope)
             return program.analyse(scope).nodes
 
-@dataclass
+@dataclass(unsafe_hash=True)
 class Bool(Node):
     value: bool
 
@@ -892,7 +892,7 @@ class Bool(Node):
     def analyse(self, scope):
         return Bool(self.pos, self.type.analyse(scope), self.value)
 
-@dataclass
+@dataclass(unsafe_hash=True)
 class Nil(Node):
     def codegen(self, _):
         return 'nil()'
@@ -900,7 +900,7 @@ class Nil(Node):
     def analyse(self, scope):
         return Nil(self.pos, self.type.analyse(scope))
 
-@dataclass
+@dataclass(unsafe_hash=True)
 class Id(Node):
     name: str
 
@@ -918,7 +918,7 @@ class Id(Node):
         
         return Id(self.pos, symbol.type, symbol.name)
 
-@dataclass
+@dataclass(unsafe_hash=True)
 class Call(Node):
     callee: Id
     args: list[Node] = field(default_factory=list)
@@ -957,8 +957,12 @@ class Call(Node):
 
         call_func = None
         for func in functions:
+            _args = self.build_args(args, func.params)
+            if _args is None:
+                continue
+
             if not self.check_params(
-                [param.type for param in func.params], [arg.type for arg in args],
+                [param.type for param in func.params], [arg.type for arg in _args],
                 func.generic_names
             ):
                 continue
@@ -989,11 +993,37 @@ Arg Object Type = {', '.join(t.object_type(scope) for t in arg_types)}""")
         )
     
     @staticmethod
+    def index_param_name(params: list[Param], name: str):
+        for i, param in enumerate(params):
+            if param.name == name:
+                return i
+    
+    @staticmethod
+    def build_args(args: list[Node], params: list[Param]):
+        if len(params) == 0:
+            return args
+
+        temp_args: list[Node | None] = [None] * len(params)
+        for i, arg in enumerate(args):
+            temp_args[i] = arg
+        
+        for i, param in enumerate(params):
+            if temp_args[i] is not None:
+                continue
+            
+            if param.default is None:
+                return None
+
+            temp_args[i] = param.default
+        
+        if any(arg is None for arg in temp_args):
+            return None
+        
+        return temp_args
+    
+    @staticmethod
     def check_params(param_types: list[Type], arg_types: list[Type],
                      generic_names: list[str] | None = None):
-        if len(param_types) != len(arg_types):
-            return False
-        
         if generic_names is None:
             generic_names = []
         
@@ -1008,7 +1038,7 @@ Arg Type = {arg_type!r}""")
         
         return True
 
-@dataclass
+@dataclass(unsafe_hash=True)
 class Cast(Node):
     object: Node
 
@@ -1039,7 +1069,7 @@ Callee Symbol = {symbol}""")
             [object]
         ).analyse(scope)
 
-@dataclass
+@dataclass(unsafe_hash=True)
 class Operation(Node):
     op: str
     left: Node
@@ -1095,7 +1125,7 @@ Callee Symbol = {symbol}""")
             self.pos, self.type, Id(self.pos, scope.type_map.get('function'), callee), args
         ).analyse(scope)
 
-@dataclass
+@dataclass(unsafe_hash=True)
 class Ternary(Node):
     cond: Node
     true: Node
@@ -1116,7 +1146,7 @@ class Ternary(Node):
 
         return Ternary(self.pos, self.type.analyse(scope), cond, true, false)
 
-@dataclass
+@dataclass(unsafe_hash=True)
 class Bracketed(Node):
     value: Node
 
@@ -1127,7 +1157,7 @@ class Bracketed(Node):
         value = self.value.analyse(scope)
         return Bracketed(self.pos, value.type, value)
 
-@dataclass
+@dataclass(unsafe_hash=True)
 class Attribute(Node):
     object: Node
     attr: str
@@ -1190,7 +1220,7 @@ Symbol = {symbol}""")
         # e.g. string length in C++ returns size_type but should return an int
         return Cast(self.pos, res.type, attr)
 
-@dataclass
+@dataclass(unsafe_hash=True)
 class New(Node):
     new_type: Type
     args: list[Node] = field(default_factory=list)
@@ -1205,7 +1235,7 @@ class New(Node):
             self.pos, new_type, Id(self.pos, new_type, str(new_type)), 'new', self.args
         ).analyse(scope)
 
-@dataclass
+@dataclass(unsafe_hash=True)
 class NewArray(Node):
     element_type: Type
     size: Node | None = None
@@ -1218,7 +1248,7 @@ class NewArray(Node):
         array_cls = scope.define_class(self.pos, 'array', [typ])
         return NewArray(self.pos, array_cls.type, typ, self.size)
 
-@dataclass
+@dataclass(unsafe_hash=True)
 class ArrayInit(Node):
     elements: list[Node] = field(default_factory=list)
 
@@ -1241,7 +1271,7 @@ class ArrayInit(Node):
         array_cls = scope.define_class(self.pos, 'array', [elem_type])
         return ArrayInit(self.pos, array_cls.type, elements)
 
-@dataclass
+@dataclass(unsafe_hash=True)
 class ForRange(Node):
     name: str
     start: Node

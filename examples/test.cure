@@ -1,3 +1,9 @@
+fn test(int a, int b = 2) {
+    print(a)
+    print(b)
+}
+
 fn main() -> int {
+    test(1, 5)
     return 0
 }
