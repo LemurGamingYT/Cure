@@ -43,14 +43,17 @@ def compile_to_exe(scope: Scope):
     main_file.write_text(code)
     debug(f'main.cpp = {main_file}')
 
-    code_files = [f' {file.as_posix()}' for file in scope.dependencies if file.suffix == '.cpp']
+    code_files = ' '.join([main_file.as_posix()] + [
+        file.as_posix() for file in scope.dependencies
+        if file.suffix == '.cpp'
+    ])
 
-    cmakelists = build_dir / 'CMakeLists.txt'
-    cmakelists.write_text(f"""cmake_minimum_required(VERSION 3.10)
+    cmake_code = f"""cmake_minimum_required(VERSION 3.10)
 project({cmake_name} LANGUAGES CXX)
+# set(CMAKE_MESSAGE_LOG_LEVEL "WARNING")
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_BUILD_TYPE "{build_type}")
-set(SOURCES {main_file.as_posix()}{''.join(code_files)})
+set(SOURCES {code_files})
 
 add_executable({cmake_name} ${{SOURCES}})
 
@@ -63,7 +66,30 @@ else()
 endif()
 
 add_definitions(-D{scope.target.macro_name}=1)
-""")
+"""
+    
+    for dep in scope.dependencies:
+        if dep.name != 'packages.txt':
+            continue
+
+        packages = [line.strip() for line in dep.read_text().splitlines()]
+        for package_name in packages:
+            cmake_code += f"""
+find_package({package_name} REQUIRED)
+include_directories(${{{package_name.upper()}_INCLUDE_DIRS}})
+target_link_libraries({cmake_name} PRIVATE ${{{package_name.upper()}_LIBRARIES}})
+"""
+
+    libs = [dep for dep in scope.dependencies if dep.is_dir()]
+    for lib in libs:
+        cmake_code += f"""
+add_subdirectory({lib.as_posix()} ${{CMAKE_CURRENT_BINARY_DIR}}/{lib.name})
+target_link_libraries({cmake_name} PRIVATE {lib.name})
+target_include_directories({cmake_name} PRIVATE {lib.as_posix()}/include)
+"""
+
+    cmakelists = build_dir / 'CMakeLists.txt'
+    cmakelists.write_text(cmake_code)
     
     kwargs = {'-S': cmakelists.parent.as_posix()}
     ret_code = compile_cmake(build_dir, **kwargs)

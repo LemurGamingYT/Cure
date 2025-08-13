@@ -1,26 +1,3 @@
-extern internal class string {
-    extern method fn get(int index) -> self
-    extern method fn set(int index, self s)
-    extern method fn contains(self substring) -> bool
-    extern method fn startswith(self prefix) -> bool
-    extern method fn endswith(self suffix) -> bool
-    extern method fn index_of(self substring) -> int
-    extern method fn repeat(int times) -> string
-
-    extern property fn length() -> int
-    extern property fn lowercase() -> string
-    extern property fn uppercase() -> string
-    extern property fn is_alpha() -> bool
-    extern property fn is_empty() -> bool
-    extern property fn is_digit() -> bool
-    extern property fn is_alphanumeric() -> bool
-    extern property fn is_whitespace() -> bool
-    extern property fn reversed() -> string
-
-    extern fn +(self a, self b) -> self
-    extern fn ==(self a, self b) -> bool
-    extern fn !=(self a, self b) -> bool
-}
 
 extern internal class StringBuilder {
     extern static method fn new() -> self
@@ -56,6 +33,31 @@ extern internal class array<T> {
     extern property fn is_empty() -> bool
     extern property fn reversed() -> self
     extern property fn sorted() -> self
+
+    extern fn +(self a, self b) -> self
+    extern fn ==(self a, self b) -> bool
+    extern fn !=(self a, self b) -> bool
+}
+
+extern internal class string {
+    extern method fn get(int index) -> self
+    extern method fn set(int index, self s)
+    extern method fn contains(self substring) -> bool
+    extern method fn startswith(self prefix) -> bool
+    extern method fn endswith(self suffix) -> bool
+    extern method fn index_of(self substring) -> int
+    extern method fn repeat(int times) -> string
+    extern method fn join(string[] strings) -> string
+
+    extern property fn length() -> int
+    extern property fn lowercase() -> string
+    extern property fn uppercase() -> string
+    extern property fn is_alpha() -> bool
+    extern property fn is_empty() -> bool
+    extern property fn is_digit() -> bool
+    extern property fn is_alphanumeric() -> bool
+    extern property fn is_whitespace() -> bool
+    extern property fn reversed() -> string
 
     extern fn +(self a, self b) -> self
     extern fn ==(self a, self b) -> bool

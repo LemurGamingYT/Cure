@@ -133,6 +133,8 @@ class Scope:
 
             self.symbol_table = self.parent.symbol_table.clone()
             self.type_map = self.parent.type_map.clone()
+
+            self.in_loop = self.parent.in_loop
         else:
             self._unique_name_idx = -1
             
@@ -172,6 +174,14 @@ class Scope:
         for cure in stdlib_path.glob('*.cure'):
             debug(f'Found cure file {cure}')
             self.use_local(cure)
+        
+        if (packages := stdlib_path / 'packages.txt').exists():
+            self.dependencies.append(packages)
+        
+        if (libs := stdlib_path / 'libs').exists():
+            for lib in libs.iterdir():
+                debug(f'Found C++ library folder {lib}')
+                self.dependencies.append(lib)
     
     def use_local(self, file: Path):
         from cure import compile_to_str

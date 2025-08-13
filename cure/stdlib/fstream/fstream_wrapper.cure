@@ -1,8 +1,25 @@
 extern internal class File {
     extern static method fn new(string filename) -> self
+    extern method fn write(string content)
+    extern method fn create()
+    extern method fn mkdir()
+    extern method fn remove()
+    extern method fn rmdir()
+    extern method fn rename(string new_path)
+    extern method fn rename(self new_path)
+    extern method fn relative_to(string path) -> self
+    extern method fn relative_to(self path) -> self
+
     extern property fn contents() -> string
     extern property fn exists() -> bool
-    extern method fn write(string content)
+    extern property fn extension() -> string
+    extern property fn name() -> string
+    extern property fn stem() -> string
+    extern property fn size() -> int
+    extern property fn absolute() -> self
+    extern property fn is_file() -> bool
+    extern property fn is_dir() -> bool
+    extern property fn is_link() -> bool
 }
 
 extern method fn to_string(File file) -> string

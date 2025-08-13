@@ -32,8 +32,160 @@ void error(const char* s, ...) {
 }
 
 
+template<typename T>
+class array : public std::vector<T> {
+    public:
+    array(std::initializer_list<T> init) : std::vector<T>(init) {}
+    array() : std::vector<T>() {}
+    
+    nil add(T item) {
+        this->push_back(item);
+        return nil();
+    }
+    
+    nil add_all(array<T> items) {
+        this->insert(this->end(), items.begin(), items.end());
+        return nil();
+    }
+    
+    int remove_first(T value) {
+        auto it = std::find(this->begin(), this->end(), value);
+        if (it == this->end())
+        return -1;
+        
+        this->erase(it);
+        return it - this->begin();
+    }
+    
+    array<int> remove_all(T value) {
+        array<int> indexes;
+        auto it = std::find(this->begin(), this->end(), value);
+        while (it != this->end()) {
+            indexes.add(it - this->begin());
+            this->erase(it);
+            it = std::find(this->begin(), this->end(), value);
+        }
+
+        return indexes;
+    }
+    
+    T remove_at(int index) {
+        if (index < 0)
+            index = length() + index;
+            
+            if (index >= length())
+            error("array index out of range");
+            
+            T item = (*this)[index];
+            this->erase(this->begin() + index);
+            return item;
+        }
+        
+        T get(int index) const {
+            if (index < 0)
+            index = length() + index;
+            
+            if (index >= length())
+            error("index out of range");
+            
+            return (*this)[index];
+        }
+    
+        nil set(int index, T item) {
+            if (index < 0)
+            index = length() + index;
+            
+            if (index >= length())
+            error("array index out of range");
+            
+            (*this)[index] = item;
+            return nil();
+        }
+        
+        bool contains(T item) const {
+            return std::find(this->begin(), this->end(), item) != this->end();
+        }
+        
+        int index_of(T item) const {
+            auto it = std::find(this->begin(), this->end(), item);
+            if (it == this->end())
+            return -1;
+        
+            return it - this->begin();
+        }
+
+        nil clear() const {
+            this->clear();
+            return nil();
+        }
+        
+        nil reserve(int size) const {
+            this->reserve(size);
+            return nil();
+        }
+        
+        nil reverse() const {
+            std::reverse(this->begin(), this->end());
+        return nil();
+    }
+
+    nil sort() const {
+        std::sort(this->begin(), this->end());
+        return nil();
+    }
+    
+    array<T> map(std::function<T(T)> func) const {
+        array<T> result;
+        result.insert(result.end(), this->begin(), this->end());
+        std::transform(result.begin(), result.end(), result.begin(), func);
+        return result;
+    }
+
+    array<T> filter(std::function<bool(T)> func) const {
+        array<T> result;
+        std::copy_if(this->begin(), this->end(), std::back_inserter(result), func);
+        return result;
+    }
+    
+    
+    int length() const { return this->size(); }
+    bool is_empty() const { return length() == 0; }
+    array<T> reversed() const {
+        array<T> result;
+        result.insert(result.end(), this->rbegin(), this->rend());
+        return result;
+    }
+    
+    array<T> sorted() const {
+        array<T> result;
+        result.insert(result.end(), this->begin(), this->end());
+        std::sort(result.begin(), result.end());
+        return result;
+    }
+
+    
+    array<T> operator+(const array<T>& other) const {
+        array<T> result;
+        result.insert(result.end(), this->begin(), this->end());
+        result.insert(result.end(), other.begin(), other.end());
+        return result;
+    }
+    
+    bool operator==(const array<T>& other) const {
+        return this->size() == other.size() && std::equal(
+            this->begin(), this->end(), other.begin()
+        );
+    }
+    
+    bool operator!=(const array<T>& other) const {
+        return this->size() != other.size() || !std::equal(
+            this->begin(), this->end(), other.begin()
+        );
+    }
+};
+
 class string : public std::string {
-public:
+    public:
     string(std::string s) : std::string(s) {}
     string(char c) : std::string(1, c) {}
     string(const char* s) : std::string(s) {}
@@ -84,7 +236,7 @@ public:
     }
 
     int index_of(const string& substring) const { return this->find(substring); }
-
+    
 
     string lowercase() const {
         std::string result;
@@ -97,43 +249,57 @@ public:
         std::transform(this->begin(), this->end(), result.begin(), ::toupper);
         return result;
     }
-
+    
     bool is_alpha() const {
         return std::all_of(this->begin(), this->end(), ::isalpha);
     }
-
+    
     bool is_empty() const {
         return length() == static_cast<size_t>(0);
     }
-
+    
     bool is_digit() const {
         return std::all_of(this->begin(), this->end(), ::isdigit);
     }
-
+    
     bool is_alphanumeric() const {
         return std::all_of(this->begin(), this->end(), ::isalnum);
     }
-
+    
     bool is_whitespace() const {
         return std::all_of(this->begin(), this->end(), ::isspace);
     }
-
+    
     string reversed() const {
         std::string result = *this;
         std::reverse(result.begin(), result.end());
         return result;
     }
-};
+    
+    string join(const array<string>& strings) const {
+        if (strings.is_empty()) return "";
 
+        string result;
+        result.reserve(strings.size() * (this->length() + 8));
+
+        result += strings[0];
+        for (size_t i = 1; i < static_cast<size_t>(strings.length()); ++i) {
+            result += *this;
+            result += strings[i];
+        }
+
+        return result;
+    }
+};
 
 class StringBuilder {
 public:
     std::stringstream ss;
-
+    
     StringBuilder() {}
-
+    
     string str() const { return string(ss.str()); }
-
+    
     template<typename T>
     nil add(const T& item) {
         ss << to_string(item);
@@ -149,163 +315,11 @@ public:
     bool operator!=(const StringBuilder& other) const { return str() != other.str(); }
 };
 
-template<typename T>
-class array : public std::vector<T> {
-public:
-    array(std::initializer_list<T> init) : std::vector<T>(init) {}
-    array() : std::vector<T>() {}
-    
-    nil add(T item) {
-        this->push_back(item);
-        return nil();
-    }
-    
-    nil add_all(array<T> items) {
-        this->insert(this->end(), items.begin(), items.end());
-        return nil();
-    }
-    
-    int remove_first(T value) {
-        auto it = std::find(this->begin(), this->end(), value);
-        if (it == this->end())
-            return -1;
-        
-        this->erase(it);
-        return it - this->begin();
-    }
-
-    array<int> remove_all(T value) {
-        array<int> indexes;
-        auto it = std::find(this->begin(), this->end(), value);
-        while (it != this->end()) {
-            indexes.add(it - this->begin());
-            this->erase(it);
-            it = std::find(this->begin(), this->end(), value);
-        }
-
-        return indexes;
-    }
-    
-    T remove_at(int index) {
-        if (index < 0)
-            index = length() + index;
-        
-        if (index >= length())
-            error("array index out of range");
-        
-        T item = (*this)[index];
-        this->erase(this->begin() + index);
-        return item;
-    }
-    
-    T get(int index) const {
-        if (index < 0)
-            index = length() + index;
-        
-        if (index >= length())
-            error("index out of range");
-        
-        return (*this)[index];
-    }
-    
-    nil set(int index, T item) {
-        if (index < 0)
-            index = length() + index;
-        
-        if (index >= length())
-            error("array index out of range");
-        
-        (*this)[index] = item;
-        return nil();
-    }
-    
-    bool contains(T item) const {
-        return std::find(this->begin(), this->end(), item) != this->end();
-    }
-
-    int index_of(T item) const {
-        auto it = std::find(this->begin(), this->end(), item);
-        if (it == this->end())
-            return -1;
-        
-        return it - this->begin();
-    }
-
-    nil clear() const {
-        this->clear();
-        return nil();
-    }
-
-    nil reserve(int size) const {
-        this->reserve(size);
-        return nil();
-    }
-
-    nil reverse() const {
-        std::reverse(this->begin(), this->end());
-        return nil();
-    }
-
-    nil sort() const {
-        std::sort(this->begin(), this->end());
-        return nil();
-    }
-
-    array<T> map(std::function<T(T)> func) const {
-        array<T> result;
-        result.insert(result.end(), this->begin(), this->end());
-        std::transform(result.begin(), result.end(), result.begin(), func);
-        return result;
-    }
-
-    array<T> filter(std::function<bool(T)> func) const {
-        array<T> result;
-        std::copy_if(this->begin(), this->end(), std::back_inserter(result), func);
-        return result;
-    }
-    
-    
-    int length() const { return this->size(); }
-    bool is_empty() const { return length() == 0; }
-    array<T> reversed() const {
-        array<T> result;
-        result.insert(result.end(), this->rbegin(), this->rend());
-        return result;
-    }
-
-    array<T> sorted() const {
-        array<T> result;
-        result.insert(result.end(), this->begin(), this->end());
-        std::sort(result.begin(), result.end());
-        return result;
-    }
-
-
-    array<T> operator+(const array<T>& other) const {
-        array<T> result;
-        result.insert(result.end(), this->begin(), this->end());
-        result.insert(result.end(), other.begin(), other.end());
-        return result;
-    }
-
-    bool operator==(const array<T>& other) const {
-        return this->size() == other.size() && std::equal(
-            this->begin(), this->end(), other.begin()
-        );
-    }
-
-    bool operator!=(const array<T>& other) const {
-        return this->size() != other.size() || !std::equal(
-            this->begin(), this->end(), other.begin()
-        );
-    }
-};
-
 class Vector2 {
     float _x, _y;
-public:
+    public:
     Vector2(float x, float y) : _x(x), _y(y) {}
-
+    
     float x() const { return _x; }
     float y() const { return _y; }
 

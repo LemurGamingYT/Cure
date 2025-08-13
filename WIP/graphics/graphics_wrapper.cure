@@ -1,0 +1,18 @@
+use "builtins"
+use "color"
+
+extern internal class Window {
+    extern static method fn new(string title, int width, int height) -> self
+    extern method fn update()
+    extern method fn set_bg(Color color)
+    extern method fn line(int x1, int y1, int x2, int y2, Color color)
+    extern method fn line(int x1, int y1, int x2, int y2)
+    extern method fn line(Vector2 start, Vector2 end, Color color)
+    extern method fn line(Vector2 start, Vector2 end)
+    extern method fn rect(int x, int y, int width, int height, Color color)
+
+    extern property fn is_running() -> bool
+    extern property fn title() -> string
+    extern property fn width() -> int
+    extern property fn height() -> int
+}

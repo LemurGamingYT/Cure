@@ -1,0 +1,16 @@
+use "fstream"
+
+
+fn main() -> int {
+    items = new string[]
+    todo_file = new File("todos.todo")
+    while true {
+        name = input("Enter TODO\n> ")
+        if name == "exit" { break }
+
+        items.add(name)
+    }
+
+    todo_file.write("\n".join(items))
+    return 0
+}

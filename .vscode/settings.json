@@ -72,6 +72,12 @@
         "thread": "cpp",
         "unordered_map": "cpp",
         "unordered_set": "cpp",
-        "xhash": "cpp"
+        "xhash": "cpp",
+        "array": "cpp",
+        "coroutine": "cpp",
+        "map": "cpp",
+        "source_location": "cpp",
+        "span": "cpp",
+        "xtree": "cpp"
     }
 }
