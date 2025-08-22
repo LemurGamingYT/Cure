@@ -31,6 +31,11 @@ op_map = {'+': 'add', '-': 'sub', '*': 'mul', '/': 'div', '%': 'mod', '==': 'eq'
           '<': 'lt', '>': 'gt', '<=': 'lte', '>=': 'gte', '&&': 'and', '||': 'or', '!': 'not'}
 
 @dataclass
+class Dependency:
+    path: Path
+    type: str
+
+@dataclass
 class Position:
     line: int
     column: int
@@ -116,7 +121,7 @@ class Scope:
     symbol_table: SymbolTable = field(default_factory=SymbolTable)
     type_map: TypeMap = field(default_factory=TypeMap)
     children: list['Scope'] = field(default_factory=list)
-    dependencies: list[Path] = field(default_factory=list)
+    dependencies: list[Dependency] = field(default_factory=list)
     prepended_nodes: list['Node'] = field(default_factory=list)
     target: Target = Target.get_current()
     in_loop: bool = False
@@ -149,6 +154,7 @@ class Scope:
 
             self.type_map.add(PrimitiveType(Position.zero(), 'Math'))
             self.type_map.add(PrimitiveType(Position.zero(), 'System'))
+            self.type_map.add(PrimitiveType(Position.zero(), 'Random'))
     
     def use(self, pos: Position, name: str):
         file = Path(name).resolve()
@@ -165,23 +171,42 @@ class Scope:
         
         for header in stdlib_path.glob('*.hpp'):
             debug(f'Found header file {header}, relative path = {header.relative_to(STDLIB_PATH)}')
-            self.dependencies.append(header.relative_to(STDLIB_PATH))
+            self.dependencies.append(Dependency(header.relative_to(STDLIB_PATH), 'hpp'))
         
         for cfile in stdlib_path.glob('*.cpp'):
             debug(f'Found source file {cfile}')
-            self.dependencies.append(cfile)
+            self.dependencies.append(Dependency(cfile, 'src'))
         
         for cure in stdlib_path.glob('*.cure'):
             debug(f'Found cure file {cure}')
             self.use_local(cure)
         
-        if (packages := stdlib_path / 'packages.txt').exists():
-            self.dependencies.append(packages)
-        
-        if (libs := stdlib_path / 'libs').exists():
-            for lib in libs.iterdir():
-                debug(f'Found C++ library folder {lib}')
-                self.dependencies.append(lib)
+        if (deps := stdlib_path / 'dependencies.txt').exists():
+            self.read_dependencies(deps)
+    
+    def read_dependencies(self, file: Path):
+        lines = file.read_text().splitlines()
+        for line in lines:
+            if line.startswith('#'):
+                continue
+            elif line.startswith('sources = '):
+                line = line.removeprefix('sources = ')
+                for source in line.split(','):
+                    self.dependencies.append(Dependency(file.parent / Path(source.strip()), 'src'))
+            elif line.startswith('include_dirs = '):
+                line = line.removeprefix('include_dirs = ')
+                for directory in line.split(','):
+                    self.dependencies.append(Dependency(
+                        file.parent / Path(directory.strip()), 'hpp_dir'
+                    ))
+            elif line.startswith('deps = '):
+                line = line.removeprefix('deps = ')
+                for dependency in line.split(','):
+                    self.dependencies.append(Dependency(file.parent / Path(dependency.strip()), 'dep'))
+            elif line.startswith('libs = '):
+                line = line.removeprefix('libs = ')
+                for library in line.split(','):
+                    self.dependencies.append(Dependency(Path(library.strip()), 'lib'))
     
     def use_local(self, file: Path):
         from cure import compile_to_str
@@ -195,7 +220,7 @@ class Scope:
             header_file.write_text(f"""#pragma once
 {code}""")
             
-            self.dependencies.append(header_file)
+            self.dependencies.append(Dependency(header_file, 'hpp'))
             info(f'Compiled {file} to header file {header_file}')
         else:
             info(f'{file} is a wrapper file, no .hpp file generated')
@@ -251,10 +276,10 @@ class Program(Node):
     nodes: list[Node] = field(default_factory=list)
 
     def codegen(self, scope):
-        code = '\n'.join(node.codegen(scope) for node in self.nodes)
+        code = '\n'.join(f'{node.codegen(scope)};' for node in self.nodes)
         includes = '\n'.join(
-            f'#include "{path.as_posix()}"' for path in scope.dependencies
-            if path.suffix == '.hpp'
+            f'#include "{dep.path.as_posix()}"' for dep in scope.dependencies
+            if dep.type == 'hpp'
         )
 
         return f"""{includes}
@@ -479,14 +504,27 @@ class Function(Node):
     extend_type: Type | None = None
 
     def codegen(self, scope):
-        params_str = ', '.join(param.codegen(scope) for param in self.params) if len(self.params) > 0\
-            else 'void'
-        signature = f'{self.ret_type.codegen(scope)} {self.name}({params_str})'
         if self.body is None:
             return ''
-
+        
+        body = self.body.codegen(scope)
+        if self.name == 'main':
+            if len(self.params) != 0:
+                self.pos.comptime_error(scope, 'main function cannot have parameters')
+            
+            if self.ret_type.type != 'int':
+                self.pos.comptime_error(scope, 'main function must return int')
+            
+            params_str = 'int argc, char* argv[]'
+            body = f"""cure_init(argc, argv);
+{body}"""
+        else:
+            params_str = ', '.join(param.codegen(scope) for param in self.params)\
+                if len(self.params) > 0 else 'void'
+        
+        signature = f'{self.ret_type.codegen(scope)} {self.name}({params_str})'
         return f"""{signature} {{
-{self.body.codegen(scope)}
+{body}
 }}"""
     
     def analyse(self, scope):
@@ -769,7 +807,8 @@ class If(Node):
 
     def codegen(self, scope):
         cond, body = self.cond.codegen(scope), self.body.codegen(scope)
-        else_body = f' else {self.else_body.codegen(scope)}' if self.else_body is not None else ''
+        else_body = f' else {{\n{self.else_body.codegen(scope)}\n}}'\
+            if self.else_body is not None else ''
         elseifs = ''.join(elseif.codegen(scope) for elseif in self.elseifs)
         return f"""if ({cond}) {{
 {body}

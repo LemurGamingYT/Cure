@@ -10,6 +10,7 @@
 #include <string>
 #include <vector>
 #include <cctype>
+#include <random>
 
 #define _USE_MATH_DEFINES
 #include <stdarg.h>
@@ -17,7 +18,6 @@
 
 
 using nil = std::nullptr_t;
-
 
 void error(const char* s, ...) {
     va_list args;
@@ -34,7 +34,8 @@ void error(const char* s, ...) {
 
 template<typename T>
 class array : public std::vector<T> {
-    public:
+public:
+    array(int size) : std::vector<T>(size) {}
     array(std::initializer_list<T> init) : std::vector<T>(init) {}
     array() : std::vector<T>() {}
     
@@ -51,7 +52,7 @@ class array : public std::vector<T> {
     int remove_first(T value) {
         auto it = std::find(this->begin(), this->end(), value);
         if (it == this->end())
-        return -1;
+            return -1;
         
         this->erase(it);
         return it - this->begin();
@@ -73,59 +74,59 @@ class array : public std::vector<T> {
         if (index < 0)
             index = length() + index;
             
-            if (index >= length())
+        if (index >= length())
             error("array index out of range");
-            
-            T item = (*this)[index];
-            this->erase(this->begin() + index);
-            return item;
-        }
         
-        T get(int index) const {
-            if (index < 0)
+        T item = (*this)[index];
+        this->erase(this->begin() + index);
+        return item;
+    }
+        
+    T get(int index) const {
+        if (index < 0)
             index = length() + index;
-            
-            if (index >= length())
+        
+        if (index >= length())
             error("index out of range");
-            
-            return (*this)[index];
-        }
-    
-        nil set(int index, T item) {
-            if (index < 0)
-            index = length() + index;
-            
-            if (index >= length())
-            error("array index out of range");
-            
-            (*this)[index] = item;
-            return nil();
-        }
         
-        bool contains(T item) const {
-            return std::find(this->begin(), this->end(), item) != this->end();
-        }
-        
-        int index_of(T item) const {
-            auto it = std::find(this->begin(), this->end(), item);
-            if (it == this->end())
-            return -1;
-        
-            return it - this->begin();
-        }
+        return (*this)[index];
+    }
 
-        nil clear() const {
-            this->clear();
-            return nil();
-        }
+    nil set(int index, T item) {
+        if (index < 0)
+            index = length() + index;
         
-        nil reserve(int size) const {
-            this->reserve(size);
-            return nil();
-        }
+        if (index >= length())
+            error("array index out of range");
         
-        nil reverse() const {
-            std::reverse(this->begin(), this->end());
+        (*this)[index] = item;
+        return nil();
+    }
+    
+    bool contains(T item) const {
+        return std::find(this->begin(), this->end(), item) != this->end();
+    }
+    
+    int index_of(T item) const {
+        auto it = std::find(this->begin(), this->end(), item);
+        if (it == this->end())
+            return -1;
+    
+        return it - this->begin();
+    }
+
+    nil clear() const {
+        this->clear();
+        return nil();
+    }
+    
+    nil reserve(int size) const {
+        this->reserve(size);
+        return nil();
+    }
+    
+    nil reverse() const {
+        std::reverse(this->begin(), this->end());
         return nil();
     }
 
@@ -193,23 +194,23 @@ class string : public std::string {
     
     string get(int index) const {
         if (index < 0)
-        index = static_cast<int>(length()) + index;
+            index = static_cast<int>(length()) + index;
         
         if (index >= static_cast<int>(length()))
-        error("string index out of range");
+            error("string index out of range");
         
         return (*this)[index];
     }
     
     nil set(int index, string s) {
         if (s.length() != 1)
-        error("set expects a string character");
+            error("set expects a string character");
         
         if (index < 0)
-        index = static_cast<int>(length()) + index;
+            index = static_cast<int>(length()) + index;
         
         if (index >= static_cast<int>(length()))
-        error("string index out of range");
+            error("string index out of range");
         
         (*this)[index] = s[0];
         return nil();
@@ -317,7 +318,7 @@ public:
 
 class Vector2 {
     float _x, _y;
-    public:
+public:
     Vector2(float x, float y) : _x(x), _y(y) {}
     
     float x() const { return _x; }
@@ -343,6 +344,8 @@ class Vector2 {
     bool operator!=(const Vector2& other) const { return _x != other.x() || _y != other.y(); }
 };
 
+
+static array<string> args;
 
 void error(const string s, ...) {
     va_list args;
@@ -397,7 +400,20 @@ float Math_sqrt(float x) { return std::sqrtf((int)x); }
 int Math_sqrt(int x) { return std::sqrtf((int)x); }
 int Math_floor(float x) { return std::floorf(x); }
 int Math_ceil(float x) { return std::ceilf(x); }
+int Math_round(float x) { return std::roundf(x); }
+float Math_round(float x, int precision) {
+    precision = std::pow(10, precision);
+    return std::roundf(x * precision) / precision;
+}
 
+
+void cure_init(int argc, char* argv[]) {
+    args = array<string>(argc);
+    for (int i = 0; i < argc; ++i)
+        args.set(i, argv[i]);
+}
+
+array<string> System_args(void) { return args; }
 
 string System_cwd(void) { return std::filesystem::current_path().string(); }
 int System_pid(void) { // TODO: test if this works on all the target platforms
@@ -417,6 +433,19 @@ nil System_sleep(int ms) {
     std::this_thread::sleep_for(std::chrono::milliseconds(ms));
     return nil();
 }
+
+
+int Random_next(int min, int max) {
+    std::random_device dev;
+    std::mt19937 rng(dev());
+    std::uniform_int_distribution<std::mt19937::result_type> dist(min, max);
+    return dist(rng);
+}
+
+int Random_next(int max) { return Random_next(0, max); }
+float Random_next_float() { return static_cast<float>(Random_next(0, 100) / 100); }
+float Random_next_float(float min, float max) { return min + (max - min) * Random_next_float(); }
+float Random_next_float(float max) { return Random_next_float(0, max); }
 
 
 int int_add_int(int a, int b) {
@@ -451,6 +480,9 @@ int int_mod_int(int a, int b) {
     return a % b;
 }
 
+int add_int(int a) { return +a; }
+int sub_int(int a) { return -a; }
+
 float float_add_float(float a, float b) {
     float c = a + b;
     if (std::isinf(c)) error("overflow");
@@ -478,6 +510,9 @@ float float_mod_float(float a, float b) {
     if (b == 0) error("modulo by zero");
     return std::fmod(a, b);
 }
+
+float add_float(float a) { return +a; }
+float sub_float(float a) { return -a; }
 
 float float_add_int(float a, int b) { return float_add_float(a, (float)b); }
 float float_sub_int(float a, int b) { return float_sub_float(a, (float)b); }

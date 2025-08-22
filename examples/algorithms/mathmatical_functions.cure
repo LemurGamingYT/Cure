@@ -1,0 +1,44 @@
+fn gcd(mut int a, mut int b) -> int {
+    while (b != 0) {
+        temp = a
+        b = a % b
+        a = temp
+    }
+
+    return a
+}
+
+fn is_prime(int n) -> bool {
+    if (n <= 1) { return false }
+    mut i = 2
+    while i * i <= n {
+        if n % i == 0 { return false }
+
+        i += 1
+    }
+
+    return true
+}
+
+fn sum_of_digits(mut int n) -> int {
+    if n < 0 { n = -n }
+    mut sum = 0
+    while n > 0 {
+        sum += n % 10
+        n /= 10
+    }
+
+    return sum
+}
+
+fn main() -> int {
+    print("The Greatest Common Divisor (GCD) of 21 and 90 is " + to_string(gcd(21, 90)))
+    if is_prime(79) {
+        print("79 is a prime number")
+    } else {
+        print("79 is not a prime number")
+    }
+
+    print("The sum of the digits of 5920 is " + to_string(sum_of_digits(5920)))
+    return 0
+}

@@ -26,7 +26,7 @@ if __name__ == '__main__':
     init()
     basicConfig(
         filename='debug.log', filemode='w',
-        format='%(asctime)s [%(levelname)s] %(filename)s (line %(lineno)d) - %(message)s',
+        format='[%(levelname)s] %(filename)s (line %(lineno)d) - %(message)s',
         datefmt='%H:%M:%S', encoding='utf-8', level=DEBUG
     )
     main()

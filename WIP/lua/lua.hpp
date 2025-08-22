@@ -19,9 +19,9 @@ WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN 
 SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. */
 
 #include "builtins/builtins.hpp"
-#include "lib/lua.h"
-#include "lib/lualib.h"
-#include "lib/lauxlib.h"
+#include "libs/lua/lua.h"
+#include "libs/lua/lualib.h"
+#include "libs/lua/lauxlib.h"
 
 
 // TODO: look at https://www.lua.org/pil/contents.html

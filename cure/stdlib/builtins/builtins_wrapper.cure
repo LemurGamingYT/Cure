@@ -84,26 +84,6 @@ extern internal class Vector2 {
     extern fn !=(self a, self b) -> bool
 }
 
-extern internal class Vector3 {
-    extern static method fn new(float x, float y, float z) -> self
-    extern static method fn new(int x, int y, int z) -> self
-    extern method fn distance(self other) -> int
-    extern method fn distance_squared(self other) -> int
-
-    extern property fn x() -> float
-    extern property fn y() -> float
-    extern property fn length() -> int
-    extern property fn length_squared() -> int
-    extern property fn normalized() -> self
-
-    extern fn +(self a, self b) -> self
-    extern fn -(self a, self b) -> self
-    extern fn *(self a, self b) -> self
-    extern fn /(self a, self b) -> self
-    extern fn ==(self a, self b) -> bool
-    extern fn !=(self a, self b) -> bool
-}
-
 extern method fn to_string(int i) -> string
 extern method fn to_string(float f) -> string
 extern method fn to_string(string s) -> string
@@ -129,18 +109,29 @@ extern static method fn Math.sqrt(float x) -> float
 extern static method fn Math.sqrt(int x) -> int
 extern static method fn Math.floor(float x) -> int
 extern static method fn Math.ceil(float x) -> int
+extern static method fn Math.round(float x) -> int
+extern static method fn Math.round(float x, int precision) -> float
 
+extern static property fn System.args() -> string[]
 extern static property fn System.cwd() -> string
 extern static property fn System.pid() -> int
 extern static method fn System.exit()
 extern static method fn System.exit(int code)
 extern static method fn System.sleep(int milliseconds)
 
+extern static method fn Random.next(int min, int max) -> int
+extern static method fn Random.next(int max) -> int
+extern static method fn Random.next_float() -> float
+extern static method fn Random.next_float(float min, float max) -> float
+extern static method fn Random.next_float(float max) -> float
+
 extern fn +(int a, int b) -> int
 extern fn -(int a, int b) -> int
 extern fn *(int a, int b) -> int
 extern fn /(int a, int b) -> int
 extern fn %(int a, int b) -> int
+extern fn +(int a) -> int
+extern fn -(int a) -> int
 extern internal fn ==(int a, int b) -> bool
 extern internal fn !=(int a, int b) -> bool
 extern internal fn <(int a, int b) -> bool
@@ -153,6 +144,8 @@ extern fn -(float a, float b) -> float
 extern fn *(float a, float b) -> float
 extern fn /(float a, float b) -> float
 extern fn %(float a, float b) -> float
+extern fn +(float a) -> float
+extern fn -(float a) -> float
 extern internal fn ==(float a, float b) -> bool
 extern internal fn !=(float a, float b) -> bool
 extern internal fn <(float a, float b) -> bool

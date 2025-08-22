@@ -44,12 +44,17 @@ def compile_to_exe(scope: Scope):
     debug(f'main.cpp = {main_file}')
 
     code_files = ' '.join([main_file.as_posix()] + [
-        file.as_posix() for file in scope.dependencies
-        if file.suffix == '.cpp'
+        dep.path.as_posix() for dep in scope.dependencies
+        if dep.type == 'src'
+    ])
+    
+    include_dirs = ' '.join([STDLIB_PATH.absolute().as_posix()] + [
+        dep.path.as_posix() for dep in scope.dependencies
+        if dep.type == 'hpp_dir'
     ])
 
     cmake_code = f"""cmake_minimum_required(VERSION 3.10)
-project({cmake_name} LANGUAGES CXX)
+project({cmake_name})
 # set(CMAKE_MESSAGE_LOG_LEVEL "WARNING")
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_BUILD_TYPE "{build_type}")
@@ -57,7 +62,7 @@ set(SOURCES {code_files})
 
 add_executable({cmake_name} ${{SOURCES}})
 
-target_include_directories({cmake_name} PRIVATE {STDLIB_PATH.absolute().as_posix()})
+target_include_directories({cmake_name} PRIVATE {include_dirs})
 
 if (MSVC)
     target_compile_options({cmake_name} PRIVATE /W4)
@@ -67,30 +72,21 @@ endif()
 
 add_definitions(-D{scope.target.macro_name}=1)
 """
-    
+
     for dep in scope.dependencies:
-        if dep.name != 'packages.txt':
-            continue
-
-        packages = [line.strip() for line in dep.read_text().splitlines()]
-        for package_name in packages:
-            cmake_code += f"""
-find_package({package_name} REQUIRED)
-include_directories(${{{package_name.upper()}_INCLUDE_DIRS}})
-target_link_libraries({cmake_name} PRIVATE ${{{package_name.upper()}_LIBRARIES}})
+        match dep.type:
+            case 'lib':
+                cmake_code += f"""
+target_link_libraries({cmake_name} PRIVATE {dep.path.as_posix()})
 """
-
-    libs = [dep for dep in scope.dependencies if dep.is_dir()]
-    for lib in libs:
-        cmake_code += f"""
-add_subdirectory({lib.as_posix()} ${{CMAKE_CURRENT_BINARY_DIR}}/{lib.name})
-target_link_libraries({cmake_name} PRIVATE {lib.name})
-target_include_directories({cmake_name} PRIVATE {lib.as_posix()}/include)
+            case 'dep':
+                cmake_code += f"""
+add_subdirectory({dep.path.as_posix()} ${{CMAKE_BINARY_DIR}}/{dep.path.name})
 """
 
     cmakelists = build_dir / 'CMakeLists.txt'
     cmakelists.write_text(cmake_code)
-    
+
     kwargs = {'-S': cmakelists.parent.as_posix()}
     ret_code = compile_cmake(build_dir, **kwargs)
     if ret_code.returncode != 0:

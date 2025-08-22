@@ -35,7 +35,7 @@ def test_compiler():
 
 def test_examples():
     examples_dir = Path.cwd() / 'examples'
-    files = list(examples_dir.glob('*.cure'))
+    files = list(examples_dir.rglob('*.cure'))
     num_files = len(files)
 
     fails = []

@@ -1,9 +1,0 @@
-fn double_n(int n) -> int {
-    return n * 2
-}
-
-fn main() -> int {
-    arr = [1, 2, 3, 4, 5]
-    print(arr.map(double_n))
-    return 0
-}
